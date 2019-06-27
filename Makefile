@@ -1,15 +1,15 @@
-# Htspan makefile for ALGLIB
-# Compiles only the chi squared distribution and its dependencies (ALGLIB core, gamma functions, normal distribution)
+#Generic makefile for ALGLIB Github mirror at https://github.com/georgehodgkins/ALGLIB
 
-defines = -D AE_COMPILE_CHISQUAREDISTR
+CPPFLAGS = -I. -c -O3
 
-sources = ap.cpp alglibinternal.cpp specialfunctions.cpp 
+ifdef defines
+	CPPFLAGS += $(defines)
+endif
 
 all: libalg.a
 
-
 libalg.a:
-	g++ -I. -c -O3 $(defines) $(sources)
+	g++ $(CPPFLAGS) *.cpp
 	ar rcs $@ *.o
 	rm -f *.gch *.o
 

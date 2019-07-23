@@ -2,16 +2,17 @@
 
 CPPFLAGS = -I. -c -O3
 
-ifdef defines
-	CPPFLAGS += $(defines)
+ifdef targets
+	CPPFLAGS += $(targets)
 endif
 
 all: libalg.a
+	
 
 libalg.a:
 	g++ $(CPPFLAGS) *.cpp
 	ar rcs $@ *.o
 	rm -f *.gch *.o
 
-clean: 
+clean:
 	rm -f libalg.a

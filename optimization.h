@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -105,6 +105,19 @@ typedef struct
     ae_int_t cnt;
     ae_int_t stpidxa;
     ae_int_t stpidxb;
+} optguardnonc0report;
+typedef struct
+{
+    ae_bool positive;
+    ae_int_t fidx;
+    ae_vector x0;
+    ae_vector d;
+    ae_int_t n;
+    ae_vector stp;
+    ae_vector f;
+    ae_int_t cnt;
+    ae_int_t stpidxa;
+    ae_int_t stpidxb;
 } optguardnonc1test0report;
 typedef struct
 {
@@ -157,12 +170,26 @@ typedef struct
     ae_vector sortedstp;
     ae_vector sortedidx;
     ae_int_t sortedcnt;
+    double probingstp;
+    ae_vector probingf;
+    ae_int_t probingnvalues;
+    double probingstepmax;
+    double probingstepscale;
+    ae_int_t probingnstepsstored;
+    ae_vector probingsteps;
+    ae_matrix probingvalues;
+    ae_matrix probingslopes;
+    rcommstate probingrcomm;
     ae_bool linesearchspoiled;
     ae_bool linesearchstarted;
     double nonc0currentrating;
     double nonc1currentrating;
     ae_bool badgradhasxj;
     optguardreport rep;
+    double nonc0strrating;
+    double nonc0lngrating;
+    optguardnonc0report nonc0strrep;
+    optguardnonc0report nonc0lngrep;
     double nonc1test0strrating;
     double nonc1test0lngrating;
     optguardnonc1test0report nonc1test0strrep;
@@ -348,6 +375,238 @@ typedef struct
     ae_int_t repncupdates;
 } qqpbuffers;
 #endif
+#if defined(AE_COMPILE_LPQPSERV) || !defined(AE_PARTIAL_BUILD)
+#endif
+#if defined(AE_COMPILE_VIPMSOLVER) || !defined(AE_PARTIAL_BUILD)
+typedef struct
+{
+    ae_int_t n;
+    ae_int_t m;
+    ae_vector x;
+    ae_vector g;
+    ae_vector w;
+    ae_vector t;
+    ae_vector p;
+    ae_vector y;
+    ae_vector z;
+    ae_vector v;
+    ae_vector s;
+    ae_vector q;
+} vipmvars;
+typedef struct
+{
+    ae_int_t n;
+    ae_int_t nmain;
+    double regeps;
+    double epsp;
+    double epsd;
+    double epsgap;
+    ae_bool islinear;
+    ae_vector scl;
+    ae_vector invscl;
+    ae_vector xorigin;
+    double targetscale;
+    ae_vector c;
+    ae_matrix denseh;
+    sparsematrix sparseh;
+    ae_int_t hkind;
+    ae_vector bndl;
+    ae_vector bndu;
+    ae_vector rawbndl;
+    ae_vector rawbndu;
+    ae_vector hasbndl;
+    ae_vector hasbndu;
+    ae_matrix denseafull;
+    ae_matrix denseamain;
+    sparsematrix sparseafull;
+    sparsematrix sparseamain;
+    sparsematrix combinedaslack;
+    ae_vector ascales;
+    ae_vector b;
+    ae_vector r;
+    ae_vector hasr;
+    ae_int_t mdense;
+    ae_int_t msparse;
+    vipmvars current;
+    vipmvars trial;
+    vipmvars deltaaff;
+    vipmvars deltacorr;
+    double errp2;
+    double errd2;
+    double errpinf;
+    double errdinf;
+    ae_int_t repiterationscount;
+    ae_int_t repncholesky;
+    ae_int_t factorizationtype;
+    ae_bool factorizationpoweredup;
+    ae_bool factorizationpresent;
+    ae_vector diagginvz;
+    ae_vector diagzinvg;
+    ae_vector diagtinvs;
+    ae_vector diagsinvt;
+    ae_vector diagvinvw;
+    ae_vector diagpinvq;
+    ae_vector diagqinvp;
+    ae_vector diagd;
+    ae_vector diage;
+    ae_matrix factdensehaug;
+    ae_vector factdh;
+    ae_vector factdz;
+    ae_vector factinvdz;
+    ae_vector facteffectivee;
+    sparsematrix factsparsekkttmpl;
+    sparsematrix factsparsekkt;
+    ae_vector factsparsekktpivp;
+    ae_vector factsparsekktpivq;
+    ae_vector rhsrho;
+    ae_vector rhsnu;
+    ae_vector rhstau;
+    ae_vector rhsalpha;
+    ae_vector rhssigma;
+    ae_vector rhsbeta;
+    ae_vector rhsgammaz;
+    ae_vector rhsgammas;
+    ae_vector rhsgammaw;
+    ae_vector rhsgammaq;
+    ae_vector rhsalphacap;
+    ae_vector rhsbetacap;
+    ae_vector rhsnucap;
+    ae_vector rhstaucap;
+    ae_vector deltaxy;
+    ae_vector tmphx;
+    ae_vector tmpax;
+    ae_vector tmpaty;
+    ae_vector dummyr;
+    ae_vector tmp0;
+    ae_vector tmp1;
+    ae_vector tmp2;
+    ae_matrix tmpr2;
+    ae_vector evalprogressg;
+    ae_vector tmpi;
+    sparsematrix tmpsparse0;
+    sparsematrix tmpsparse1;
+} vipmstate;
+#endif
+#if defined(AE_COMPILE_NLCSQP) || !defined(AE_PARTIAL_BUILD)
+typedef struct
+{
+    ae_int_t algokind;
+    vipmstate ipmsolver;
+    ae_vector curb;
+    ae_vector curbndl;
+    ae_vector curbndu;
+    ae_vector cural;
+    ae_vector curau;
+    sparsematrix sparserawlc;
+    sparsematrix sparseefflc;
+    ae_vector d0;
+    ae_matrix h;
+    ae_matrix densedummy;
+    sparsematrix sparsedummy;
+    ae_vector tmp0;
+    ae_vector tmp1;
+    ae_vector tmp2;
+    ae_vector sk;
+    ae_vector yk;
+    ae_vector hasbndl;
+    ae_vector hasbndu;
+    ae_vector hasal;
+    ae_vector hasau;
+    ae_matrix activea;
+    ae_vector activerhs;
+    ae_vector activeidx;
+    ae_int_t activesetsize;
+} minsqpsubsolver;
+typedef struct
+{
+    ae_vector sclagtmp0;
+    ae_vector sclagtmp1;
+} minsqptmplagrangian;
+typedef struct
+{
+    ae_vector mftmp0;
+} minsqptmpmerit;
+typedef struct
+{
+    ae_int_t n;
+    ae_int_t nec;
+    ae_int_t nic;
+    ae_int_t nlec;
+    ae_int_t nlic;
+    ae_vector d;
+    ae_vector dx;
+    ae_vector stepkx;
+    ae_vector stepkxc;
+    ae_vector stepkxn;
+    ae_vector stepkfi;
+    ae_vector stepkfic;
+    ae_vector stepkfin;
+    ae_matrix stepkj;
+    ae_matrix stepkjc;
+    ae_matrix stepkjn;
+    ae_vector lagmult;
+    ae_vector dummylagmult;
+    minsqptmpmerit tmpmerit;
+    minsqptmplagrangian tmplagrangianfg;
+    ae_vector stepklaggrad;
+    ae_vector stepknlaggrad;
+    ae_int_t status;
+    rcommstate rmeritphasestate;
+} minsqpmeritphasestate;
+typedef struct
+{
+    ae_int_t n;
+    ae_int_t nec;
+    ae_int_t nic;
+    ae_int_t nlec;
+    ae_int_t nlic;
+    ae_vector s;
+    ae_matrix scaledcleic;
+    ae_vector lcsrcidx;
+    ae_vector hasbndl;
+    ae_vector hasbndu;
+    ae_vector scaledbndl;
+    ae_vector scaledbndu;
+    double epsx;
+    ae_int_t maxits;
+    ae_vector x;
+    ae_vector fi;
+    ae_matrix j;
+    double f;
+    ae_bool needfij;
+    ae_bool xupdated;
+    minsqpmeritphasestate meritstate;
+    double trustrad;
+    ae_int_t fstagnationcnt;
+    ae_vector step0x;
+    ae_vector stepkx;
+    ae_vector backupx;
+    ae_vector step0fi;
+    ae_vector stepkfi;
+    ae_vector backupfi;
+    ae_matrix step0j;
+    ae_matrix stepkj;
+    ae_bool haslagmult;
+    ae_vector meritlagmult;
+    ae_vector dummylagmult;
+    ae_vector fscales;
+    minsqpsubsolver subsolver;
+    minsqptmpmerit tmpmerit;
+    ae_int_t repsimplexiterations;
+    ae_int_t repsimplexiterations1;
+    ae_int_t repsimplexiterations2;
+    ae_int_t repsimplexiterations3;
+    ae_int_t repiterationscount;
+    ae_int_t repterminationtype;
+    double repbcerr;
+    ae_int_t repbcidx;
+    double replcerr;
+    ae_int_t replcidx;
+    double repnlcerr;
+    ae_int_t repnlcidx;
+    rcommstate rstate;
+} minsqpstate;
+#endif
 #if defined(AE_COMPILE_MINLBFGS) || !defined(AE_PARTIAL_BUILD)
 typedef struct
 {
@@ -436,6 +695,8 @@ typedef struct
     ae_vector sclsftbndu;
     ae_vector sclsftxc;
     ae_matrix sclsftcleic;
+    ae_vector cidx;
+    ae_vector cscales;
     ae_matrix exa;
     ae_vector exb;
     ae_vector exxc;
@@ -446,6 +707,7 @@ typedef struct
     qqpsettings qqpsettingsuser;
     qqpbuffers qqpbuf;
     ae_vector nulcest;
+    ae_vector tmpg;
     ae_vector tmp0;
     ae_matrix tmp2;
     ae_vector modelg;
@@ -606,6 +868,7 @@ typedef struct
     qqpsettings qqpsettingsuser;
     qpbleicsettings qpbleicsettingsuser;
     qpdenseaulsettings qpdenseaulsettingsuser;
+    double veps;
     ae_bool dbgskipconstraintnormalization;
     ae_int_t algokind;
     ae_int_t akind;
@@ -625,26 +888,34 @@ typedef struct
     ae_vector xorigin;
     ae_vector startx;
     ae_bool havex;
-    ae_matrix cleic;
-    ae_int_t nec;
-    ae_int_t nic;
-    sparsematrix scleic;
-    ae_int_t snec;
-    ae_int_t snic;
+    ae_matrix densec;
+    sparsematrix sparsec;
+    ae_vector cl;
+    ae_vector cu;
+    ae_int_t mdense;
+    ae_int_t msparse;
     ae_vector xs;
     ae_int_t repinneriterationscount;
     ae_int_t repouteriterationscount;
     ae_int_t repncholesky;
     ae_int_t repnmv;
     ae_int_t repterminationtype;
+    ae_vector replagbc;
+    ae_vector replaglc;
     ae_vector effectives;
     ae_vector tmp0;
     ae_matrix ecleic;
+    ae_vector elaglc;
+    ae_vector elagmlt;
+    ae_vector elagidx;
     ae_matrix dummyr2;
+    sparsematrix dummysparse;
+    ae_matrix tmpr2;
     ae_bool qpbleicfirstcall;
     qpbleicbuffers qpbleicbuf;
     qqpbuffers qqpbuf;
     qpdenseaulbuffers qpdenseaulbuf;
+    vipmstate vsolver;
 } minqpstate;
 typedef struct
 {
@@ -653,6 +924,8 @@ typedef struct
     ae_int_t nmv;
     ae_int_t ncholesky;
     ae_int_t terminationtype;
+    ae_vector lagbc;
+    ae_vector laglc;
 } minqpreport;
 #endif
 #if defined(AE_COMPILE_REVISEDDUALSIMPLEX) || !defined(AE_PARTIAL_BUILD)
@@ -831,11 +1104,59 @@ typedef struct
 } minslpsubsolver;
 typedef struct
 {
+    ae_vector sclagtmp0;
+    ae_vector sclagtmp1;
+} minslptmplagrangian;
+typedef struct
+{
+    ae_vector mftmp0;
+} minslptmpmerit;
+typedef struct
+{
+    ae_bool usecorrection;
+    ae_vector d;
+    ae_vector dx;
+    ae_vector stepkxc;
+    ae_vector stepkxn;
+    ae_vector stepkfic;
+    ae_vector stepkfin;
+    ae_matrix stepkjc;
+    ae_matrix stepkjn;
+    ae_vector dummylagmult;
+    minslptmpmerit tmpmerit;
+    rcommstate rphase13state;
+} minslpphase13state;
+typedef struct
+{
+    ae_vector stepkxn;
+    ae_vector stepkxc;
+    ae_vector stepkfin;
+    ae_vector stepkfic;
+    ae_matrix stepkjn;
+    ae_matrix stepkjc;
+    ae_vector stepklaggrad;
+    ae_vector stepknlaggrad;
+    ae_vector stepknlagmult;
+    ae_vector meritlagmult;
+    minslptmplagrangian tmplagrangianfg;
+    double lastlcerr;
+    ae_int_t lastlcidx;
+    double lastnlcerr;
+    ae_int_t lastnlcidx;
+    ae_vector tmp0;
+    ae_vector d;
+    linminstate mcstate;
+    minslptmpmerit tmpmerit;
+    rcommstate rphase2state;
+} minslpphase2state;
+typedef struct
+{
     ae_int_t n;
     ae_int_t nec;
     ae_int_t nic;
     ae_int_t nlec;
     ae_int_t nlic;
+    ae_vector s;
     ae_matrix scaledcleic;
     ae_vector lcsrcidx;
     ae_vector hasbndl;
@@ -851,44 +1172,27 @@ typedef struct
     double f;
     ae_bool needfij;
     ae_bool xupdated;
+    minslpphase13state state13;
+    minslpphase2state state2;
     double trustrad;
-    double deltamax;
-    minslpsubsolver subsolver;
-    ae_vector d;
-    ae_vector d0;
-    ae_vector d1;
-    linminstate mcstate;
-    ae_int_t xstagnationcnt;
+    ae_int_t lpfailurecnt;
     ae_int_t fstagnationcnt;
-    ae_vector prevx;
     ae_vector step0x;
     ae_vector stepkx;
-    ae_vector stepkxc;
-    ae_vector stepkxn;
+    ae_vector backupx;
     ae_vector step0fi;
     ae_vector stepkfi;
-    ae_vector stepkfic;
-    ae_vector stepkfin;
+    ae_vector backupfi;
     ae_matrix step0j;
     ae_matrix stepkj;
-    ae_matrix stepkjc;
-    ae_matrix stepkjn;
-    double stepklagval;
-    double stepkclagval;
-    double stepknlagval;
-    ae_vector stepklaggrad;
-    ae_vector stepknlaggrad;
-    ae_vector stepklagmult;
-    ae_vector stepknlagmult;
-    ae_vector rho;
-    ae_vector tmp0;
-    ae_vector sclagtmp0;
-    ae_vector sclagtmp1;
-    double lastlcerr;
-    ae_int_t lastlcidx;
-    double lastnlcerr;
-    ae_int_t lastnlcidx;
-    ae_vector mftmp0;
+    ae_matrix backupj;
+    ae_vector meritlagmult;
+    ae_vector dummylagmult;
+    ae_vector fscales;
+    ae_vector meritfunctionhistory;
+    ae_int_t historylen;
+    minslpsubsolver subsolver;
+    minslptmpmerit tmpmerit;
     ae_int_t repsimplexiterations;
     ae_int_t repsimplexiterations1;
     ae_int_t repsimplexiterations2;
@@ -903,8 +1207,6 @@ typedef struct
     double repnlcerr;
     ae_int_t repnlcidx;
     rcommstate rstate;
-    rcommstate rphase13state;
-    rcommstate rphase2state;
 } minslpstate;
 #endif
 #if defined(AE_COMPILE_MINNLC) || !defined(AE_PARTIAL_BUILD)
@@ -977,6 +1279,7 @@ typedef struct
     ae_vector nunlc;
     ae_bool userterminationneeded;
     minslpstate slpsolverstate;
+    minsqpstate sqpsolverstate;
     ae_int_t smoothnessguardlevel;
     smoothnessmonitor smonitor;
     ae_vector lastscaleused;
@@ -1619,6 +1922,82 @@ public:
 
 
 /*************************************************************************
+This  structure  is  used  for  detailed   reporting  about  suspected  C0
+continuity violation.
+
+=== WHAT IS TESTED =======================================================
+
+C0 test  studies  function  values (not gradient!)  obtained  during  line
+searches and monitors estimate of the Lipschitz  constant.  Sudden  spikes
+usually indicate that discontinuity was detected.
+
+
+=== WHAT IS REPORTED =====================================================
+
+Actually, report retrieval function returns TWO report structures:
+
+* one for most suspicious point found so far (one with highest  change  in
+  the function value), so called "strongest" report
+* another one for most detailed line search (more function  evaluations  =
+  easier to understand what's going on) which triggered  test #0 criteria,
+  so called "longest" report
+
+In both cases following fields are returned:
+
+* positive - is TRUE  when test flagged suspicious point;  FALSE  if  test
+  did not notice anything (in the latter cases fields below are empty).
+* fidx - is an index of the function (0 for  target  function, 1 or higher
+  for nonlinear constraints) which is suspected of being "non-C1"
+* x0[], d[] - arrays of length N which store initial point  and  direction
+  for line search (d[] can be normalized, but does not have to)
+* stp[], f[] - arrays of length CNT which store step lengths and  function
+  values at these points; f[i] is evaluated in x0+stp[i]*d.
+* stpidxa, stpidxb - we  suspect  that  function  violates  C1  continuity
+  between steps #stpidxa and #stpidxb (usually we have  stpidxb=stpidxa+3,
+  with  most  likely  position  of  the  violation  between  stpidxa+1 and
+  stpidxa+2.
+
+You can plot function values stored in stp[]  and  f[]  arrays  and  study
+behavior of your function by your own eyes, just  to  be  sure  that  test
+correctly reported C1 violation.
+
+  -- ALGLIB --
+     Copyright 19.11.2018 by Bochkanov Sergey
+*************************************************************************/
+class _optguardnonc0report_owner
+{
+public:
+    _optguardnonc0report_owner();
+    _optguardnonc0report_owner(const _optguardnonc0report_owner &rhs);
+    _optguardnonc0report_owner& operator=(const _optguardnonc0report_owner &rhs);
+    virtual ~_optguardnonc0report_owner();
+    alglib_impl::optguardnonc0report* c_ptr();
+    alglib_impl::optguardnonc0report* c_ptr() const;
+protected:
+    alglib_impl::optguardnonc0report *p_struct;
+};
+class optguardnonc0report : public _optguardnonc0report_owner
+{
+public:
+    optguardnonc0report();
+    optguardnonc0report(const optguardnonc0report &rhs);
+    optguardnonc0report& operator=(const optguardnonc0report &rhs);
+    virtual ~optguardnonc0report();
+    ae_bool &positive;
+    ae_int_t &fidx;
+    real_1d_array x0;
+    real_1d_array d;
+    ae_int_t &n;
+    real_1d_array stp;
+    real_1d_array f;
+    ae_int_t &cnt;
+    ae_int_t &stpidxa;
+    ae_int_t &stpidxb;
+
+};
+
+
+/*************************************************************************
 This  structure  is  used  for  detailed   reporting  about  suspected  C1
 continuity violation as flagged by C1 test #0 (OptGuard  has several tests
 for C1 continuity, this report is used by #0).
@@ -1801,6 +2180,18 @@ public:
 #endif
 
 #if defined(AE_COMPILE_QQPSOLVER) || !defined(AE_PARTIAL_BUILD)
+
+#endif
+
+#if defined(AE_COMPILE_LPQPSERV) || !defined(AE_PARTIAL_BUILD)
+
+#endif
+
+#if defined(AE_COMPILE_VIPMSOLVER) || !defined(AE_PARTIAL_BUILD)
+
+#endif
+
+#if defined(AE_COMPILE_NLCSQP) || !defined(AE_PARTIAL_BUILD)
 
 #endif
 
@@ -2037,6 +2428,12 @@ This structure stores optimization report:
                             (only products calculated as part of iterative
                             process are counted)
 * TerminationType           completion code (see below)
+* LagBC                     Lagrange multipliers for box constraints,
+                            array[N], not filled by QP-BLEIC solver
+* LagLC                     Lagrange multipliers for linear constraints,
+                            array[MSparse+MDense], ignored by QP-BLEIC solver
+
+=== COMPLETION CODES =====================================================
 
 Completion codes:
 * -9    failure of the automatic scale evaluation:  one  of  the  diagonal
@@ -2057,6 +2454,38 @@ Completion codes:
 *  7    stopping conditions are too stringent,
         further improvement is impossible,
         X contains best point found so far.
+
+=== LAGRANGE MULTIPLIERS =================================================
+
+Some  optimizers  report  values of  Lagrange  multipliers  on  successful
+completion (positive completion code):
+* DENSE-IPM-QP and SPARSE-IPM-QP return very precise Lagrange  multipliers
+  as determined during solution process.
+* DENSE-AUL-QP returns approximate Lagrange multipliers  (which  are  very
+  close to "true"  Lagrange  multipliers  except  for  overconstrained  or
+  degenerate problems)
+
+Two arrays of multipliers are returned:
+* LagBC is array[N] which is loaded with multipliers from box constraints;
+  LagBC[i]>0 means that I-th constraint is at the  upper bound, LagBC[I]<0
+  means that I-th constraint is at the lower bound, LagBC[I]=0 means  that
+  I-th box constraint is inactive.
+* LagLC is array[MSparse+MDense] which is  loaded  with  multipliers  from
+  general  linear  constraints  (former  MSparse  elements  corresponds to
+  sparse part of the constraint matrix, latter MDense are  for  the  dense
+  constraints, as was specified by user).
+  LagLC[i]>0 means that I-th constraint at  the  upper  bound,  LagLC[i]<0
+  means that I-th constraint is at the lower bound, LagLC[i]=0 means  that
+  I-th linear constraint is inactive.
+
+On failure (or when optimizer does not support Lagrange multipliers) these
+arrays are zero-filled.
+
+NOTE: methods  from  IPM  family  may  also  return  meaningful   Lagrange
+      multipliers on completion with codes -3 (infeasibility detected) and
+      -4  (unboundedness  detected).   It   is   possible   that   seeming
+      infeasibility/unboundedness of the problem is due to rounding errors
+      In this case last values of Lagrange multipliers are returned.
 *************************************************************************/
 class _minqpreport_owner
 {
@@ -2082,6 +2511,8 @@ public:
     ae_int_t &nmv;
     ae_int_t &ncholesky;
     ae_int_t &terminationtype;
+    real_1d_array lagbc;
+    real_1d_array laglc;
 
 };
 #endif
@@ -2743,6 +3174,18 @@ public:
 #endif
 
 #if defined(AE_COMPILE_QQPSOLVER) || !defined(AE_PARTIAL_BUILD)
+
+#endif
+
+#if defined(AE_COMPILE_LPQPSERV) || !defined(AE_PARTIAL_BUILD)
+
+#endif
+
+#if defined(AE_COMPILE_VIPMSOLVER) || !defined(AE_PARTIAL_BUILD)
+
+#endif
+
+#if defined(AE_COMPILE_NLCSQP) || !defined(AE_PARTIAL_BUILD)
 
 #endif
 
@@ -4366,21 +4809,47 @@ void minbleicrequesttermination(const minbleicstate &state, const xparams _xpara
 
 The subroutine creates QP optimizer. After initial creation,  it  contains
 default optimization problem with zero quadratic and linear terms  and  no
-constraints. You should set quadratic/linear terms with calls to functions
-provided by MinQP subpackage.
+constraints.
 
-You should also choose appropriate QP solver and set it  and  its stopping
-criteria by means of MinQPSetAlgo??????() function. Then, you should start
-solution process by means of MinQPOptimize() call. Solution itself can  be
-obtained with MinQPResults() function.
+In order to actually solve something you should:
+* set cost vector with minqpsetlinearterm()
+* set variable bounds with minqpsetbc() or minqpsetbcall()
+* specify constraint matrix with one of the following functions:
+  * modern API:
+    * minqpsetlc2()       for sparse two-sided constraints AL <= A*x <= AU
+    * minqpsetlc2dense()  for dense  two-sided constraints AL <= A*x <= AU
+    * minqpsetlc2mixed()  for mixed  two-sided constraints AL <= A*x <= AU
+    * minqpaddlc2dense()  to add one dense row to dense constraint submatrix
+    * minqpaddlc2()       to add one sparse row to sparse constraint submatrix
+  * legacy API:
+    * minqpsetlc()        for dense one-sided equality/inequality constraints
+    * minqpsetlcsparse()  for sparse one-sided equality/inequality constraints
+    * minqpsetlcmixed()   for mixed dense/sparse one-sided equality/inequality constraints
+* choose appropriate QP solver and set it  and  its stopping  criteria  by
+  means of minqpsetalgo??????() function
+* call minqpoptimize() to run the solver and  minqpresults()  to  get  the
+  solution vector and additional information.
 
-Following solvers are recommended:
+Following solvers are recommended for convex and semidefinite problems:
 * QuickQP for dense problems with box-only constraints (or no constraints
   at all)
-* QP-BLEIC for dense/sparse problems with moderate (up to 50) number of
-  general linear constraints
-* DENSE-AUL-QP for dense problems with any (small or large) number of
-  general linear constraints
+* DENSE-IPM-QP for  convex  or  semidefinite  problems  with   medium  (up
+  to several thousands) variable count, dense/sparse  quadratic  term  and
+  any number  (up  to  many  thousands)  of  dense/sparse  general  linear
+  constraints
+* SPARSE-IPM-QP for convex  or  semidefinite  problems  with   large (many
+  thousands) variable count, sparse quadratic term AND linear constraints.
+
+If your problem happens to be nonconvex,  but  either  (a) is  effectively
+convexified under constraints,  or  (b)  has  unique  solution  even  with
+nonconvex target, then you can use:
+* QuickQP for dense nonconvex problems with box-only constraints
+* DENSE-AUL-QP  for   dense   nonconvex   problems  which  are effectively
+  convexified under constraints with up to several thousands of  variables
+  and any (small or large) number of general linear constraints
+* QP-BLEIC for dense/sparse problems with small (up to  several  hundreds)
+  number of general linear  constraints  and  arbitrarily  large  variable
+  count.
 
 INPUT PARAMETERS:
     N       -   problem size
@@ -4413,13 +4882,6 @@ void minqpsetlinearterm(const minqpstate &state, const real_1d_array &b, const x
 /*************************************************************************
 This  function  sets  dense  quadratic  term  for  QP solver. By  default,
 quadratic term is zero.
-
-SUPPORT BY QP SOLVERS:
-
-Dense quadratic term can be handled by following QP solvers:
-* QuickQP
-* BLEIC-QP
-* Dense-AUL-QP
 
 IMPORTANT:
 
@@ -4454,12 +4916,8 @@ This  function  sets  sparse  quadratic  term  for  QP solver. By default,
 quadratic  term  is  zero.  This  function  overrides  previous  calls  to
 minqpsetquadraticterm() or minqpsetquadratictermsparse().
 
-SUPPORT BY QP SOLVERS:
-
-Sparse quadratic term can be handled by following QP solvers:
-* QuickQP
-* BLEIC-QP
-* Dense-AUL-QP (internally converts sparse matrix to dense format)
+NOTE: dense solvers like DENSE-AUL-QP or DENSE-IPM-QP  will  convert  this
+      matrix to dense storage anyway.
 
 IMPORTANT:
 
@@ -4489,9 +4947,11 @@ void minqpsetquadratictermsparse(const minqpstate &state, const sparsematrix &a,
 
 
 /*************************************************************************
-This function sets starting point for QP solver. It is useful to have
-good initial approximation to the solution, because it will increase
-speed of convergence and identification of active constraints.
+This function sets starting point for QP solver. It is useful to have good
+initial approximation to the solution, because it will increase  speed  of
+convergence and identification of active constraints.
+
+NOTE: interior point solvers ignore initial point provided by user.
 
 INPUT PARAMETERS:
     State   -   structure which stores algorithm state
@@ -4591,16 +5051,15 @@ void minqpsetscaleautodiag(const minqpstate &state, const xparams _xparams = alg
 This function tells solver to use BLEIC-based algorithm and sets  stopping
 criteria for the algorithm.
 
-This algorithm is fast  enough  for large-scale  problems  with  following
-properties:
-a) feasible initial point, moderate amount of general linear constraints
-b) arbitrary (can be infeasible) initial point, small  amount  of  general
-   linear constraints (say, hundred or less)
+This algorithm is intended for large-scale  problems,  possibly nonconvex,
+with small number of general linear constraints. Feasible initial point is
+essential for good performance.
 
-If you solve large-scale QP problem with many inequality  constraints  and
-without initial feasibility guarantees, consider  using  DENSE-AUL  solver
-instead. Initial feasibility detection stage by BLEIC may take too long on
-such problems.
+IMPORTANT: when DENSE-IPM (or DENSE-AUL for  nonconvex  problems)  solvers
+           are applicable, their performance is much better than  that  of
+           BLEIC-QP.
+           We recommend  you to use BLEIC only when other solvers can  not
+           be used.
 
 ALGORITHM FEATURES:
 
@@ -4624,7 +5083,7 @@ ALGORITHM LIMITATIONS:
 * This algorithm is inefficient on  problems with hundreds  and  thousands
   of general inequality constraints and infeasible initial point.  Initial
   feasibility detection stage may take too long on such constraint sets.
-  Consider using DENSE-AUL instead.
+  Consider using DENSE-IPM or DENSE-AUL instead.
 * unlike QuickQP solver, this algorithm does not perform Newton steps  and
   does not use Level 3 BLAS. Being general-purpose active set  method,  it
   can activate constraints only one-by-one. Thus, its performance is lower
@@ -4676,8 +5135,18 @@ void minqpsetalgobleic(const minqpstate &state, const double epsg, const double 
 
 
 /*************************************************************************
-This function tells QP solver to use Dense-AUL algorithm and sets stopping
+This function tells QP solver to use DENSE-AUL algorithm and sets stopping
 criteria for the algorithm.
+
+This  algorithm  is  intended  for  non-convex problems with moderate  (up
+to several thousands) variable count and arbitrary number  of  constraints
+which are either (a) effectively convexified under constraints or (b) have
+unique solution even with nonconvex target.
+
+IMPORTANT: when DENSE-IPM solver is applicable, its performance is usually
+           much better than that of DENSE-AUL.
+           We recommend  you to use DENSE-AUL only when other solvers  can
+           not be used.
 
 ALGORITHM FEATURES:
 
@@ -4687,14 +5156,11 @@ ALGORITHM FEATURES:
   problems. Semidefinite and non-convex problems can be solved as long  as
   they  are   bounded  from  below  under  constraints,  although  without
   theoretical guarantees.
-* this solver is better than QP-BLEIC on problems  with  large  number  of
-  general linear constraints. It better handles infeasible initial points.
 
 ALGORITHM OUTLINE:
 
 * this  algorithm   is   an   augmented   Lagrangian   method  with  dense
-  preconditioner (hence  its  name).  It  is  similar  to  barrier/penalty
-  methods, but much more precise and faster.
+  preconditioner (hence  its  name).
 * it performs several outer iterations in order to refine  values  of  the
   Lagrange multipliers. Single outer  iteration  is  a  solution  of  some
   unconstrained optimization problem: first  it  performs  dense  Cholesky
@@ -4751,13 +5217,166 @@ void minqpsetalgodenseaul(const minqpstate &state, const double epsx, const doub
 
 
 /*************************************************************************
+This function tells QP solver to  use  DENSE-IPM  QP  algorithm  and  sets
+stopping criteria for the algorithm.
+
+This  algorithm  is  intended  for convex and semidefinite  problems  with
+moderate (up to several thousands) variable count and arbitrary number  of
+constraints.
+
+IMPORTANT: this algorithm won't work for nonconvex problems, use DENSE-AUL
+           or BLEIC-QP instead. If you try to  run  DENSE-IPM  on  problem
+           with  indefinite  matrix  (matrix having  at least one negative
+           eigenvalue) then depending on circumstances it may  either  (a)
+           stall at some  arbitrary  point,  or  (b)  throw  exception  on
+           failure of Cholesky decomposition.
+
+ALGORITHM FEATURES:
+
+* supports  box  and  dense/sparse  general   linear   equality/inequality
+  constraints
+
+ALGORITHM OUTLINE:
+
+* this  algorithm  is  an  implementation  of  interior  point  method  as
+  formulated by  R.J.Vanderbei, with minor modifications to the  algorithm
+  (damped Newton directions are extensively used)
+* like all interior point methods, this algorithm  tends  to  converge  in
+  roughly same number of iterations (between 15 and 30) independently from
+  the problem dimensionality
+
+ALGORITHM LIMITATIONS:
+
+* because dense Cholesky driver is used, for  N-dimensional  problem  with
+  M dense constaints this algorithm has O(N^2+N*M) memory requirements and
+  O(N^3+N*M^2) running time.
+  Having sparse constraints with Z nonzeros per row  relaxes  storage  and
+  running time down to O(N^2+M*Z) and O(N^3+N*Z^2)
+  From the practical  point  of  view,  it  limits  its  applicability  by
+  several thousands of variables.
+  From  the  other  side,  variables  count  is  the most limiting factor,
+  and dependence on constraint count is  much  more  lower. Assuming  that
+  constraint matrix is sparse, it may handle tens of thousands  of general
+  linear constraints.
+
+INPUT PARAMETERS:
+    State   -   structure which stores algorithm state
+    Eps     -   >=0, stopping criteria. The algorithm stops  when   primal
+                and dual infeasiblities as well as complementarity gap are
+                less than Eps.
+
+IT IS VERY IMPORTANT TO CALL minqpsetscale() WHEN YOU USE THIS  ALGORITHM
+BECAUSE ITS CONVERGENCE PROPERTIES AND STOPPING CRITERIA ARE SCALE-DEPENDENT!
+
+NOTE: Passing EpsX=0 will lead to automatic selection of small epsilon.
+
+===== TRACING IPM SOLVER =================================================
+
+IPM solver supports advanced tracing capabilities. You can trace algorithm
+output by specifying following trace symbols (case-insensitive)  by  means
+of trace_file() call:
+* 'IPM'         - for basic trace of algorithm  steps and decisions.  Only
+                  short scalars (function values and deltas) are  printed.
+                  N-dimensional quantities like search directions are  NOT
+                  printed.
+* 'IPM.DETAILED'- for output of points being visited and search directions
+                  This  symbol  also  implicitly  defines  'IPM'. You  can
+                  control output format by additionally specifying:
+                  * nothing     to output in  6-digit exponential format
+                  * 'PREC.E15'  to output in 15-digit exponential format
+                  * 'PREC.F6'   to output in  6-digit fixed-point format
+
+By default trace is disabled and adds  no  overhead  to  the  optimization
+process. However, specifying any of the symbols adds some  formatting  and
+output-related overhead.
+
+You may specify multiple symbols by separating them with commas:
+>
+> alglib::trace_file("IPM.DETAILED,PREC.F6", "path/to/trace.log")
+>
+
+  -- ALGLIB --
+     Copyright 01.11.2019 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetalgodenseipm(const minqpstate &state, const double eps, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function tells QP solver to  use  SPARSE-IPM  QP algorithm  and  sets
+stopping criteria for the algorithm.
+
+This  algorithm  is  intended  for convex and semidefinite  problems  with
+large  variable  and  constraint  count  and  sparse  quadratic  term  and
+constraints. It is possible to have  some  limited  set  of  dense  linear
+constraints - they will be handled separately by dense BLAS - but the more
+dense constraints you have, the more time solver needs.
+
+IMPORTANT: internally this solver performs large  and  sparse  (N+M)x(N+M)
+           triangular factorization. So it expects both quadratic term and
+           constraints to be highly sparse. However, its  running  time is
+           influenced by BOTH fill factor and sparsity pattern.
+
+           Generally we expect that no more than few nonzero  elements per
+           row are present. However different sparsity patterns may result
+           in completely different running  times  even  given  same  fill
+           factor.
+
+           In many cases this algorithm outperforms DENSE-IPM by order  of
+           magnitude. However, in some cases you may  get  better  results
+           with DENSE-IPM even when solving sparse task.
+
+IMPORTANT: this algorithm won't work for nonconvex problems, use DENSE-AUL
+           or BLEIC-QP instead. If you try to  run  DENSE-IPM  on  problem
+           with  indefinite  matrix  (matrix having  at least one negative
+           eigenvalue) then depending on circumstances it may  either  (a)
+           stall at some  arbitrary  point,  or  (b)  throw  exception  on
+           failure of Cholesky decomposition.
+
+ALGORITHM FEATURES:
+
+* supports  box  and  dense/sparse  general   linear   equality/inequality
+  constraints
+* specializes on large-scale sparse problems
+
+ALGORITHM OUTLINE:
+
+* this  algorithm  is  an  implementation  of  interior  point  method  as
+  formulated by  R.J.Vanderbei, with minor modifications to the  algorithm
+  (damped Newton directions are extensively used)
+* like all interior point methods, this algorithm  tends  to  converge  in
+  roughly same number of iterations (between 15 and 30) independently from
+  the problem dimensionality
+
+ALGORITHM LIMITATIONS:
+
+* this algorithm may handle moderate number  of dense constraints, usually
+  no more than a thousand of dense ones without losing its efficiency.
+
+INPUT PARAMETERS:
+    State   -   structure which stores algorithm state
+    Eps     -   >=0, stopping criteria. The algorithm stops  when   primal
+                and dual infeasiblities as well as complementarity gap are
+                less than Eps.
+
+IT IS VERY IMPORTANT TO CALL minqpsetscale() WHEN YOU USE THIS  ALGORITHM
+BECAUSE ITS CONVERGENCE PROPERTIES AND STOPPING CRITERIA ARE SCALE-DEPENDENT!
+
+NOTE: Passing EpsX=0 will lead to automatic selection of small epsilon.
+
+  -- ALGLIB --
+     Copyright 01.11.2019 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetalgosparseipm(const minqpstate &state, const double eps, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
 This function tells solver to use QuickQP  algorithm:  special  extra-fast
 algorithm for problems with box-only constrants. It may  solve  non-convex
 problems as long as they are bounded from below under constraints.
 
 ALGORITHM FEATURES:
-* many times (from 5x to 50x!) faster than BLEIC-based QP solver; utilizes
-  accelerated methods for activation of constraints.
+* several times faster than DENSE-IPM when running on box-only problem
+* utilizes accelerated methods for activation of constraints.
 * supports dense and sparse QP problems
 * supports ONLY box constraints; general linear constraints are NOT
   supported by this solver
@@ -4857,10 +5476,18 @@ void minqpsetalgoquickqp(const minqpstate &state, const double epsg, const doubl
 This function sets box constraints for QP solver
 
 Box constraints are inactive by default (after  initial  creation).  After
-being  set,  they  are  preserved until explicitly turned off with another
-SetBC() call.
+being  set,  they are  preserved until explicitly overwritten with another
+minqpsetbc()  or  minqpsetbcall()  call,  or  partially  overwritten  with
+minqpsetbci() call.
 
-All QP solvers may handle box constraints.
+Following types of constraints are supported:
+
+    DESCRIPTION         CONSTRAINT              HOW TO SPECIFY
+    fixed variable      x[i]=Bnd[i]             BndL[i]=BndU[i]
+    lower bound         BndL[i]<=x[i]           BndU[i]=+INF
+    upper bound         x[i]<=BndU[i]           BndL[i]=-INF
+    range               BndL[i]<=x[i]<=BndU[i]  ...
+    free variable       -                       BndL[I]=-INF, BndU[I]+INF
 
 INPUT PARAMETERS:
     State   -   structure stores algorithm state
@@ -4873,8 +5500,18 @@ INPUT PARAMETERS:
                 very large number or +INF (latter is recommended because
                 it will allow solver to use better algorithm).
 
-NOTE: it is possible to specify BndL[i]=BndU[i]. In this case I-th
-variable will be "frozen" at X[i]=BndL[i]=BndU[i].
+NOTE: infinite values can be specified by means of Double.PositiveInfinity
+      and  Double.NegativeInfinity  (in  C#)  and  alglib::fp_posinf   and
+      alglib::fp_neginf (in C++).
+
+NOTE: you may replace infinities by very small/very large values,  but  it
+      is not recommended because large numbers may introduce large numerical
+      errors in the algorithm.
+
+NOTE: if constraints for all variables are same you may use minqpsetbcall()
+      which allows to specify constraints without using arrays.
+
+NOTE: BndL>BndU will result in QP problem being recognized as infeasible.
 
   -- ALGLIB --
      Copyright 11.01.2011 by Bochkanov Sergey
@@ -4883,26 +5520,88 @@ void minqpsetbc(const minqpstate &state, const real_1d_array &bndl, const real_1
 
 
 /*************************************************************************
+This function sets box constraints for QP solver (all variables  at  once,
+same constraints for all variables)
+
+Box constraints are inactive by default (after  initial  creation).  After
+being  set,  they are  preserved until explicitly overwritten with another
+minqpsetbc()  or  minqpsetbcall()  call,  or  partially  overwritten  with
+minqpsetbci() call.
+
+Following types of constraints are supported:
+
+    DESCRIPTION         CONSTRAINT              HOW TO SPECIFY
+    fixed variable      x[i]=Bnd                BndL=BndU
+    lower bound         BndL<=x[i]              BndU=+INF
+    upper bound         x[i]<=BndU              BndL=-INF
+    range               BndL<=x[i]<=BndU        ...
+    free variable       -                       BndL=-INF, BndU+INF
+
+INPUT PARAMETERS:
+    State   -   structure stores algorithm state
+    BndL    -   lower bound, same for all variables
+    BndU    -   upper bound, same for all variables
+
+NOTE: infinite values can be specified by means of Double.PositiveInfinity
+      and  Double.NegativeInfinity  (in  C#)  and  alglib::fp_posinf   and
+      alglib::fp_neginf (in C++).
+
+NOTE: you may replace infinities by very small/very large values,  but  it
+      is not recommended because large numbers may introduce large numerical
+      errors in the algorithm.
+
+NOTE: BndL>BndU will result in QP problem being recognized as infeasible.
+
+  -- ALGLIB --
+     Copyright 11.01.2011 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetbcall(const minqpstate &state, const double bndl, const double bndu, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function sets box constraints for I-th variable (other variables are
+not modified).
+
+Following types of constraints are supported:
+
+    DESCRIPTION         CONSTRAINT              HOW TO SPECIFY
+    fixed variable      x[i]=Bnd                BndL=BndU
+    lower bound         BndL<=x[i]              BndU=+INF
+    upper bound         x[i]<=BndU              BndL=-INF
+    range               BndL<=x[i]<=BndU        ...
+    free variable       -                       BndL=-INF, BndU+INF
+
+INPUT PARAMETERS:
+    State   -   structure stores algorithm state
+    BndL    -   lower bound
+    BndU    -   upper bound
+
+NOTE: infinite values can be specified by means of Double.PositiveInfinity
+      and  Double.NegativeInfinity  (in  C#)  and  alglib::fp_posinf   and
+      alglib::fp_neginf (in C++).
+
+NOTE: you may replace infinities by very small/very large values,  but  it
+      is not recommended because large numbers may introduce large numerical
+      errors in the algorithm.
+
+NOTE: BndL>BndU will result in QP problem being recognized as infeasible.
+
+  -- ALGLIB --
+     Copyright 11.01.2011 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetbci(const minqpstate &state, const ae_int_t i, const double bndl, const double bndu, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
 This function sets dense linear constraints for QP optimizer.
 
 This  function  overrides  results  of  previous  calls  to  minqpsetlc(),
 minqpsetlcsparse() and minqpsetlcmixed().  After  call  to  this  function
-sparse constraints are dropped, and you have only those constraints  which
-were specified in the present call.
+all non-box constraints are dropped, and you have only  those  constraints
+which were specified in the present call.
 
 If you want  to  specify  mixed  (with  dense  and  sparse  terms)  linear
 constraints, you should call minqpsetlcmixed().
-
-SUPPORT BY QP SOLVERS:
-
-Following QP solvers can handle dense linear constraints:
-* BLEIC-QP          -   handles them  with  high  precision,  but  may  be
-                        inefficient for problems with hundreds of constraints
-* Dense-AUL-QP      -   handles them with moderate precision (approx. 10^-6),
-                        may efficiently handle thousands of constraints.
-
-Following QP solvers can NOT handle dense linear constraints:
-* QuickQP           -   can not handle general linear constraints
 
 INPUT PARAMETERS:
     State   -   structure previously allocated with MinQPCreate call.
@@ -4937,30 +5636,11 @@ This function sets sparse linear constraints for QP optimizer.
 
 This  function  overrides  results  of  previous  calls  to  minqpsetlc(),
 minqpsetlcsparse() and minqpsetlcmixed().  After  call  to  this  function
-dense constraints are dropped, and you have only those  constraints  which
-were specified in the present call.
+all non-box constraints are dropped, and you have only  those  constraints
+which were specified in the present call.
 
 If you want  to  specify  mixed  (with  dense  and  sparse  terms)  linear
 constraints, you should call minqpsetlcmixed().
-
-SUPPORT BY QP SOLVERS:
-
-Following QP solvers can handle sparse linear constraints:
-* BLEIC-QP          -   handles them  with  high  precision,  but can  not
-                        utilize their sparsity - sparse constraint  matrix
-                        is silently converted to dense  format.  Thus,  it
-                        may be inefficient for problems with  hundreds  of
-                        constraints.
-* Dense-AUL-QP      -   although this solver uses dense linear algebra  to
-                        calculate   Cholesky   preconditioner,   it    may
-                        efficiently  handle  sparse  constraints.  It  may
-                        solve problems  with  hundreds  and  thousands  of
-                        constraints. The only drawback is  that  precision
-                        of constraint handling is typically within 1E-4...
-                        ..1E-6 range.
-
-Following QP solvers can NOT handle sparse linear constraints:
-* QuickQP           -   can not handle general linear constraints
 
 INPUT PARAMETERS:
     State   -   structure previously allocated with MinQPCreate call.
@@ -5002,27 +5682,19 @@ you  may  represent  them  in  dense  format  without loosing performance.
 Similarly, if you have just a few dense rows, you may store them in sparse
 format with almost same performance.
 
-SUPPORT BY QP SOLVERS:
-
-Following QP solvers can handle mixed dense/sparse linear constraints:
-* BLEIC-QP          -   handles them  with  high  precision,  but can  not
-                        utilize their sparsity - sparse constraint  matrix
-                        is silently converted to dense  format.  Thus,  it
-                        may be inefficient for problems with  hundreds  of
-                        constraints.
-* Dense-AUL-QP      -   although this solver uses dense linear algebra  to
-                        calculate   Cholesky   preconditioner,   it    may
-                        efficiently  handle  sparse  constraints.  It  may
-                        solve problems  with  hundreds  and  thousands  of
-                        constraints. The only drawback is  that  precision
-                        of constraint handling is typically within 1E-4...
-                        ..1E-6 range.
-
-Following QP solvers can NOT handle mixed linear constraints:
-* QuickQP           -   can not handle general linear constraints at all
-
 INPUT PARAMETERS:
     State   -   structure previously allocated with MinQPCreate call.
+    SparseC -   linear constraints, sparse  matrix with dimensions EXACTLY
+                EQUAL TO [SparseK,N+1].  Each  row  of  C  represents  one
+                constraint, either equality or inequality (see below):
+                * first N elements correspond to coefficients,
+                * last element corresponds to the right part.
+                All elements of C (including right part) must be finite.
+    SparseCT-   type of sparse constraints, array[K]:
+                * if SparseCT[i]>0, then I-th constraint is SparseC[i,*]*x >= SparseC[i,n+1]
+                * if SparseCT[i]=0, then I-th constraint is SparseC[i,*]*x  = SparseC[i,n+1]
+                * if SparseCT[i]<0, then I-th constraint is SparseC[i,*]*x <= SparseC[i,n+1]
+    SparseK -   number of sparse equality/inequality constraints, K>=0
     DenseC  -   dense linear constraints, array[K,N+1].
                 Each row of DenseC represents one constraint, either equality
                 or inequality (see below):
@@ -5034,29 +5706,192 @@ INPUT PARAMETERS:
                 * if DenseCT[i]=0, then I-th constraint is DenseC[i,*]*x  = DenseC[i,n+1]
                 * if DenseCT[i]<0, then I-th constraint is DenseC[i,*]*x <= DenseC[i,n+1]
     DenseK  -   number of equality/inequality constraints, DenseK>=0
-    SparseC -   linear  constraints,  sparse  matrix  with  dimensions  at
-                least [SparseK,N+1]. If matrix has  larger  size,  only  leading
-                SPARSEKx(N+1) rectangle is used.
-                Each row of C represents one constraint, either equality
-                or inequality (see below):
-                * first N elements correspond to coefficients,
-                * last element corresponds to the right part.
-                All elements of C (including right part) must be finite.
-    SparseCT-   type of sparse constraints, array[K]:
-                * if SparseCT[i]>0, then I-th constraint is SparseC[i,*]*x >= SparseC[i,n+1]
-                * if SparseCT[i]=0, then I-th constraint is SparseC[i,*]*x  = SparseC[i,n+1]
-                * if SparseCT[i]<0, then I-th constraint is SparseC[i,*]*x <= SparseC[i,n+1]
-    SparseK -   number of sparse equality/inequality constraints, K>=0
 
-NOTE 1: linear (non-bound) constraints are satisfied only approximately  -
+NOTE 1: linear (non-box) constraints  are  satisfied only approximately  -
         there always exists some violation due  to  numerical  errors  and
         algorithmic limitations (BLEIC-QP solver is most  precise,  AUL-QP
         solver is less precise).
 
+NOTE 2: due to backward compatibility reasons SparseC can be  larger  than
+        [SparseK,N+1]. In this case only leading  [SparseK,N+1]  submatrix
+        will be  used.  However,  the  rest  of  ALGLIB  has  more  strict
+        requirements on the input size, so we recommend you to pass sparse
+        term whose size exactly matches algorithm expectations.
+
   -- ALGLIB --
      Copyright 22.08.2016 by Bochkanov Sergey
 *************************************************************************/
-void minqpsetlcmixed(const minqpstate &state, const real_2d_array &densec, const integer_1d_array &densect, const ae_int_t densek, const sparsematrix &sparsec, const integer_1d_array &sparsect, const ae_int_t sparsek, const xparams _xparams = alglib::xdefault);
+void minqpsetlcmixed(const minqpstate &state, const sparsematrix &sparsec, const integer_1d_array &sparsect, const ae_int_t sparsek, const real_2d_array &densec, const integer_1d_array &densect, const ae_int_t densek, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function provides legacy API for specification of mixed  dense/sparse
+linear constraints.
+
+New conventions used by ALGLIB since release  3.16.0  state  that  set  of
+sparse constraints comes first,  followed  by  set  of  dense  ones.  This
+convention is essential when you talk about things like order of  Lagrange
+multipliers.
+
+However, legacy API accepted mixed  constraints  in  reverse  order.  This
+function is here to simplify situation with code relying on legacy API. It
+simply accepts constraints in one order (old) and passes them to new  API,
+now in correct order.
+
+  -- ALGLIB --
+     Copyright 01.11.2019 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetlcmixedlegacy(const minqpstate &state, const real_2d_array &densec, const integer_1d_array &densect, const ae_int_t densek, const sparsematrix &sparsec, const integer_1d_array &sparsect, const ae_int_t sparsek, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function sets two-sided linear constraints AL <= A*x <= AU with dense
+constraint matrix A.
+
+NOTE: knowing  that  constraint  matrix  is  dense  helps  some QP solvers
+      (especially modern IPM method) to utilize efficient  dense  Level  3
+      BLAS for dense parts of the problem. If your problem has both  dense
+      and sparse constraints, you  can  use  minqpsetlc2mixed()  function,
+      which will result in dense algebra being applied to dense terms, and
+      sparse sparse linear algebra applied to sparse terms.
+
+INPUT PARAMETERS:
+    State   -   structure previously allocated with minqpcreate() call.
+    A       -   linear constraints, array[K,N]. Each row of  A  represents
+                one  constraint. One-sided  inequality   constraints, two-
+                sided inequality  constraints,  equality  constraints  are
+                supported (see below)
+    AL, AU  -   lower and upper bounds, array[K];
+                * AL[i]=AU[i] => equality constraint Ai*x
+                * AL[i]<AU[i] => two-sided constraint AL[i]<=Ai*x<=AU[i]
+                * AL[i]=-INF  => one-sided constraint Ai*x<=AU[i]
+                * AU[i]=+INF  => one-sided constraint AL[i]<=Ai*x
+                * AL[i]=-INF, AU[i]=+INF => constraint is ignored
+    K       -   number of equality/inequality constraints,  K>=0;  if  not
+                given, inferred from sizes of A, AL, AU.
+
+  -- ALGLIB --
+     Copyright 01.11.2019 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetlc2dense(const minqpstate &state, const real_2d_array &a, const real_1d_array &al, const real_1d_array &au, const ae_int_t k, const xparams _xparams = alglib::xdefault);
+void minqpsetlc2dense(const minqpstate &state, const real_2d_array &a, const real_1d_array &al, const real_1d_array &au, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This  function  sets  two-sided linear  constraints  AL <= A*x <= AU  with
+sparse constraining matrix A. Recommended for large-scale problems.
+
+This  function  overwrites  linear  (non-box)  constraints set by previous
+calls (if such calls were made).
+
+INPUT PARAMETERS:
+    State   -   structure previously allocated with minqpcreate() call.
+    A       -   sparse matrix with size [K,N] (exactly!).
+                Each row of A represents one general linear constraint.
+                A can be stored in any sparse storage format.
+    AL, AU  -   lower and upper bounds, array[K];
+                * AL[i]=AU[i] => equality constraint Ai*x
+                * AL[i]<AU[i] => two-sided constraint AL[i]<=Ai*x<=AU[i]
+                * AL[i]=-INF  => one-sided constraint Ai*x<=AU[i]
+                * AU[i]=+INF  => one-sided constraint AL[i]<=Ai*x
+                * AL[i]=-INF, AU[i]=+INF => constraint is ignored
+    K       -   number  of equality/inequality constraints, K>=0.  If  K=0
+                is specified, A, AL, AU are ignored.
+
+  -- ALGLIB --
+     Copyright 01.11.2019 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetlc2(const minqpstate &state, const sparsematrix &a, const real_1d_array &al, const real_1d_array &au, const ae_int_t k, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This  function  sets  two-sided linear  constraints  AL <= A*x <= AU  with
+mixed constraining matrix A including sparse part (first SparseK rows) and
+dense part (last DenseK rows). Recommended for large-scale problems.
+
+This  function  overwrites  linear  (non-box)  constraints set by previous
+calls (if such calls were made).
+
+This function may be useful if constraint matrix includes large number  of
+both types of rows - dense and sparse. If you have just a few sparse rows,
+you  may  represent  them  in  dense  format  without loosing performance.
+Similarly, if you have just a few dense rows, you may store them in sparse
+format with almost same performance.
+
+INPUT PARAMETERS:
+    State   -   structure previously allocated with minqpcreate() call.
+    SparseA -   sparse matrix with size [K,N] (exactly!).
+                Each row of A represents one general linear constraint.
+                A can be stored in any sparse storage format.
+    SparseK -   number of sparse constraints, SparseK>=0
+    DenseA  -   linear constraints, array[K,N], set of dense constraints.
+                Each row of A represents one general linear constraint.
+    DenseK  -   number of dense constraints, DenseK>=0
+    AL, AU  -   lower and upper bounds, array[SparseK+DenseK], with former
+                SparseK elements corresponding to sparse constraints,  and
+                latter DenseK elements corresponding to dense constraints;
+                * AL[i]=AU[i] => equality constraint Ai*x
+                * AL[i]<AU[i] => two-sided constraint AL[i]<=Ai*x<=AU[i]
+                * AL[i]=-INF  => one-sided constraint Ai*x<=AU[i]
+                * AU[i]=+INF  => one-sided constraint AL[i]<=Ai*x
+                * AL[i]=-INF, AU[i]=+INF => constraint is ignored
+    K       -   number  of equality/inequality constraints, K>=0.  If  K=0
+                is specified, A, AL, AU are ignored.
+
+  -- ALGLIB --
+     Copyright 01.11.2019 by Bochkanov Sergey
+*************************************************************************/
+void minqpsetlc2mixed(const minqpstate &state, const sparsematrix &sparsea, const ae_int_t ksparse, const real_2d_array &densea, const ae_int_t kdense, const real_1d_array &al, const real_1d_array &au, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function appends two-sided linear constraint  AL <= A*x <= AU  to the
+list of currently present dense constraints.
+
+INPUT PARAMETERS:
+    State   -   structure previously allocated with minqpcreate() call.
+    A       -   linear constraint coefficient, array[N], right side is NOT
+                included.
+    AL, AU  -   lower and upper bounds;
+                * AL=AU    => equality constraint Ai*x
+                * AL<AU    => two-sided constraint AL<=A*x<=AU
+                * AL=-INF  => one-sided constraint Ai*x<=AU
+                * AU=+INF  => one-sided constraint AL<=Ai*x
+                * AL=-INF, AU=+INF => constraint is ignored
+
+  -- ALGLIB --
+     Copyright 19.07.2018 by Bochkanov Sergey
+*************************************************************************/
+void minqpaddlc2dense(const minqpstate &state, const real_1d_array &a, const double al, const double au, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function appends two-sided linear constraint  AL <= A*x <= AU  to the
+list of currently present sparse constraints.
+
+Constraint is passed in compressed format: as list of non-zero entries  of
+coefficient vector A. Such approach is more efficient than  dense  storage
+for highly sparse constraint vectors.
+
+INPUT PARAMETERS:
+    State   -   structure previously allocated with minqpcreate() call.
+    IdxA    -   array[NNZ], indexes of non-zero elements of A:
+                * can be unsorted
+                * can include duplicate indexes (corresponding entries  of
+                  ValA[] will be summed)
+    ValA    -   array[NNZ], values of non-zero elements of A
+    NNZ     -   number of non-zero coefficients in A
+    AL, AU  -   lower and upper bounds;
+                * AL=AU    => equality constraint A*x
+                * AL<AU    => two-sided constraint AL<=A*x<=AU
+                * AL=-INF  => one-sided constraint A*x<=AU
+                * AU=+INF  => one-sided constraint AL<=A*x
+                * AL=-INF, AU=+INF => constraint is ignored
+
+  -- ALGLIB --
+     Copyright 19.07.2018 by Bochkanov Sergey
+*************************************************************************/
+void minqpaddlc2(const minqpstate &state, const integer_1d_array &idxa, const real_1d_array &vala, const ae_int_t nnz, const double al, const double au, const xparams _xparams = alglib::xdefault);
 
 
 /*************************************************************************
@@ -5068,6 +5903,7 @@ the following functions:
 * minqpsetalgoquickqp()     - for QuickQP solver
 * minqpsetalgobleic()       - for BLEIC-QP solver
 * minqpsetalgodenseaul()    - for Dense-AUL-QP solver
+* minqpsetalgodenseipm()    - for Dense-IPM-QP solver
 
 These functions also allow you to control stopping criteria of the solver.
 If you did not set solver,  MinQP  subpackage  will  automatically  select
@@ -5099,35 +5935,12 @@ OUTPUT PARAMETERS:
     X       -   array[0..N-1], solution.
                 This array is allocated and initialized only when
                 Rep.TerminationType parameter is positive (success).
-    Rep     -   optimization report. You should check Rep.TerminationType,
-                which contains completion code, and you may check  another
-                fields which contain another information  about  algorithm
-                functioning.
-
-                Failure codes returned by algorithm are:
-                * -9    failure of the automatic scale evaluation:  one of
-                        the diagonal elements of  the  quadratic  term  is
-                        non-positive.  Specify variable scales manually!
-                * -5    inappropriate solver was used:
-                        * QuickQP solver for problem with  general  linear
-                          constraints
-                * -4    BLEIC-QP/QuickQP   solver    found   unconstrained
-                        direction  of   negative  curvature  (function  is
-                        unbounded from below even under constraints),   no
-                        meaningful minimum can be found.
-                * -3    inconsistent constraints (or maybe  feasible point
-                        is too  hard  to  find).  If  you  are  sure  that
-                        constraints are feasible, try to restart optimizer
-                        with better initial approximation.
-
-                Completion codes specific for Cholesky algorithm:
-                *  4   successful completion
-
-                Completion codes specific for BLEIC/QuickQP algorithms:
-                *  1   relative function improvement is no more than EpsF.
-                *  2   scaled step is no more than EpsX.
-                *  4   scaled gradient norm is no more than EpsG.
-                *  5   MaxIts steps was taken
+    Rep     -   optimization report, contains:
+                * completion code in Rep.TerminationType (positive  values
+                  denote some kind of success, negative - failures)
+                * Lagrange multipliers - for QP solvers which support then
+                * other statistics
+                See comments on minqpreport structure for more information
 
   -- ALGLIB --
      Copyright 11.01.2011 by Bochkanov Sergey
@@ -5588,8 +6401,8 @@ REQUIREMENTS:
 * user must provide function value and gradient for F(), H(), G()
 * starting point X0 must be feasible or not too far away from the feasible
   set
-* F(), G(), H() are twice continuously differentiable on the feasible  set
-  and its neighborhood
+* F(), G(), H() are continuously differentiable on the  feasible  set  and
+  its neighborhood
 * nonlinear constraints G() and H() must have non-zero gradient at  G(x)=0
   and at H(x)=0. Say, constraint like x^2>=1 is supported, but x^2>=0   is
   NOT supported.
@@ -5616,16 +6429,21 @@ http://www.alglib.net/optimization/
    sure that it will work with new ALGLIB releases.
 
    In the current release following solvers can be used:
-   * SLP solver (activated with minnlcsetalgoslp() function) -  successive
-     linear programming, recommended as the first step.
-   * AUL solver (activated with minnlcsetalgoaul() function)  -  augmented
-     Lagrangian method with dense preconditioner.
-
-   SLP solver is the most robust one  in  ALGLIB  and  converges  in  less
-   iterations than AUL; however, each iteration has higher overhead  -  we
-   have to solve an LP problem. From  the  other  side,  AUL  has  cheaper
-   iterations - although it typically needs more of them, and also  it  is
-   less robust in nonconvex setting.
+   * SQP solver, recommended for medium-scale problems (less than thousand
+     of variables) with hard-to-evaluate target functions.  Requires  less
+     function  evaluations  than  other  solvers  but  each  step involves
+     solution of QP subproblem, so running time may be higher than that of
+     AUL (another recommended option). Activated  with  minnlcsetalgosqp()
+     function.
+   * AUL solver with dense  preconditioner,  recommended  for  large-scale
+     problems or for problems  with  cheap  target  function.  Needs  more
+     function evaluations that SQP (about  5x-10x  times  more),  but  its
+     iterations  are  much  cheaper  that  that  of  SQP.  Activated  with
+     minnlcsetalgoaul() function.
+   * SLP solver, successive linear programming. The slowest one,  requires
+     more target function evaluations that SQP and  AUL.  However,  it  is
+     somewhat more robust in tricky cases, so it can be used  as  a backup
+     plan. Activated with minnlcsetalgoslp() function.
 
 2. [optional] user activates OptGuard  integrity checker  which  tries  to
    detect possible errors in the user-supplied callbacks:
@@ -6101,8 +6919,8 @@ modification of one described in "A Modified Barrier-Augmented  Lagrangian
 Method for  Constrained  Minimization  (1999)"  by  D.GOLDFARB,  R.POLYAK,
 K. SCHEINBERG, I.YUZEFOVICH.
 
-AUL solver can be significantly faster than SLP on easy problems, although
-it is less robust than SLP (the "gold standard" of robust optimization).
+AUL solver can be significantly faster than SQP on easy  problems  due  to
+cheaper iterations, although it needs more function evaluations.
 
 Augmented Lagrangian algorithm works by converting problem  of  minimizing
 F(x) subject to equality/inequality constraints   to unconstrained problem
@@ -6300,6 +7118,13 @@ algorithm  is  a  slight  modification  of  one  described  in  "A  Linear
 programming-based optimization algorithm for solving nonlinear programming
 problems" (2010) by Claus Still and Tapio Westerlund.
 
+This solver is the slowest one in ALGLIB, it requires more target function
+evaluations that SQP and AUL. However it is somewhat more robust in tricky
+cases, so it can be used as a backup plan. We recommend to use  this  algo
+when SQP/AUL do not work (does not return  the  solution  you  expect). If
+trying different approach gives same  results,  then  MAYBE  something  is
+wrong with your optimization problem.
+
 Despite its name ("linear" = "first order method") this algorithm performs
 steps similar to that of conjugate gradients method;  internally  it  uses
 orthogonality/conjugacy requirement for subsequent steps  which  makes  it
@@ -6324,22 +7149,146 @@ This algorithm has following nice properties:
   as much as possible
 * numerical differentiation does not  violate  box  constraints  (although
   general linear and nonlinear ones can be violated during differentiation)
-
-However, following drawbacks can be noted:
-* algorithm performance decreased on problems with dense constraints
-* it has higher iteration cost than AUL - we have to solve an  LP  problem
-  at each step.
-
-We recommend this algorithm as a first step; as soon as you make sure that
-it converges, you can try switching to AUL which is sometimes much faster.
+* from our experience, this algorithm is somewhat more  robust  in  really
+  difficult cases
 
 INPUT PARAMETERS:
     State   -   structure which stores algorithm state
+
+===== TRACING SLP SOLVER =================================================
+
+SLP solver supports advanced tracing capabilities. You can trace algorithm
+output by specifying following trace symbols (case-insensitive)  by  means
+of trace_file() call:
+* 'SLP'         - for basic trace of algorithm  steps and decisions.  Only
+                  short scalars (function values and deltas) are  printed.
+                  N-dimensional quantities like search directions are  NOT
+                  printed.
+                  It also prints OptGuard  integrity  checker  report when
+                  nonsmoothness of target/constraints is suspected.
+* 'SLP.DETAILED'- for output of points being visited and search directions
+                  This  symbol  also  implicitly  defines  'SLP'. You  can
+                  control output format by additionally specifying:
+                  * nothing     to output in  6-digit exponential format
+                  * 'PREC.E15'  to output in 15-digit exponential format
+                  * 'PREC.F6'   to output in  6-digit fixed-point format
+* 'SLP.PROBING' - to let algorithm insert additional function  evaluations
+                  before line search  in  order  to  build  human-readable
+                  chart of the raw  Lagrangian  (~40  additional  function
+                  evaluations is performed for  each  line  search).  This
+                  symbol also implicitly defines 'SLP'.
+* 'OPTGUARD'    - for report of smoothness/continuity violations in target
+                  and/or constraints. This kind of reporting is   included
+                  in 'SLP', but it comes with lots of additional info.  If
+                  you  need  just  smoothness  monitoring,   specify  this
+                  setting.
+
+                  NOTE: this tag merely directs  OptGuard  output  to  log
+                        file. Even if you specify it, you  still  have  to
+                        configure OptGuard  by calling minnlcoptguard...()
+                        family of functions.
+
+By default trace is disabled and adds  no  overhead  to  the  optimization
+process. However, specifying any of the symbols adds some  formatting  and
+output-related   overhead.  Specifying  'SLP.PROBING'  adds   even  larger
+overhead due to additional function evaluations being performed.
+
+You may specify multiple symbols by separating them with commas:
+>
+> alglib::trace_file("SLP,SLP.PROBING,PREC.F6", "path/to/trace.log")
+>
 
   -- ALGLIB --
      Copyright 02.04.2018 by Bochkanov Sergey
 *************************************************************************/
 void minnlcsetalgoslp(const minnlcstate &state, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This   function  tells  MinNLC  optimizer to use SQP (Successive Quadratic
+Programming) algorithm for nonlinearly constrained optimization.
+
+This algorithm needs order of magnitude (5x-10x) less function evaluations
+than AUL solver, but has higher overhead because each  iteration  involves
+solution of quadratic programming problem.
+
+Convergence is proved for the following case:
+* function and constraints are continuously differentiable (C1 class)
+
+This algorithm has following nice properties:
+* no parameters to tune
+* no convexity requirements for target function or constraints
+* initial point can be infeasible
+* algorithm respects box constraints in all intermediate points  (it  does
+  not even evaluate function outside of box constrained area)
+* once linear constraints are enforced, algorithm will not violate them
+* no such guarantees can be provided for nonlinear constraints,  but  once
+  nonlinear constraints are enforced, algorithm will try  to  respect them
+  as much as possible
+* numerical differentiation does not  violate  box  constraints  (although
+  general linear and nonlinear ones can be violated during differentiation)
+
+We recommend this algorithm as a default option for medium-scale  problems
+(less than thousand of variables) or problems with target  function  being
+hard to evaluate.
+
+For   large-scale  problems  or  ones  with very  cheap  target   function
+AUL solver can be better option.
+
+INPUT PARAMETERS:
+    State   -   structure which stores algorithm state
+
+===== INTERACTION WITH OPTGUARD ==========================================
+
+OptGuard integrity  checker  allows us to catch problems  like  errors  in
+gradients   and  discontinuity/nonsmoothness  of  the  target/constraints.
+Latter kind of problems can be detected  by  looking  upon  line  searches
+performed during optimization and searching for signs of nonsmoothness.
+
+The problem with SQP is that it is too good for OptGuard to work - it does
+not perform line searches. It typically  needs  1-2  function  evaluations
+per step, and it is not enough for OptGuard to detect nonsmoothness.
+
+So, if you suspect that your problem is nonsmooth, we recommend you to use
+AUL or SLP solvers.
+
+===== TRACING SQP SOLVER =================================================
+
+SQP solver supports advanced tracing capabilities. You can trace algorithm
+output by specifying following trace symbols (case-insensitive)  by  means
+of trace_file() call:
+* 'SQP'         - for basic trace of algorithm  steps and decisions.  Only
+                  short scalars (function values and deltas) are  printed.
+                  N-dimensional quantities like search directions are  NOT
+                  printed.
+                  It also prints OptGuard  integrity  checker  report when
+                  nonsmoothness of target/constraints is suspected.
+* 'SQP.DETAILED'- for output of points being visited and search directions
+                  This  symbol  also  implicitly  defines  'SQP'. You  can
+                  control output format by additionally specifying:
+                  * nothing     to output in  6-digit exponential format
+                  * 'PREC.E15'  to output in 15-digit exponential format
+                  * 'PREC.F6'   to output in  6-digit fixed-point format
+* 'SQP.PROBING' - to let algorithm insert additional function  evaluations
+                  before line search  in  order  to  build  human-readable
+                  chart of the raw  Lagrangian  (~40  additional  function
+                  evaluations is performed for  each  line  search).  This
+                  symbol also implicitly defines 'SQP'.
+
+By default trace is disabled and adds  no  overhead  to  the  optimization
+process. However, specifying any of the symbols adds some  formatting  and
+output-related   overhead.  Specifying  'SQP.PROBING'  adds   even  larger
+overhead due to additional function evaluations being performed.
+
+You may specify multiple symbols by separating them with commas:
+>
+> alglib::trace_file("SQP,SQP.PROBING,PREC.F6", "path/to/trace.log")
+>
+
+  -- ALGLIB --
+     Copyright 02.12.2019 by Bochkanov Sergey
+*************************************************************************/
+void minnlcsetalgosqp(const minnlcstate &state, const xparams _xparams = alglib::xdefault);
 
 
 /*************************************************************************
@@ -6530,6 +7479,10 @@ INPUT PARAMETERS:
                       and/or gradients are recorded, but OptGuard does not
                       try to perform additional evaluations  in  order  to
                       get more information about suspicious locations.
+                      This kind of monitoring does not work well with  SQP
+                      because SQP solver needs just 1-2 function evaluations
+                      per step, which is not enough for OptGuard  to  make
+                      any conclusions.
 
 === EXPLANATION ==========================================================
 
@@ -9970,6 +10923,10 @@ void _optguardreport_init(void* _p, ae_state *_state, ae_bool make_automatic);
 void _optguardreport_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
 void _optguardreport_clear(void* _p);
 void _optguardreport_destroy(void* _p);
+void _optguardnonc0report_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _optguardnonc0report_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _optguardnonc0report_clear(void* _p);
+void _optguardnonc0report_destroy(void* _p);
 void _optguardnonc1test0report_init(void* _p, ae_state *_state, ae_bool make_automatic);
 void _optguardnonc1test0report_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
 void _optguardnonc1test0report_clear(void* _p);
@@ -10001,6 +10958,13 @@ void checklcviolation(/* Real    */ ae_matrix* cleic,
      ae_int_t* lcidx,
      ae_state *_state);
 void checknlcviolation(/* Real    */ ae_vector* fi,
+     ae_int_t ng,
+     ae_int_t nh,
+     double* nlcerr,
+     ae_int_t* nlcidx,
+     ae_state *_state);
+void unscaleandchecknlcviolation(/* Real    */ ae_vector* fi,
+     /* Real    */ ae_vector* fscales,
      ae_int_t ng,
      ae_int_t nh,
      double* nlcerr,
@@ -10158,6 +11122,18 @@ void smoothnessmonitorenqueuepoint1u(smoothnessmonitor* monitor,
      /* Real    */ ae_vector* j0,
      ae_state *_state);
 void smoothnessmonitorfinalizelinesearch(smoothnessmonitor* monitor,
+     ae_state *_state);
+void smoothnessmonitorstartprobing(smoothnessmonitor* monitor,
+     double stpmax,
+     ae_int_t nvalues,
+     double stepscale,
+     ae_state *_state);
+ae_bool smoothnessmonitorprobe(smoothnessmonitor* monitor,
+     ae_state *_state);
+void smoothnessmonitortraceprobingresults(smoothnessmonitor* monitor,
+     ae_state *_state);
+void smoothnessmonitortracestatus(smoothnessmonitor* monitor,
+     ae_bool callersuggeststrace,
      ae_state *_state);
 void smoothnessmonitorexportreport(smoothnessmonitor* monitor,
      optguardreport* rep,
@@ -10318,6 +11294,179 @@ void _qqpbuffers_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool mak
 void _qqpbuffers_clear(void* _p);
 void _qqpbuffers_destroy(void* _p);
 #endif
+#if defined(AE_COMPILE_LPQPSERV) || !defined(AE_PARTIAL_BUILD)
+void scaleshiftbcinplace(/* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* xorigin,
+     /* Real    */ ae_vector* bndl,
+     /* Real    */ ae_vector* bndu,
+     ae_int_t n,
+     ae_state *_state);
+void scaleshiftdensebrlcinplace(/* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* xorigin,
+     ae_int_t n,
+     /* Real    */ ae_matrix* densea,
+     /* Real    */ ae_vector* ab,
+     /* Real    */ ae_vector* ar,
+     ae_int_t m,
+     ae_state *_state);
+void scaleshiftmixedbrlcinplace(/* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* xorigin,
+     ae_int_t n,
+     sparsematrix* sparsea,
+     ae_int_t msparse,
+     /* Real    */ ae_matrix* densea,
+     ae_int_t mdense,
+     /* Real    */ ae_vector* ab,
+     /* Real    */ ae_vector* ar,
+     ae_state *_state);
+void scaledenseqpinplace(/* Real    */ ae_matrix* densea,
+     ae_bool isupper,
+     ae_int_t nmain,
+     /* Real    */ ae_vector* denseb,
+     ae_int_t ntotal,
+     /* Real    */ ae_vector* s,
+     ae_state *_state);
+void scalesparseqpinplace(/* Real    */ ae_vector* s,
+     ae_int_t n,
+     sparsematrix* sparsea,
+     /* Real    */ ae_vector* denseb,
+     ae_state *_state);
+void normalizedensebrlcinplace(/* Real    */ ae_matrix* densea,
+     /* Real    */ ae_vector* ab,
+     /* Real    */ ae_vector* ar,
+     ae_int_t n,
+     ae_int_t m,
+     /* Real    */ ae_vector* rownorms,
+     ae_bool neednorms,
+     ae_state *_state);
+void normalizemixedbrlcinplace(sparsematrix* sparsea,
+     ae_int_t msparse,
+     /* Real    */ ae_matrix* densea,
+     ae_int_t mdense,
+     /* Real    */ ae_vector* ab,
+     /* Real    */ ae_vector* ar,
+     ae_int_t n,
+     /* Real    */ ae_vector* rownorms,
+     ae_bool neednorms,
+     ae_state *_state);
+double normalizedenseqpinplace(/* Real    */ ae_matrix* densea,
+     ae_bool isupper,
+     ae_int_t nmain,
+     /* Real    */ ae_vector* denseb,
+     ae_int_t ntotal,
+     ae_state *_state);
+double normalizesparseqpinplace(sparsematrix* sparsea,
+     ae_bool isupper,
+     /* Real    */ ae_vector* denseb,
+     ae_int_t n,
+     ae_state *_state);
+void unscaleunshiftpointbc(/* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* xorigin,
+     /* Real    */ ae_vector* rawbndl,
+     /* Real    */ ae_vector* rawbndu,
+     /* Real    */ ae_vector* sclsftbndl,
+     /* Real    */ ae_vector* sclsftbndu,
+     /* Boolean */ ae_vector* hasbndl,
+     /* Boolean */ ae_vector* hasbndu,
+     /* Real    */ ae_vector* x,
+     ae_int_t n,
+     ae_state *_state);
+#endif
+#if defined(AE_COMPILE_VIPMSOLVER) || !defined(AE_PARTIAL_BUILD)
+void vipminitdense(vipmstate* state,
+     /* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* xorigin,
+     ae_int_t n,
+     ae_state *_state);
+void vipminitdensewithslacks(vipmstate* state,
+     /* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* xorigin,
+     ae_int_t nmain,
+     ae_int_t n,
+     ae_state *_state);
+void vipminitsparse(vipmstate* state,
+     /* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* xorigin,
+     ae_int_t n,
+     ae_state *_state);
+void vipmsetquadraticlinear(vipmstate* state,
+     /* Real    */ ae_matrix* denseh,
+     sparsematrix* sparseh,
+     ae_int_t hkind,
+     ae_bool isupper,
+     /* Real    */ ae_vector* c,
+     ae_state *_state);
+void vipmsetconstraints(vipmstate* state,
+     /* Real    */ ae_vector* bndl,
+     /* Real    */ ae_vector* bndu,
+     sparsematrix* sparsea,
+     ae_int_t msparse,
+     /* Real    */ ae_matrix* densea,
+     ae_int_t mdense,
+     /* Real    */ ae_vector* cl,
+     /* Real    */ ae_vector* cu,
+     ae_state *_state);
+void vipmsetcond(vipmstate* state,
+     double epsp,
+     double epsd,
+     double epsgap,
+     ae_state *_state);
+void vipmoptimize(vipmstate* state,
+     /* Real    */ ae_vector* xs,
+     /* Real    */ ae_vector* lagbc,
+     /* Real    */ ae_vector* laglc,
+     ae_int_t* terminationtype,
+     ae_state *_state);
+void _vipmvars_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _vipmvars_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _vipmvars_clear(void* _p);
+void _vipmvars_destroy(void* _p);
+void _vipmstate_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _vipmstate_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _vipmstate_clear(void* _p);
+void _vipmstate_destroy(void* _p);
+#endif
+#if defined(AE_COMPILE_NLCSQP) || !defined(AE_PARTIAL_BUILD)
+void minsqpinitbuf(/* Real    */ ae_vector* bndl,
+     /* Real    */ ae_vector* bndu,
+     /* Real    */ ae_vector* s,
+     /* Real    */ ae_vector* x0,
+     ae_int_t n,
+     /* Real    */ ae_matrix* cleic,
+     /* Integer */ ae_vector* lcsrcidx,
+     ae_int_t nec,
+     ae_int_t nic,
+     ae_int_t nlec,
+     ae_int_t nlic,
+     double epsx,
+     ae_int_t maxits,
+     minsqpstate* state,
+     ae_state *_state);
+ae_bool minsqpiteration(minsqpstate* state,
+     smoothnessmonitor* smonitor,
+     ae_bool userterminationneeded,
+     ae_state *_state);
+void _minsqpsubsolver_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minsqpsubsolver_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minsqpsubsolver_clear(void* _p);
+void _minsqpsubsolver_destroy(void* _p);
+void _minsqptmplagrangian_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minsqptmplagrangian_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minsqptmplagrangian_clear(void* _p);
+void _minsqptmplagrangian_destroy(void* _p);
+void _minsqptmpmerit_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minsqptmpmerit_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minsqptmpmerit_clear(void* _p);
+void _minsqptmpmerit_destroy(void* _p);
+void _minsqpmeritphasestate_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minsqpmeritphasestate_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minsqpmeritphasestate_clear(void* _p);
+void _minsqpmeritphasestate_destroy(void* _p);
+void _minsqpstate_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minsqpstate_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minsqpstate_clear(void* _p);
+void _minsqpstate_destroy(void* _p);
+#endif
 #if defined(AE_COMPILE_MINLBFGS) || !defined(AE_PARTIAL_BUILD)
 void minlbfgscreate(ae_int_t n,
      ae_int_t m,
@@ -10436,6 +11585,8 @@ void qpdenseauloptimize(convexquadraticmodel* a,
      qpdenseaulsettings* settings,
      qpdenseaulbuffers* state,
      /* Real    */ ae_vector* xs,
+     /* Real    */ ae_vector* lagbc,
+     /* Real    */ ae_vector* laglc,
      ae_int_t* terminationtype,
      ae_state *_state);
 void _qpdenseaulsettings_init(void* _p, ae_state *_state, ae_bool make_automatic);
@@ -10600,6 +11751,10 @@ void minqpsetalgodenseaul(minqpstate* state,
      double rho,
      ae_int_t itscnt,
      ae_state *_state);
+void minqpsetalgodenseipm(minqpstate* state, double eps, ae_state *_state);
+void minqpsetalgosparseipm(minqpstate* state,
+     double eps,
+     ae_state *_state);
 void minqpsetalgoquickqp(minqpstate* state,
      double epsg,
      double epsf,
@@ -10610,6 +11765,15 @@ void minqpsetalgoquickqp(minqpstate* state,
 void minqpsetbc(minqpstate* state,
      /* Real    */ ae_vector* bndl,
      /* Real    */ ae_vector* bndu,
+     ae_state *_state);
+void minqpsetbcall(minqpstate* state,
+     double bndl,
+     double bndu,
+     ae_state *_state);
+void minqpsetbci(minqpstate* state,
+     ae_int_t i,
+     double bndl,
+     double bndu,
      ae_state *_state);
 void minqpsetlc(minqpstate* state,
      /* Real    */ ae_matrix* c,
@@ -10622,12 +11786,52 @@ void minqpsetlcsparse(minqpstate* state,
      ae_int_t k,
      ae_state *_state);
 void minqpsetlcmixed(minqpstate* state,
+     sparsematrix* sparsec,
+     /* Integer */ ae_vector* sparsect,
+     ae_int_t sparsek,
+     /* Real    */ ae_matrix* densec,
+     /* Integer */ ae_vector* densect,
+     ae_int_t densek,
+     ae_state *_state);
+void minqpsetlcmixedlegacy(minqpstate* state,
      /* Real    */ ae_matrix* densec,
      /* Integer */ ae_vector* densect,
      ae_int_t densek,
      sparsematrix* sparsec,
      /* Integer */ ae_vector* sparsect,
      ae_int_t sparsek,
+     ae_state *_state);
+void minqpsetlc2dense(minqpstate* state,
+     /* Real    */ ae_matrix* a,
+     /* Real    */ ae_vector* al,
+     /* Real    */ ae_vector* au,
+     ae_int_t k,
+     ae_state *_state);
+void minqpsetlc2(minqpstate* state,
+     sparsematrix* a,
+     /* Real    */ ae_vector* al,
+     /* Real    */ ae_vector* au,
+     ae_int_t k,
+     ae_state *_state);
+void minqpsetlc2mixed(minqpstate* state,
+     sparsematrix* sparsea,
+     ae_int_t ksparse,
+     /* Real    */ ae_matrix* densea,
+     ae_int_t kdense,
+     /* Real    */ ae_vector* al,
+     /* Real    */ ae_vector* au,
+     ae_state *_state);
+void minqpaddlc2dense(minqpstate* state,
+     /* Real    */ ae_vector* a,
+     double al,
+     double au,
+     ae_state *_state);
+void minqpaddlc2(minqpstate* state,
+     /* Integer */ ae_vector* idxa,
+     /* Real    */ ae_vector* vala,
+     ae_int_t nnz,
+     double al,
+     double au,
      ae_state *_state);
 void minqpoptimize(minqpstate* state, ae_state *_state);
 void minqpresults(minqpstate* state,
@@ -10797,6 +12001,22 @@ void _minslpsubsolver_init(void* _p, ae_state *_state, ae_bool make_automatic);
 void _minslpsubsolver_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
 void _minslpsubsolver_clear(void* _p);
 void _minslpsubsolver_destroy(void* _p);
+void _minslptmplagrangian_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minslptmplagrangian_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minslptmplagrangian_clear(void* _p);
+void _minslptmplagrangian_destroy(void* _p);
+void _minslptmpmerit_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minslptmpmerit_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minslptmpmerit_clear(void* _p);
+void _minslptmpmerit_destroy(void* _p);
+void _minslpphase13state_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minslpphase13state_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minslpphase13state_clear(void* _p);
+void _minslpphase13state_destroy(void* _p);
+void _minslpphase2state_init(void* _p, ae_state *_state, ae_bool make_automatic);
+void _minslpphase2state_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
+void _minslpphase2state_clear(void* _p);
+void _minslpphase2state_destroy(void* _p);
 void _minslpstate_init(void* _p, ae_state *_state, ae_bool make_automatic);
 void _minslpstate_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);
 void _minslpstate_clear(void* _p);
@@ -10846,6 +12066,7 @@ void minnlcsetalgoaul(minnlcstate* state,
      ae_int_t itscnt,
      ae_state *_state);
 void minnlcsetalgoslp(minnlcstate* state, ae_state *_state);
+void minnlcsetalgosqp(minnlcstate* state, ae_state *_state);
 void minnlcsetxrep(minnlcstate* state, ae_bool needxrep, ae_state *_state);
 ae_bool minnlciteration(minnlcstate* state, ae_state *_state);
 void minnlcoptguardgradient(minnlcstate* state,

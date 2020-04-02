@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -261,6 +261,9 @@ ae_bool aredistinct(/* Real    */ ae_vector* x,
      ae_int_t n,
      ae_state *_state);
 ae_bool aresameboolean(ae_bool v1, ae_bool v2, ae_state *_state);
+void setlengthzero(/* Real    */ ae_vector* x,
+     ae_int_t n,
+     ae_state *_state);
 void bvectorsetlengthatleast(/* Boolean */ ae_vector* x,
      ae_int_t n,
      ae_state *_state);
@@ -271,6 +274,10 @@ void rvectorsetlengthatleast(/* Real    */ ae_vector* x,
      ae_int_t n,
      ae_state *_state);
 void rmatrixsetlengthatleast(/* Real    */ ae_matrix* x,
+     ae_int_t m,
+     ae_int_t n,
+     ae_state *_state);
+void bmatrixsetlengthatleast(/* Boolean */ ae_matrix* x,
      ae_int_t m,
      ae_int_t n,
      ae_state *_state);
@@ -352,6 +359,11 @@ void swaprows(/* Real    */ ae_matrix* a,
      ae_int_t i1,
      ae_int_t ncols,
      ae_state *_state);
+void swapcols(/* Real    */ ae_matrix* a,
+     ae_int_t j0,
+     ae_int_t j1,
+     ae_int_t nrows,
+     ae_state *_state);
 void swapentries(/* Real    */ ae_vector* a,
      ae_int_t i0,
      ae_int_t i1,
@@ -369,6 +381,7 @@ double maxreal3(double v0, double v1, double v2, ae_state *_state);
 void inc(ae_int_t* v, ae_state *_state);
 void dec(ae_int_t* v, ae_state *_state);
 void threadunsafeinc(ae_int_t* v, ae_state *_state);
+void threadunsafeincby(ae_int_t* v, ae_int_t k, ae_state *_state);
 void countdown(ae_int_t* v, ae_state *_state);
 double possign(double x, ae_state *_state);
 double rmul2(double v0, double v1, ae_state *_state);
@@ -471,6 +484,38 @@ void splitlength(ae_int_t tasksize,
      ae_int_t chunksize,
      ae_int_t* task0,
      ae_int_t* task1,
+     ae_state *_state);
+void tracevectorautoprec(/* Real    */ ae_vector* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_state *_state);
+void tracevectorunscaledunshiftedautoprec(/* Real    */ ae_vector* x,
+     ae_int_t n,
+     /* Real    */ ae_vector* scl,
+     ae_bool applyscl,
+     /* Real    */ ae_vector* sft,
+     ae_bool applysft,
+     ae_state *_state);
+void tracerownrm1autoprec(/* Real    */ ae_matrix* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_int_t j0,
+     ae_int_t j1,
+     ae_state *_state);
+void tracevectore6(/* Real    */ ae_vector* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_state *_state);
+void tracevectore615(/* Real    */ ae_vector* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_bool usee15,
+     ae_state *_state);
+void tracerownrm1e6(/* Real    */ ae_matrix* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_int_t j0,
+     ae_int_t j1,
      ae_state *_state);
 void _apbuffers_init(void* _p, ae_state *_state, ae_bool make_automatic);
 void _apbuffers_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);

@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -915,6 +915,28 @@ ae_bool aresameboolean(ae_bool v1, ae_bool v2, ae_state *_state)
 
 
 /*************************************************************************
+Resizes X and fills by zeros
+
+  -- ALGLIB --
+     Copyright 20.03.2009 by Bochkanov Sergey
+*************************************************************************/
+void setlengthzero(/* Real    */ ae_vector* x,
+     ae_int_t n,
+     ae_state *_state)
+{
+    ae_int_t i;
+
+
+    ae_assert(n>=0, "SetLengthZero: N<0", _state);
+    ae_vector_set_length(x, n, _state);
+    for(i=0; i<=n-1; i++)
+    {
+        x->ptr.p_double[i] = (double)(0);
+    }
+}
+
+
+/*************************************************************************
 If Length(X)<N, resizes X
 
   -- ALGLIB --
@@ -978,6 +1000,29 @@ If Cols(X)<N or Rows(X)<M, resizes X
      Copyright 20.03.2009 by Bochkanov Sergey
 *************************************************************************/
 void rmatrixsetlengthatleast(/* Real    */ ae_matrix* x,
+     ae_int_t m,
+     ae_int_t n,
+     ae_state *_state)
+{
+
+
+    if( m>0&&n>0 )
+    {
+        if( x->rows<m||x->cols<n )
+        {
+            ae_matrix_set_length(x, m, n, _state);
+        }
+    }
+}
+
+
+/*************************************************************************
+If Cols(X)<N or Rows(X)<M, resizes X
+
+  -- ALGLIB --
+     Copyright 20.03.2009 by Bochkanov Sergey
+*************************************************************************/
+void bmatrixsetlengthatleast(/* Boolean */ ae_matrix* x,
      ae_int_t m,
      ae_int_t n,
      ae_state *_state)
@@ -2166,6 +2211,37 @@ void swaprows(/* Real    */ ae_matrix* a,
 
 
 /*************************************************************************
+This function is used to swap two cols of the matrix; if NRows<0, automatically
+determined from the matrix size.
+*************************************************************************/
+void swapcols(/* Real    */ ae_matrix* a,
+     ae_int_t j0,
+     ae_int_t j1,
+     ae_int_t nrows,
+     ae_state *_state)
+{
+    ae_int_t i;
+    double v;
+
+
+    if( j0==j1 )
+    {
+        return;
+    }
+    if( nrows<0 )
+    {
+        nrows = a->rows;
+    }
+    for(i=0; i<=nrows-1; i++)
+    {
+        v = a->ptr.pp_double[i][j0];
+        a->ptr.pp_double[i][j0] = a->ptr.pp_double[i][j1];
+        a->ptr.pp_double[i][j1] = v;
+    }
+}
+
+
+/*************************************************************************
 This function is used to swap two "entries" in 1-dimensional array composed
 from D-element entries
 *************************************************************************/
@@ -2292,6 +2368,20 @@ void threadunsafeinc(ae_int_t* v, ae_state *_state)
 
 
     *v = *v+1;
+}
+
+
+/*************************************************************************
+This function is used to increment value of integer variable; name of  the
+function suggests that increment is done in multithreaded setting  in  the
+thread-unsafe manner (optional progress reports which do not need guaranteed
+correctness)
+*************************************************************************/
+void threadunsafeincby(ae_int_t* v, ae_int_t k, ae_state *_state)
+{
+
+
+    *v = *v+k;
 }
 
 
@@ -3376,6 +3466,308 @@ void splitlength(ae_int_t tasksize,
     *task1 = tasksize-(*task0);
     ae_assert(*task0>=1, "SplitLength: internal error", _state);
     ae_assert(*task1>=1, "SplitLength: internal error", _state);
+}
+
+
+/*************************************************************************
+Outputs vector A[I0,I1-1] to trace log using either:
+a)  6-digit exponential format (no trace flags is set)
+b) 15-ditit exponential format ('PREC.E15' trace flag is set)
+b)  6-ditit fixed-point format ('PREC.F6' trace flag is set)
+
+This function checks trace flags every time it is called.
+*************************************************************************/
+void tracevectorautoprec(/* Real    */ ae_vector* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_state *_state)
+{
+    ae_int_t i;
+    ae_int_t prectouse;
+
+
+    
+    /*
+     * Determine precision to use
+     */
+    prectouse = 0;
+    if( ae_is_trace_enabled("PREC.E15") )
+    {
+        prectouse = 1;
+    }
+    if( ae_is_trace_enabled("PREC.F6") )
+    {
+        prectouse = 2;
+    }
+    
+    /*
+     * Output
+     */
+    ae_trace("[ ");
+    for(i=i0; i<=i1-1; i++)
+    {
+        if( prectouse==0 )
+        {
+            ae_trace("%14.6e",
+                (double)(a->ptr.p_double[i]));
+        }
+        if( prectouse==1 )
+        {
+            ae_trace("%23.15e",
+                (double)(a->ptr.p_double[i]));
+        }
+        if( prectouse==2 )
+        {
+            ae_trace("%13.6f",
+                (double)(a->ptr.p_double[i]));
+        }
+        if( i<i1-1 )
+        {
+            ae_trace(" ");
+        }
+    }
+    ae_trace(" ]");
+}
+
+
+/*************************************************************************
+Unscales/unshifts vector A[N] by computing A*Scl+Sft and outputs result to
+trace log using either:
+a)  6-digit exponential format (no trace flags is set)
+b) 15-ditit exponential format ('PREC.E15' trace flag is set)
+b)  6-ditit fixed-point format ('PREC.F6' trace flag is set)
+
+This function checks trace flags every time it is called.
+Both Scl and Sft can be omitted.
+*************************************************************************/
+void tracevectorunscaledunshiftedautoprec(/* Real    */ ae_vector* x,
+     ae_int_t n,
+     /* Real    */ ae_vector* scl,
+     ae_bool applyscl,
+     /* Real    */ ae_vector* sft,
+     ae_bool applysft,
+     ae_state *_state)
+{
+    ae_int_t i;
+    ae_int_t prectouse;
+    double v;
+
+
+    
+    /*
+     * Determine precision to use
+     */
+    prectouse = 0;
+    if( ae_is_trace_enabled("PREC.E15") )
+    {
+        prectouse = 1;
+    }
+    if( ae_is_trace_enabled("PREC.F6") )
+    {
+        prectouse = 2;
+    }
+    
+    /*
+     * Output
+     */
+    ae_trace("[ ");
+    for(i=0; i<=n-1; i++)
+    {
+        v = x->ptr.p_double[i];
+        if( applyscl )
+        {
+            v = v*scl->ptr.p_double[i];
+        }
+        if( applysft )
+        {
+            v = v+sft->ptr.p_double[i];
+        }
+        if( prectouse==0 )
+        {
+            ae_trace("%14.6e",
+                (double)(v));
+        }
+        if( prectouse==1 )
+        {
+            ae_trace("%23.15e",
+                (double)(v));
+        }
+        if( prectouse==2 )
+        {
+            ae_trace("%13.6f",
+                (double)(v));
+        }
+        if( i<n-1 )
+        {
+            ae_trace(" ");
+        }
+    }
+    ae_trace(" ]");
+}
+
+
+/*************************************************************************
+Outputs vector of 1-norms of rows [I0,I1-1] of A[I0...I1-1,J0...J1-1]   to
+trace log using either:
+a)  6-digit exponential format (no trace flags is set)
+b) 15-ditit exponential format ('PREC.E15' trace flag is set)
+b)  6-ditit fixed-point format ('PREC.F6' trace flag is set)
+
+This function checks trace flags every time it is called.
+*************************************************************************/
+void tracerownrm1autoprec(/* Real    */ ae_matrix* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_int_t j0,
+     ae_int_t j1,
+     ae_state *_state)
+{
+    ae_int_t i;
+    ae_int_t j;
+    double v;
+    ae_int_t prectouse;
+
+
+    
+    /*
+     * Determine precision to use
+     */
+    prectouse = 0;
+    if( ae_is_trace_enabled("PREC.E15") )
+    {
+        prectouse = 1;
+    }
+    if( ae_is_trace_enabled("PREC.F6") )
+    {
+        prectouse = 2;
+    }
+    
+    /*
+     * Output
+     */
+    ae_trace("[ ");
+    for(i=i0; i<=i1-1; i++)
+    {
+        v = (double)(0);
+        for(j=j0; j<=j1-1; j++)
+        {
+            v = ae_maxreal(v, ae_fabs(a->ptr.pp_double[i][j], _state), _state);
+        }
+        if( prectouse==0 )
+        {
+            ae_trace("%14.6e",
+                (double)(v));
+        }
+        if( prectouse==1 )
+        {
+            ae_trace("%23.15e",
+                (double)(v));
+        }
+        if( prectouse==2 )
+        {
+            ae_trace("%13.6f",
+                (double)(v));
+        }
+        if( i<i1-1 )
+        {
+            ae_trace(" ");
+        }
+    }
+    ae_trace(" ]");
+}
+
+
+/*************************************************************************
+Outputs vector A[I0,I1-1] to trace log using E8 precision
+*************************************************************************/
+void tracevectore6(/* Real    */ ae_vector* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_state *_state)
+{
+    ae_int_t i;
+
+
+    ae_trace("[ ");
+    for(i=i0; i<=i1-1; i++)
+    {
+        ae_trace("%14.6e",
+            (double)(a->ptr.p_double[i]));
+        if( i<i1-1 )
+        {
+            ae_trace(" ");
+        }
+    }
+    ae_trace(" ]");
+}
+
+
+/*************************************************************************
+Outputs vector A[I0,I1-1] to trace log using E8 or E15 precision
+*************************************************************************/
+void tracevectore615(/* Real    */ ae_vector* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_bool usee15,
+     ae_state *_state)
+{
+    ae_int_t i;
+
+
+    ae_trace("[ ");
+    for(i=i0; i<=i1-1; i++)
+    {
+        if( usee15 )
+        {
+            ae_trace("%23.15e",
+                (double)(a->ptr.p_double[i]));
+        }
+        else
+        {
+            ae_trace("%14.6e",
+                (double)(a->ptr.p_double[i]));
+        }
+        if( i<i1-1 )
+        {
+            ae_trace(" ");
+        }
+    }
+    ae_trace(" ]");
+}
+
+
+/*************************************************************************
+Outputs vector of 1-norms of rows [I0,I1-1] of A[I0...I1-1,J0...J1-1]   to
+trace log using E8 precision
+*************************************************************************/
+void tracerownrm1e6(/* Real    */ ae_matrix* a,
+     ae_int_t i0,
+     ae_int_t i1,
+     ae_int_t j0,
+     ae_int_t j1,
+     ae_state *_state)
+{
+    ae_int_t i;
+    ae_int_t j;
+    double v;
+
+
+    ae_trace("[ ");
+    for(i=i0; i<=i1-1; i++)
+    {
+        v = (double)(0);
+        for(j=j0; j<=j1-1; j++)
+        {
+            v = ae_maxreal(v, ae_fabs(a->ptr.pp_double[i][j], _state), _state);
+        }
+        ae_trace("%14.6e",
+            (double)(v));
+        if( i<i1-1 )
+        {
+            ae_trace(" ");
+        }
+    }
+    ae_trace(" ]");
 }
 
 

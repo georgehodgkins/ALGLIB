@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -990,6 +990,58 @@ this function.
      Copyright 14.10.2011 by Bochkanov Sergey
 *************************************************************************/
 void sparsemtv(const sparsematrix &s, const real_1d_array &x, real_1d_array &y, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function calculates generalized sparse matrix-vector product
+
+    y := alpha*op(S)*x + beta*y
+
+Matrix S must be stored in CRS or SKS format (exception  will  be  thrown
+otherwise). op(S) can be either S or S^T.
+
+NOTE: this  function  expects  Y  to  be  large enough to store result. No
+      automatic preallocation happens for smaller arrays.
+
+INPUT PARAMETERS
+    S           -   sparse matrix in CRS or SKS format.
+    Alpha       -   source coefficient
+    OpS         -   operation type:
+                    * OpS=0     =>  op(S) = S
+                    * OpS=1     =>  op(S) = S^T
+    X           -   input vector, must have at least Cols(op(S))+IX elements
+    IX          -   subvector offset
+    Beta        -   destination coefficient
+    Y           -   preallocated output array, must have at least Rows(op(S))+IY elements
+    IY          -   subvector offset
+
+OUTPUT PARAMETERS
+    Y           -   elements [IY...IY+Rows(op(S))-1] are replaced by result,
+                    other elements are not modified
+
+HANDLING OF SPECIAL CASES:
+* below M=Rows(op(S)) and N=Cols(op(S)). Although current  ALGLIB  version
+  does not allow you to  create  zero-sized  sparse  matrices,  internally
+  ALGLIB  can  deal  with  such matrices. So, comments for M or N equal to
+  zero are for internal use only.
+* if M=0, then subroutine does nothing. It does not even touch arrays.
+* if N=0 or Alpha=0.0, then:
+  * if Beta=0, then Y is filled by zeros. S and X are  not  referenced  at
+    all. Initial values of Y are ignored (we do not  multiply  Y by  zero,
+    we just rewrite it by zeros)
+  * if Beta<>0, then Y is replaced by Beta*Y
+* if M>0, N>0, Alpha<>0, but  Beta=0, then  Y is replaced by alpha*op(S)*x
+  initial state of Y  is ignored (rewritten without initial multiplication
+  by zeros).
+
+NOTE: this function throws exception when called for non-CRS/SKS  matrix.
+You must convert your matrix with SparseConvertToCRS/SKS()  before  using
+this function.
+
+  -- ALGLIB PROJECT --
+     Copyright 10.12.2019 by Bochkanov Sergey
+*************************************************************************/
+void sparsegemv(const sparsematrix &s, const double alpha, const ae_int_t ops, const real_1d_array &x, const ae_int_t ix, const double beta, const real_1d_array &y, const ae_int_t iy, const xparams _xparams = alglib::xdefault);
 
 
 /*************************************************************************
@@ -1985,6 +2037,19 @@ void cmatrixcopy(const ae_int_t m, const ae_int_t n, const complex_2d_array &a, 
 Copy
 
 Input parameters:
+    N   -   subvector size
+    A   -   source vector, N elements are copied
+    IA  -   source offset (first element index)
+    B   -   destination vector, must be large enough to store result
+    IB  -   destination offset (first element index)
+*************************************************************************/
+void rvectorcopy(const ae_int_t n, const real_1d_array &a, const ae_int_t ia, const real_1d_array &b, const ae_int_t ib, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+Copy
+
+Input parameters:
     M   -   number of rows
     N   -   number of columns
     A   -   source matrix, MxN submatrix is copied and transposed
@@ -1995,6 +2060,28 @@ Input parameters:
     JB  -   submatrix offset (column index)
 *************************************************************************/
 void rmatrixcopy(const ae_int_t m, const ae_int_t n, const real_2d_array &a, const ae_int_t ia, const ae_int_t ja, const real_2d_array &b, const ae_int_t ib, const ae_int_t jb, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+Performs generalized copy: B := Beta*B + Alpha*A.
+
+If Beta=0, then previous contents of B is simply ignored. If Alpha=0, then
+A is ignored and not referenced. If both Alpha and Beta  are  zero,  B  is
+filled by zeros.
+
+Input parameters:
+    M   -   number of rows
+    N   -   number of columns
+    Alpha-  coefficient
+    A   -   source matrix, MxN submatrix is copied and transposed
+    IA  -   submatrix offset (row index)
+    JA  -   submatrix offset (column index)
+    Beta-   coefficient
+    B   -   destination matrix, must be large enough to store result
+    IB  -   submatrix offset (row index)
+    JB  -   submatrix offset (column index)
+*************************************************************************/
+void rmatrixgencopy(const ae_int_t m, const ae_int_t n, const double alpha, const real_2d_array &a, const ae_int_t ia, const ae_int_t ja, const double beta, const real_2d_array &b, const ae_int_t ib, const ae_int_t jb, const xparams _xparams = alglib::xdefault);
 
 
 /*************************************************************************
@@ -6797,6 +6884,15 @@ void sparsemtv(sparsematrix* s,
      /* Real    */ ae_vector* x,
      /* Real    */ ae_vector* y,
      ae_state *_state);
+void sparsegemv(sparsematrix* s,
+     double alpha,
+     ae_int_t ops,
+     /* Real    */ ae_vector* x,
+     ae_int_t ix,
+     double beta,
+     /* Real    */ ae_vector* y,
+     ae_int_t iy,
+     ae_state *_state);
 void sparsemv2(sparsematrix* s,
      /* Real    */ ae_vector* x,
      /* Real    */ ae_vector* y0,
@@ -6989,11 +7085,28 @@ void cmatrixcopy(ae_int_t m,
      ae_int_t ib,
      ae_int_t jb,
      ae_state *_state);
+void rvectorcopy(ae_int_t n,
+     /* Real    */ ae_vector* a,
+     ae_int_t ia,
+     /* Real    */ ae_vector* b,
+     ae_int_t ib,
+     ae_state *_state);
 void rmatrixcopy(ae_int_t m,
      ae_int_t n,
      /* Real    */ ae_matrix* a,
      ae_int_t ia,
      ae_int_t ja,
+     /* Real    */ ae_matrix* b,
+     ae_int_t ib,
+     ae_int_t jb,
+     ae_state *_state);
+void rmatrixgencopy(ae_int_t m,
+     ae_int_t n,
+     double alpha,
+     /* Real    */ ae_matrix* a,
+     ae_int_t ia,
+     ae_int_t ja,
+     double beta,
      /* Real    */ ae_matrix* b,
      ae_int_t ib,
      ae_int_t jb,

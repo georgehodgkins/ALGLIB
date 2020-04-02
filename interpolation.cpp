@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -4382,80 +4382,53 @@ double spline1dintegrate(const spline1dinterpolant &c, const double x, const xpa
 }
 
 /*************************************************************************
-Fitting by penalized cubic spline.
+Fitting by smoothing (penalized) cubic spline.
 
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
+This function approximates N scattered points (some of X[] may be equal to
+each other) by cubic spline with M  nodes  at  equidistant  grid  spanning
+interval [min(x,xc),max(x,xc)].
 
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
+The problem is regularized by adding nonlinearity penalty to  usual  least
+squares penalty function:
 
-  ! COMMERCIAL EDITION OF ALGLIB:
-  !
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  !
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
+    MERIT_FUNC = F_LS + F_NL
+
+where F_LS is a least squares error  term,  and  F_NL  is  a  nonlinearity
+penalty which is roughly proportional to LambdaNS*integral{ S''(x)^2*dx }.
+Algorithm applies automatic renormalization of F_NL  which  makes  penalty
+term roughly invariant to scaling of X[] and changes in M.
+
+This function is a new edition  of  penalized  regression  spline fitting,
+a fast and compact one which needs much less resources that  its  previous
+version: just O(maxMN) memory and O(maxMN*log(maxMN)) time.
+
+NOTE: it is OK to run this function with both M<<N and M>>N;  say,  it  is
+      possible to process 100 points with 1000-node spline.
 
 INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y are processed
-            * if not given, automatically determined from X/Y sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
+    X           -   points, array[0..N-1].
+    Y           -   function values, array[0..N-1].
+    N           -   number of points (optional):
+                    * N>0
+                    * if given, only first N elements of X/Y are processed
+                    * if not given, automatically determined from lengths
+    M           -   number of basis functions ( = number_of_nodes), M>=4.
+    LambdaNS    -   LambdaNS>=0, regularization  constant  passed by user.
+                    It penalizes nonlinearity in the regression spline.
+                    Possible values to start from are 0.00001, 0.1, 1
 
 OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
     S   -   spline interpolant.
     Rep -   Following fields are set:
             * RMSError      rms error on the (X,Y).
             * AvgError      average error on the (X,Y).
             * AvgRelError   average relative error on the non-zero Y
             * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
 
   -- ALGLIB PROJECT --
-     Copyright 18.08.2009 by Bochkanov Sergey
+     Copyright 27.08.2019 by Bochkanov Sergey
 *************************************************************************/
-void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
+void spline1dfit(const real_1d_array &x, const real_1d_array &y, const ae_int_t n, const ae_int_t m, const double lambdans, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
 {
     jmp_buf _break_jump;
     alglib_impl::ae_state _alglib_env_state;
@@ -4472,93 +4445,66 @@ void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const 
     ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
     if( _xparams.flags!=0x0 )
         ae_state_set_flags(&_alglib_env_state, _xparams.flags);
-    alglib_impl::spline1dfitpenalized(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
+    alglib_impl::spline1dfit(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), n, m, lambdans, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
     alglib_impl::ae_state_clear(&_alglib_env_state);
     return;
 }
 
 /*************************************************************************
-Fitting by penalized cubic spline.
+Fitting by smoothing (penalized) cubic spline.
 
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
+This function approximates N scattered points (some of X[] may be equal to
+each other) by cubic spline with M  nodes  at  equidistant  grid  spanning
+interval [min(x,xc),max(x,xc)].
 
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
+The problem is regularized by adding nonlinearity penalty to  usual  least
+squares penalty function:
 
-  ! COMMERCIAL EDITION OF ALGLIB:
-  !
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  !
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
+    MERIT_FUNC = F_LS + F_NL
+
+where F_LS is a least squares error  term,  and  F_NL  is  a  nonlinearity
+penalty which is roughly proportional to LambdaNS*integral{ S''(x)^2*dx }.
+Algorithm applies automatic renormalization of F_NL  which  makes  penalty
+term roughly invariant to scaling of X[] and changes in M.
+
+This function is a new edition  of  penalized  regression  spline fitting,
+a fast and compact one which needs much less resources that  its  previous
+version: just O(maxMN) memory and O(maxMN*log(maxMN)) time.
+
+NOTE: it is OK to run this function with both M<<N and M>>N;  say,  it  is
+      possible to process 100 points with 1000-node spline.
 
 INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y are processed
-            * if not given, automatically determined from X/Y sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
+    X           -   points, array[0..N-1].
+    Y           -   function values, array[0..N-1].
+    N           -   number of points (optional):
+                    * N>0
+                    * if given, only first N elements of X/Y are processed
+                    * if not given, automatically determined from lengths
+    M           -   number of basis functions ( = number_of_nodes), M>=4.
+    LambdaNS    -   LambdaNS>=0, regularization  constant  passed by user.
+                    It penalizes nonlinearity in the regression spline.
+                    Possible values to start from are 0.00001, 0.1, 1
 
 OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
     S   -   spline interpolant.
     Rep -   Following fields are set:
             * RMSError      rms error on the (X,Y).
             * AvgError      average error on the (X,Y).
             * AvgRelError   average relative error on the non-zero Y
             * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
 
   -- ALGLIB PROJECT --
-     Copyright 18.08.2009 by Bochkanov Sergey
+     Copyright 27.08.2019 by Bochkanov Sergey
 *************************************************************************/
 #if !defined(AE_NO_EXCEPTIONS)
-void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
+void spline1dfit(const real_1d_array &x, const real_1d_array &y, const ae_int_t m, const double lambdans, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
 {
     jmp_buf _break_jump;
     alglib_impl::ae_state _alglib_env_state;    
     ae_int_t n;
     if( (x.length()!=y.length()))
-        _ALGLIB_CPP_EXCEPTION("Error while calling 'spline1dfitpenalized': looks like one of arguments has wrong size");
+        _ALGLIB_CPP_EXCEPTION("Error while calling 'spline1dfit': looks like one of arguments has wrong size");
     n = x.length();
     alglib_impl::ae_state_init(&_alglib_env_state);
     if( setjmp(_break_jump) )
@@ -4566,209 +4512,7 @@ void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const 
     ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
     if( _xparams.flags!=0x0 )
         ae_state_set_flags(&_alglib_env_state, _xparams.flags);
-    alglib_impl::spline1dfitpenalized(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
-
-    alglib_impl::ae_state_clear(&_alglib_env_state);
-    return;
-}
-#endif
-
-/*************************************************************************
-Weighted fitting by penalized cubic spline.
-
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
-
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
-
-  ! COMMERCIAL EDITION OF ALGLIB:
-  !
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  !
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
-
-INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    W   -   weights, array[0..N-1]
-            Each summand in square  sum  of  approximation deviations from
-            given  values  is  multiplied  by  the square of corresponding
-            weight. Fill it by 1's if you don't  want  to  solve  weighted
-            problem.
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y/W are processed
-            * if not given, automatically determined from X/Y/W sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
-
-OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
-    S   -   spline interpolant.
-    Rep -   Following fields are set:
-            * RMSError      rms error on the (X,Y).
-            * AvgError      average error on the (X,Y).
-            * AvgRelError   average relative error on the non-zero Y
-            * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
-
-  -- ALGLIB PROJECT --
-     Copyright 19.10.2010 by Bochkanov Sergey
-*************************************************************************/
-void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
-{
-    jmp_buf _break_jump;
-    alglib_impl::ae_state _alglib_env_state;
-    alglib_impl::ae_state_init(&_alglib_env_state);
-    if( setjmp(_break_jump) )
-    {
-#if !defined(AE_NO_EXCEPTIONS)
-        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
-#else
-        _ALGLIB_SET_ERROR_FLAG(_alglib_env_state.error_msg);
-        return;
-#endif
-    }
-    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
-    if( _xparams.flags!=0x0 )
-        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
-    alglib_impl::spline1dfitpenalizedw(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), const_cast<alglib_impl::ae_vector*>(w.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
-    alglib_impl::ae_state_clear(&_alglib_env_state);
-    return;
-}
-
-/*************************************************************************
-Weighted fitting by penalized cubic spline.
-
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
-
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
-
-  ! COMMERCIAL EDITION OF ALGLIB:
-  !
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  !
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
-
-INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    W   -   weights, array[0..N-1]
-            Each summand in square  sum  of  approximation deviations from
-            given  values  is  multiplied  by  the square of corresponding
-            weight. Fill it by 1's if you don't  want  to  solve  weighted
-            problem.
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y/W are processed
-            * if not given, automatically determined from X/Y/W sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
-
-OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
-    S   -   spline interpolant.
-    Rep -   Following fields are set:
-            * RMSError      rms error on the (X,Y).
-            * AvgError      average error on the (X,Y).
-            * AvgRelError   average relative error on the non-zero Y
-            * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
-
-  -- ALGLIB PROJECT --
-     Copyright 19.10.2010 by Bochkanov Sergey
-*************************************************************************/
-#if !defined(AE_NO_EXCEPTIONS)
-void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
-{
-    jmp_buf _break_jump;
-    alglib_impl::ae_state _alglib_env_state;    
-    ae_int_t n;
-    if( (x.length()!=y.length()) || (x.length()!=w.length()))
-        _ALGLIB_CPP_EXCEPTION("Error while calling 'spline1dfitpenalizedw': looks like one of arguments has wrong size");
-    n = x.length();
-    alglib_impl::ae_state_init(&_alglib_env_state);
-    if( setjmp(_break_jump) )
-        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
-    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
-    if( _xparams.flags!=0x0 )
-        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
-    alglib_impl::spline1dfitpenalizedw(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), const_cast<alglib_impl::ae_vector*>(w.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
+    alglib_impl::spline1dfit(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), n, m, lambdans, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
 
     alglib_impl::ae_state_clear(&_alglib_env_state);
     return;
@@ -12217,8 +11961,6 @@ void lsfitfit(lsfitstate &state,
         _ALGLIB_CALLBACK_EXCEPTION_GUARD_END
     lbl_no_callback:
         alglib_impl::ae_assert(ae_false, "ALGLIB: error in 'lsfitfit' (some derivatives were not provided?)", &_alglib_env_state);
-    lbl_user_exception:
-        alglib_impl::ae_assert(ae_false, "ALGLIB: exception generated in user callback", &_alglib_env_state);
     }
     alglib_impl::ae_state_clear(&_alglib_env_state);
 }
@@ -12271,8 +12013,6 @@ void lsfitfit(lsfitstate &state,
         _ALGLIB_CALLBACK_EXCEPTION_GUARD_END
     lbl_no_callback:
         alglib_impl::ae_assert(ae_false, "ALGLIB: error in 'lsfitfit' (some derivatives were not provided?)", &_alglib_env_state);
-    lbl_user_exception:
-        alglib_impl::ae_assert(ae_false, "ALGLIB: exception generated in user callback", &_alglib_env_state);
     }
     alglib_impl::ae_state_clear(&_alglib_env_state);
 }
@@ -12332,8 +12072,6 @@ void lsfitfit(lsfitstate &state,
         _ALGLIB_CALLBACK_EXCEPTION_GUARD_END
     lbl_no_callback:
         alglib_impl::ae_assert(ae_false, "ALGLIB: error in 'lsfitfit' (some derivatives were not provided?)", &_alglib_env_state);
-    lbl_user_exception:
-        alglib_impl::ae_assert(ae_false, "ALGLIB: exception generated in user callback", &_alglib_env_state);
     }
     alglib_impl::ae_state_clear(&_alglib_env_state);
 }
@@ -17147,6 +16885,142 @@ void nsfitspherex(const real_2d_array &xy, const ae_int_t npoints, const ae_int_
     alglib_impl::ae_state_clear(&_alglib_env_state);
     return;
 }
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 18.08.2009 by Bochkanov Sergey
+*************************************************************************/
+void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
+{
+    jmp_buf _break_jump;
+    alglib_impl::ae_state _alglib_env_state;
+    alglib_impl::ae_state_init(&_alglib_env_state);
+    if( setjmp(_break_jump) )
+    {
+#if !defined(AE_NO_EXCEPTIONS)
+        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
+#else
+        _ALGLIB_SET_ERROR_FLAG(_alglib_env_state.error_msg);
+        return;
+#endif
+    }
+    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
+    if( _xparams.flags!=0x0 )
+        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
+    alglib_impl::spline1dfitpenalized(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
+    alglib_impl::ae_state_clear(&_alglib_env_state);
+    return;
+}
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 18.08.2009 by Bochkanov Sergey
+*************************************************************************/
+#if !defined(AE_NO_EXCEPTIONS)
+void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
+{
+    jmp_buf _break_jump;
+    alglib_impl::ae_state _alglib_env_state;    
+    ae_int_t n;
+    if( (x.length()!=y.length()))
+        _ALGLIB_CPP_EXCEPTION("Error while calling 'spline1dfitpenalized': looks like one of arguments has wrong size");
+    n = x.length();
+    alglib_impl::ae_state_init(&_alglib_env_state);
+    if( setjmp(_break_jump) )
+        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
+    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
+    if( _xparams.flags!=0x0 )
+        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
+    alglib_impl::spline1dfitpenalized(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
+
+    alglib_impl::ae_state_clear(&_alglib_env_state);
+    return;
+}
+#endif
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 19.10.2010 by Bochkanov Sergey
+*************************************************************************/
+void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
+{
+    jmp_buf _break_jump;
+    alglib_impl::ae_state _alglib_env_state;
+    alglib_impl::ae_state_init(&_alglib_env_state);
+    if( setjmp(_break_jump) )
+    {
+#if !defined(AE_NO_EXCEPTIONS)
+        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
+#else
+        _ALGLIB_SET_ERROR_FLAG(_alglib_env_state.error_msg);
+        return;
+#endif
+    }
+    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
+    if( _xparams.flags!=0x0 )
+        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
+    alglib_impl::spline1dfitpenalizedw(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), const_cast<alglib_impl::ae_vector*>(w.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
+    alglib_impl::ae_state_clear(&_alglib_env_state);
+    return;
+}
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 19.10.2010 by Bochkanov Sergey
+*************************************************************************/
+#if !defined(AE_NO_EXCEPTIONS)
+void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams)
+{
+    jmp_buf _break_jump;
+    alglib_impl::ae_state _alglib_env_state;    
+    ae_int_t n;
+    if( (x.length()!=y.length()) || (x.length()!=w.length()))
+        _ALGLIB_CPP_EXCEPTION("Error while calling 'spline1dfitpenalizedw': looks like one of arguments has wrong size");
+    n = x.length();
+    alglib_impl::ae_state_init(&_alglib_env_state);
+    if( setjmp(_break_jump) )
+        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
+    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
+    if( _xparams.flags!=0x0 )
+        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
+    alglib_impl::spline1dfitpenalizedw(const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), const_cast<alglib_impl::ae_vector*>(w.c_ptr()), n, m, rho, &info, const_cast<alglib_impl::spline1dinterpolant*>(s.c_ptr()), const_cast<alglib_impl::spline1dfitreport*>(rep.c_ptr()), &_alglib_env_state);
+
+    alglib_impl::ae_state_clear(&_alglib_env_state);
+    return;
+}
+#endif
 #endif
 }
 
@@ -17184,6 +17058,8 @@ static void ratint_barycentricnormalize(barycentricinterpolant* b,
 
 #endif
 #if defined(AE_COMPILE_SPLINE1D) || !defined(AE_PARTIAL_BUILD)
+static double spline1d_lambdareg = 1.0e-9;
+static double spline1d_cholreg = 1.0e-12;
 static void spline1d_spline1dgriddiffcubicinternal(/* Real    */ ae_vector* x,
      /* Real    */ ae_vector* y,
      ae_int_t n,
@@ -24319,85 +24195,57 @@ double spline1dintegrate(spline1dinterpolant* c,
 
 
 /*************************************************************************
-Fitting by penalized cubic spline.
+Fitting by smoothing (penalized) cubic spline.
 
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
+This function approximates N scattered points (some of X[] may be equal to
+each other) by cubic spline with M  nodes  at  equidistant  grid  spanning
+interval [min(x,xc),max(x,xc)].
 
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
+The problem is regularized by adding nonlinearity penalty to  usual  least
+squares penalty function:
 
-  ! COMMERCIAL EDITION OF ALGLIB:
-  ! 
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  ! 
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
+    MERIT_FUNC = F_LS + F_NL
+
+where F_LS is a least squares error  term,  and  F_NL  is  a  nonlinearity
+penalty which is roughly proportional to LambdaNS*integral{ S''(x)^2*dx }.
+Algorithm applies automatic renormalization of F_NL  which  makes  penalty
+term roughly invariant to scaling of X[] and changes in M.
+
+This function is a new edition  of  penalized  regression  spline fitting,
+a fast and compact one which needs much less resources that  its  previous
+version: just O(maxMN) memory and O(maxMN*log(maxMN)) time.
+
+NOTE: it is OK to run this function with both M<<N and M>>N;  say,  it  is
+      possible to process 100 points with 1000-node spline.
            
 INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y are processed
-            * if not given, automatically determined from X/Y sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
+    X           -   points, array[0..N-1].
+    Y           -   function values, array[0..N-1].
+    N           -   number of points (optional):
+                    * N>0
+                    * if given, only first N elements of X/Y are processed
+                    * if not given, automatically determined from lengths
+    M           -   number of basis functions ( = number_of_nodes), M>=4.
+    LambdaNS    -   LambdaNS>=0, regularization  constant  passed by user.
+                    It penalizes nonlinearity in the regression spline.
+                    Possible values to start from are 0.00001, 0.1, 1
 
 OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
     S   -   spline interpolant.
     Rep -   Following fields are set:
             * RMSError      rms error on the (X,Y).
             * AvgError      average error on the (X,Y).
             * AvgRelError   average relative error on the non-zero Y
             * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
 
   -- ALGLIB PROJECT --
-     Copyright 18.08.2009 by Bochkanov Sergey
+     Copyright 27.08.2019 by Bochkanov Sergey
 *************************************************************************/
-void spline1dfitpenalized(/* Real    */ ae_vector* x,
+void spline1dfit(/* Real    */ ae_vector* x,
      /* Real    */ ae_vector* y,
      ae_int_t n,
      ae_int_t m,
-     double rho,
-     ae_int_t* info,
+     double lambdans,
      spline1dinterpolant* s,
      spline1dfitreport* rep,
      ae_state *_state)
@@ -24405,459 +24253,416 @@ void spline1dfitpenalized(/* Real    */ ae_vector* x,
     ae_frame _frame_block;
     ae_vector _x;
     ae_vector _y;
-    ae_vector w;
-    ae_int_t i;
-
-    ae_frame_make(_state, &_frame_block);
-    memset(&_x, 0, sizeof(_x));
-    memset(&_y, 0, sizeof(_y));
-    memset(&w, 0, sizeof(w));
-    ae_vector_init_copy(&_x, x, _state, ae_true);
-    x = &_x;
-    ae_vector_init_copy(&_y, y, _state, ae_true);
-    y = &_y;
-    *info = 0;
-    _spline1dinterpolant_clear(s);
-    _spline1dfitreport_clear(rep);
-    ae_vector_init(&w, 0, DT_REAL, _state, ae_true);
-
-    ae_assert(n>=1, "Spline1DFitPenalized: N<1!", _state);
-    ae_assert(m>=4, "Spline1DFitPenalized: M<4!", _state);
-    ae_assert(x->cnt>=n, "Spline1DFitPenalized: Length(X)<N!", _state);
-    ae_assert(y->cnt>=n, "Spline1DFitPenalized: Length(Y)<N!", _state);
-    ae_assert(isfinitevector(x, n, _state), "Spline1DFitPenalized: X contains infinite or NAN values!", _state);
-    ae_assert(isfinitevector(y, n, _state), "Spline1DFitPenalized: Y contains infinite or NAN values!", _state);
-    ae_assert(ae_isfinite(rho, _state), "Spline1DFitPenalized: Rho is infinite!", _state);
-    ae_vector_set_length(&w, n, _state);
-    for(i=0; i<=n-1; i++)
-    {
-        w.ptr.p_double[i] = (double)(1);
-    }
-    spline1dfitpenalizedw(x, y, &w, n, m, rho, info, s, rep, _state);
-    ae_frame_leave(_state);
-}
-
-
-/*************************************************************************
-Weighted fitting by penalized cubic spline.
-
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
-
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
-
-  ! COMMERCIAL EDITION OF ALGLIB:
-  ! 
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  ! 
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
-           
-INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    W   -   weights, array[0..N-1]
-            Each summand in square  sum  of  approximation deviations from
-            given  values  is  multiplied  by  the square of corresponding
-            weight. Fill it by 1's if you don't  want  to  solve  weighted
-            problem.
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y/W are processed
-            * if not given, automatically determined from X/Y/W sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
-
-OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
-    S   -   spline interpolant.
-    Rep -   Following fields are set:
-            * RMSError      rms error on the (X,Y).
-            * AvgError      average error on the (X,Y).
-            * AvgRelError   average relative error on the non-zero Y
-            * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
-
-  -- ALGLIB PROJECT --
-     Copyright 19.10.2010 by Bochkanov Sergey
-*************************************************************************/
-void spline1dfitpenalizedw(/* Real    */ ae_vector* x,
-     /* Real    */ ae_vector* y,
-     /* Real    */ ae_vector* w,
-     ae_int_t n,
-     ae_int_t m,
-     double rho,
-     ae_int_t* info,
-     spline1dinterpolant* s,
-     spline1dfitreport* rep,
-     ae_state *_state)
-{
-    ae_frame _frame_block;
-    ae_vector _x;
-    ae_vector _y;
-    ae_vector _w;
-    ae_int_t i;
-    ae_int_t j;
-    ae_int_t b;
-    double v;
-    double relcnt;
+    ae_int_t bfrad;
     double xa;
     double xb;
-    double sa;
-    double sb;
-    ae_vector xoriginal;
-    ae_vector yoriginal;
-    double pdecay;
-    double tdecay;
-    ae_matrix fmatrix;
-    ae_vector fcolumn;
-    ae_vector y2;
-    ae_vector w2;
-    ae_vector xc;
-    ae_vector yc;
-    ae_vector dc;
-    double fdmax;
-    double admax;
-    ae_matrix amatrix;
-    ae_matrix d2matrix;
-    double fa;
-    double ga;
-    double fb;
-    double gb;
-    double lambdav;
-    ae_vector bx;
-    ae_vector by;
-    ae_vector bd1;
-    ae_vector bd2;
-    ae_vector tx;
-    ae_vector ty;
-    ae_vector td;
-    spline1dinterpolant bs;
-    ae_matrix nmatrix;
-    ae_vector rightpart;
-    fblslincgstate cgstate;
-    ae_vector c;
+    ae_int_t i;
+    ae_int_t j;
+    ae_int_t k;
+    ae_int_t k0;
+    ae_int_t k1;
+    double v;
+    double dv;
+    double d2v;
+    ae_int_t gridexpansion;
+    ae_vector xywork;
+    ae_matrix vterm;
+    ae_vector sx;
+    ae_vector sy;
+    ae_vector sdy;
+    ae_vector tmpx;
+    ae_vector tmpy;
+    spline1dinterpolant basis1;
+    sparsematrix av;
+    sparsematrix ah;
+    sparsematrix ata;
+    ae_vector targets;
+    double meany;
+    ae_int_t lsqrcnt;
+    ae_int_t nrel;
+    double rss;
+    double tss;
+    ae_int_t arows;
     ae_vector tmp0;
+    ae_vector tmp1;
+    linlsqrstate solver;
+    linlsqrreport srep;
+    double creg;
+    double mxata;
+    ae_int_t bw;
+    ae_vector nzidx;
+    ae_vector nzval;
+    ae_int_t nzcnt;
+    double scaletargetsby;
+    double scalepenaltyby;
 
     ae_frame_make(_state, &_frame_block);
     memset(&_x, 0, sizeof(_x));
     memset(&_y, 0, sizeof(_y));
-    memset(&_w, 0, sizeof(_w));
-    memset(&xoriginal, 0, sizeof(xoriginal));
-    memset(&yoriginal, 0, sizeof(yoriginal));
-    memset(&fmatrix, 0, sizeof(fmatrix));
-    memset(&fcolumn, 0, sizeof(fcolumn));
-    memset(&y2, 0, sizeof(y2));
-    memset(&w2, 0, sizeof(w2));
-    memset(&xc, 0, sizeof(xc));
-    memset(&yc, 0, sizeof(yc));
-    memset(&dc, 0, sizeof(dc));
-    memset(&amatrix, 0, sizeof(amatrix));
-    memset(&d2matrix, 0, sizeof(d2matrix));
-    memset(&bx, 0, sizeof(bx));
-    memset(&by, 0, sizeof(by));
-    memset(&bd1, 0, sizeof(bd1));
-    memset(&bd2, 0, sizeof(bd2));
-    memset(&tx, 0, sizeof(tx));
-    memset(&ty, 0, sizeof(ty));
-    memset(&td, 0, sizeof(td));
-    memset(&bs, 0, sizeof(bs));
-    memset(&nmatrix, 0, sizeof(nmatrix));
-    memset(&rightpart, 0, sizeof(rightpart));
-    memset(&cgstate, 0, sizeof(cgstate));
-    memset(&c, 0, sizeof(c));
+    memset(&xywork, 0, sizeof(xywork));
+    memset(&vterm, 0, sizeof(vterm));
+    memset(&sx, 0, sizeof(sx));
+    memset(&sy, 0, sizeof(sy));
+    memset(&sdy, 0, sizeof(sdy));
+    memset(&tmpx, 0, sizeof(tmpx));
+    memset(&tmpy, 0, sizeof(tmpy));
+    memset(&basis1, 0, sizeof(basis1));
+    memset(&av, 0, sizeof(av));
+    memset(&ah, 0, sizeof(ah));
+    memset(&ata, 0, sizeof(ata));
+    memset(&targets, 0, sizeof(targets));
     memset(&tmp0, 0, sizeof(tmp0));
+    memset(&tmp1, 0, sizeof(tmp1));
+    memset(&solver, 0, sizeof(solver));
+    memset(&srep, 0, sizeof(srep));
+    memset(&nzidx, 0, sizeof(nzidx));
+    memset(&nzval, 0, sizeof(nzval));
     ae_vector_init_copy(&_x, x, _state, ae_true);
     x = &_x;
     ae_vector_init_copy(&_y, y, _state, ae_true);
     y = &_y;
-    ae_vector_init_copy(&_w, w, _state, ae_true);
-    w = &_w;
-    *info = 0;
     _spline1dinterpolant_clear(s);
     _spline1dfitreport_clear(rep);
-    ae_vector_init(&xoriginal, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&yoriginal, 0, DT_REAL, _state, ae_true);
-    ae_matrix_init(&fmatrix, 0, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&fcolumn, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&y2, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&w2, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&xc, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&yc, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&dc, 0, DT_INT, _state, ae_true);
-    ae_matrix_init(&amatrix, 0, 0, DT_REAL, _state, ae_true);
-    ae_matrix_init(&d2matrix, 0, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&bx, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&by, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&bd1, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&bd2, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&tx, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&ty, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&td, 0, DT_REAL, _state, ae_true);
-    _spline1dinterpolant_init(&bs, _state, ae_true);
-    ae_matrix_init(&nmatrix, 0, 0, DT_REAL, _state, ae_true);
-    ae_vector_init(&rightpart, 0, DT_REAL, _state, ae_true);
-    _fblslincgstate_init(&cgstate, _state, ae_true);
-    ae_vector_init(&c, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&xywork, 0, DT_REAL, _state, ae_true);
+    ae_matrix_init(&vterm, 0, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&sx, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&sy, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&sdy, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&tmpx, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&tmpy, 0, DT_REAL, _state, ae_true);
+    _spline1dinterpolant_init(&basis1, _state, ae_true);
+    _sparsematrix_init(&av, _state, ae_true);
+    _sparsematrix_init(&ah, _state, ae_true);
+    _sparsematrix_init(&ata, _state, ae_true);
+    ae_vector_init(&targets, 0, DT_REAL, _state, ae_true);
     ae_vector_init(&tmp0, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&tmp1, 0, DT_REAL, _state, ae_true);
+    _linlsqrstate_init(&solver, _state, ae_true);
+    _linlsqrreport_init(&srep, _state, ae_true);
+    ae_vector_init(&nzidx, 0, DT_INT, _state, ae_true);
+    ae_vector_init(&nzval, 0, DT_REAL, _state, ae_true);
 
-    ae_assert(n>=1, "Spline1DFitPenalizedW: N<1!", _state);
-    ae_assert(m>=4, "Spline1DFitPenalizedW: M<4!", _state);
-    ae_assert(x->cnt>=n, "Spline1DFitPenalizedW: Length(X)<N!", _state);
-    ae_assert(y->cnt>=n, "Spline1DFitPenalizedW: Length(Y)<N!", _state);
-    ae_assert(w->cnt>=n, "Spline1DFitPenalizedW: Length(W)<N!", _state);
-    ae_assert(isfinitevector(x, n, _state), "Spline1DFitPenalizedW: X contains infinite or NAN values!", _state);
-    ae_assert(isfinitevector(y, n, _state), "Spline1DFitPenalizedW: Y contains infinite or NAN values!", _state);
-    ae_assert(isfinitevector(w, n, _state), "Spline1DFitPenalizedW: Y contains infinite or NAN values!", _state);
-    ae_assert(ae_isfinite(rho, _state), "Spline1DFitPenalizedW: Rho is infinite!", _state);
+    ae_assert(n>=1, "Spline1DFit: N<1!", _state);
+    ae_assert(m>=1, "Spline1DFit: M<1!", _state);
+    ae_assert(x->cnt>=n, "Spline1DFit: Length(X)<N!", _state);
+    ae_assert(y->cnt>=n, "Spline1DFit: Length(Y)<N!", _state);
+    ae_assert(isfinitevector(x, n, _state), "Spline1DFit: X contains infinite or NAN values!", _state);
+    ae_assert(isfinitevector(y, n, _state), "Spline1DFit: Y contains infinite or NAN values!", _state);
+    ae_assert(ae_isfinite(lambdans, _state), "Spline1DFit: LambdaNS is infinite!", _state);
+    ae_assert(ae_fp_greater_eq(lambdans,(double)(0)), "Spline1DFit: LambdaNS<0!", _state);
+    bfrad = 2;
+    lsqrcnt = 10;
     
     /*
-     * Prepare LambdaV
+     * Sort points.
+     * Determine actual area size, make sure that XA<XB
      */
-    v = -ae_log(ae_machineepsilon, _state)/ae_log((double)(10), _state);
-    if( ae_fp_less(rho,-v) )
+    tagsortfastr(x, y, &tmpx, &tmpy, n, _state);
+    xa = x->ptr.p_double[0];
+    xb = x->ptr.p_double[n-1];
+    if( ae_fp_eq(xa,xb) )
     {
-        rho = -v;
-    }
-    if( ae_fp_greater(rho,v) )
-    {
-        rho = v;
-    }
-    lambdav = ae_pow((double)(10), rho, _state);
-    
-    /*
-     * Sort X, Y, W
-     */
-    heapsortdpoints(x, y, w, n, _state);
-    
-    /*
-     * Scale X, Y, XC, YC
-     */
-    lsfitscalexy(x, y, w, n, &xc, &yc, &dc, 0, &xa, &xb, &sa, &sb, &xoriginal, &yoriginal, _state);
-    
-    /*
-     * Allocate space
-     */
-    ae_matrix_set_length(&fmatrix, n, m, _state);
-    ae_matrix_set_length(&amatrix, m, m, _state);
-    ae_matrix_set_length(&d2matrix, m, m, _state);
-    ae_vector_set_length(&bx, m, _state);
-    ae_vector_set_length(&by, m, _state);
-    ae_vector_set_length(&fcolumn, n, _state);
-    ae_matrix_set_length(&nmatrix, m, m, _state);
-    ae_vector_set_length(&rightpart, m, _state);
-    ae_vector_set_length(&tmp0, ae_maxint(m, n, _state), _state);
-    ae_vector_set_length(&c, m, _state);
-    
-    /*
-     * Fill:
-     * * FMatrix by values of basis functions
-     * * TmpAMatrix by second derivatives of I-th function at J-th point
-     * * CMatrix by constraints
-     */
-    fdmax = (double)(0);
-    for(b=0; b<=m-1; b++)
-    {
-        
-        /*
-         * Prepare I-th basis function
-         */
-        for(j=0; j<=m-1; j++)
+        v = xa;
+        if( ae_fp_greater_eq(v,(double)(0)) )
         {
-            bx.ptr.p_double[j] = (double)(2*j)/(double)(m-1)-1;
-            by.ptr.p_double[j] = (double)(0);
+            xa = v/2-1;
+            xb = v*2+1;
         }
-        by.ptr.p_double[b] = (double)(1);
-        spline1dgriddiff2cubic(&bx, &by, m, 2, 0.0, 2, 0.0, &bd1, &bd2, _state);
-        spline1dbuildcubic(&bx, &by, m, 2, 0.0, 2, 0.0, &bs, _state);
-        
-        /*
-         * Calculate B-th column of FMatrix
-         * Update FDMax (maximum column norm)
-         */
-        spline1dconvcubic(&bx, &by, m, 2, 0.0, 2, 0.0, x, n, &fcolumn, _state);
-        ae_v_move(&fmatrix.ptr.pp_double[0][b], fmatrix.stride, &fcolumn.ptr.p_double[0], 1, ae_v_len(0,n-1));
-        v = (double)(0);
-        for(i=0; i<=n-1; i++)
+        else
         {
-            v = v+ae_sqr(w->ptr.p_double[i]*fcolumn.ptr.p_double[i], _state);
+            xa = v*2-1;
+            xb = v/2+1;
         }
-        fdmax = ae_maxreal(fdmax, v, _state);
-        
-        /*
-         * Fill temporary with second derivatives of basis function
-         */
-        ae_v_move(&d2matrix.ptr.pp_double[b][0], 1, &bd2.ptr.p_double[0], 1, ae_v_len(0,m-1));
+    }
+    ae_assert(ae_fp_less(xa,xb), "Spline1DFit: integrity error", _state);
+    
+    /*
+     * Perform a grid correction according to current grid expansion size.
+     */
+    m = ae_maxint(m, 4, _state);
+    gridexpansion = 1;
+    v = (xb-xa)/m;
+    xa = xa-v*gridexpansion;
+    xb = xb+v*gridexpansion;
+    m = m+2*gridexpansion;
+    
+    /*
+     * Convert X/Y to work representation, remove linear trend (in
+     * order to improve condition number).
+     *
+     * Compute total-sum-of-squares (needed later for R2 coefficient).
+     */
+    ae_vector_set_length(&xywork, 2*n, _state);
+    for(i=0; i<=n-1; i++)
+    {
+        xywork.ptr.p_double[2*i+0] = (x->ptr.p_double[i]-xa)/(xb-xa);
+        xywork.ptr.p_double[2*i+1] = y->ptr.p_double[i];
+    }
+    buildpriorterm1(&xywork, n, 1, 1, 1, 0.0, &vterm, _state);
+    meany = (double)(0);
+    for(i=0; i<=n-1; i++)
+    {
+        meany = meany+y->ptr.p_double[i];
+    }
+    meany = meany/n;
+    tss = (double)(0);
+    for(i=0; i<=n-1; i++)
+    {
+        tss = tss+ae_sqr(y->ptr.p_double[i]-meany, _state);
     }
     
     /*
-     * * calculate penalty matrix A
-     * * calculate max of diagonal elements of A
-     * * calculate PDecay - coefficient before penalty matrix
+     * Build 1D compact basis function
+     * Generate design matrix AV ("vertical") and its transpose AH ("horizontal").
      */
+    ae_vector_set_length(&tmpx, 7, _state);
+    ae_vector_set_length(&tmpy, 7, _state);
+    tmpx.ptr.p_double[0] = -(double)3/(double)(m-1);
+    tmpx.ptr.p_double[1] = -(double)2/(double)(m-1);
+    tmpx.ptr.p_double[2] = -(double)1/(double)(m-1);
+    tmpx.ptr.p_double[3] = (double)0/(double)(m-1);
+    tmpx.ptr.p_double[4] = (double)1/(double)(m-1);
+    tmpx.ptr.p_double[5] = (double)2/(double)(m-1);
+    tmpx.ptr.p_double[6] = (double)3/(double)(m-1);
+    tmpy.ptr.p_double[0] = (double)(0);
+    tmpy.ptr.p_double[1] = (double)(0);
+    tmpy.ptr.p_double[2] = (double)1/(double)12;
+    tmpy.ptr.p_double[3] = (double)2/(double)6;
+    tmpy.ptr.p_double[4] = (double)1/(double)12;
+    tmpy.ptr.p_double[5] = (double)(0);
+    tmpy.ptr.p_double[6] = (double)(0);
+    spline1dbuildcubic(&tmpx, &tmpy, tmpx.cnt, 2, 0.0, 2, 0.0, &basis1, _state);
+    arows = n+2*m;
+    sparsecreate(arows, m, 0, &av, _state);
+    setlengthzero(&targets, arows, _state);
+    scaletargetsby = 1/ae_sqrt((double)(n), _state);
+    scalepenaltyby = 1/ae_sqrt((double)(m), _state);
+    for(i=0; i<=n-1; i++)
+    {
+        
+        /*
+         * Generate design matrix row #I which corresponds to I-th dataset point
+         */
+        k = ae_ifloor(boundval(xywork.ptr.p_double[2*i+0]*(m-1), (double)(0), (double)(m-1), _state), _state);
+        k0 = ae_maxint(k-(bfrad-1), 0, _state);
+        k1 = ae_minint(k+bfrad, m-1, _state);
+        for(j=k0; j<=k1; j++)
+        {
+            sparseset(&av, i, j, spline1dcalc(&basis1, xywork.ptr.p_double[2*i+0]-(double)j/(double)(m-1), _state)*scaletargetsby, _state);
+        }
+        targets.ptr.p_double[i] = xywork.ptr.p_double[2*i+1]*scaletargetsby;
+    }
     for(i=0; i<=m-1; i++)
     {
-        for(j=i; j<=m-1; j++)
+        
+        /*
+         * Generate design matrix row #(I+N) which corresponds to nonlinearity penalty at I-th node
+         */
+        k0 = ae_maxint(i-(bfrad-1), 0, _state);
+        k1 = ae_minint(i+(bfrad-1), m-1, _state);
+        for(j=k0; j<=k1; j++)
+        {
+            spline1ddiff(&basis1, (double)i/(double)(m-1)-(double)j/(double)(m-1), &v, &dv, &d2v, _state);
+            sparseset(&av, n+i, j, lambdans*d2v*scalepenaltyby, _state);
+        }
+    }
+    for(i=0; i<=m-1; i++)
+    {
+        
+        /*
+         * Generate design matrix row #(I+N+M) which corresponds to regularization for I-th coefficient
+         */
+        sparseset(&av, n+m+i, i, spline1d_lambdareg, _state);
+    }
+    sparseconverttocrs(&av, _state);
+    sparsecopytransposecrs(&av, &ah, _state);
+    
+    /*
+     * Build 7-diagonal (bandwidth=3) normal equations matrix and perform Cholesky
+     * decomposition (to be used later as preconditioner for LSQR iterations).
+     */
+    bw = 3;
+    sparsecreatesksband(m, m, bw, &ata, _state);
+    mxata = (double)(0);
+    for(i=0; i<=m-1; i++)
+    {
+        for(j=i; j<=ae_minint(i+bw, m-1, _state); j++)
         {
             
             /*
-             * calculate integral(B_i''*B_j'') where B_i and B_j are
-             * i-th and j-th basis splines.
-             * B_i and B_j are piecewise linear functions.
+             * Get pattern of nonzeros in one of the rows (let it be I-th one)
+             * and compute dot product only for nonzero entries.
              */
+            sparsegetcompressedrow(&ah, i, &nzidx, &nzval, &nzcnt, _state);
             v = (double)(0);
-            for(b=0; b<=m-2; b++)
+            for(k=0; k<=nzcnt-1; k++)
             {
-                fa = d2matrix.ptr.pp_double[i][b];
-                fb = d2matrix.ptr.pp_double[i][b+1];
-                ga = d2matrix.ptr.pp_double[j][b];
-                gb = d2matrix.ptr.pp_double[j][b+1];
-                v = v+(bx.ptr.p_double[b+1]-bx.ptr.p_double[b])*(fa*ga+(fa*(gb-ga)+ga*(fb-fa))/2+(fb-fa)*(gb-ga)/3);
+                v = v+sparseget(&ah, i, nzidx.ptr.p_int[k], _state)*sparseget(&ah, j, nzidx.ptr.p_int[k], _state);
             }
-            amatrix.ptr.pp_double[i][j] = v;
-            amatrix.ptr.pp_double[j][i] = v;
+            
+            /*
+             * Update ATA and max(ATA)
+             */
+            sparseset(&ata, i, j, v, _state);
+            if( i==j )
+            {
+                mxata = ae_maxreal(mxata, ae_fabs(v, _state), _state);
+            }
         }
     }
-    admax = (double)(0);
-    for(i=0; i<=m-1; i++)
+    mxata = coalesce(mxata, 1.0, _state);
+    creg = spline1d_cholreg;
+    for(;;)
     {
-        admax = ae_maxreal(admax, ae_fabs(amatrix.ptr.pp_double[i][i], _state), _state);
-    }
-    pdecay = lambdav*fdmax/admax;
-    
-    /*
-     * Calculate TDecay for Tikhonov regularization
-     */
-    tdecay = fdmax*(1+pdecay)*10*ae_machineepsilon;
-    
-    /*
-     * Prepare system
-     *
-     * NOTE: FMatrix is spoiled during this process
-     */
-    for(i=0; i<=n-1; i++)
-    {
-        v = w->ptr.p_double[i];
-        ae_v_muld(&fmatrix.ptr.pp_double[i][0], 1, ae_v_len(0,m-1), v);
-    }
-    rmatrixgemm(m, m, n, 1.0, &fmatrix, 0, 0, 1, &fmatrix, 0, 0, 0, 0.0, &nmatrix, 0, 0, _state);
-    for(i=0; i<=m-1; i++)
-    {
-        for(j=0; j<=m-1; j++)
+        
+        /*
+         * Regularization
+         */
+        for(i=0; i<=m-1; i++)
         {
-            nmatrix.ptr.pp_double[i][j] = nmatrix.ptr.pp_double[i][j]+pdecay*amatrix.ptr.pp_double[i][j];
+            sparseset(&ata, i, i, sparseget(&ata, i, i, _state)+mxata*creg, _state);
+        }
+        
+        /*
+         * Try Cholesky factorization.
+         */
+        if( !sparsecholeskyskyline(&ata, m, ae_true, _state) )
+        {
+            
+            /*
+             * Factorization failed, increase regularizer and repeat
+             */
+            creg = coalesce(10*creg, 1.0E-12, _state);
+            continue;
+        }
+        break;
+    }
+    
+    /*
+     * Solve with preconditioned LSQR:
+     *
+     * use Cholesky factor U of squared design matrix A'*A to
+     * transform min|A*x-b| to min|[A*inv(U)]*y-b| with y=U*x.
+     *
+     * Preconditioned problem is solved with LSQR solver, which
+     * gives superior results to normal equations approach. Due
+     * to Cholesky preconditioner being utilized we can solve
+     * problem in just a few iterations.
+     */
+    rvectorsetlengthatleast(&tmp0, arows, _state);
+    rvectorsetlengthatleast(&tmp1, m, _state);
+    linlsqrcreatebuf(arows, m, &solver, _state);
+    linlsqrsetb(&solver, &targets, _state);
+    linlsqrsetcond(&solver, 1.0E-14, 1.0E-14, lsqrcnt, _state);
+    while(linlsqriteration(&solver, _state))
+    {
+        if( solver.needmv )
+        {
+            for(i=0; i<=m-1; i++)
+            {
+                tmp1.ptr.p_double[i] = solver.x.ptr.p_double[i];
+            }
+            
+            /*
+             * Use Cholesky factorization of the system matrix
+             * as preconditioner: solve TRSV(U,Solver.X)
+             */
+            sparsetrsv(&ata, ae_true, ae_false, 0, &tmp1, _state);
+            
+            /*
+             * After preconditioning is done, multiply by A
+             */
+            sparsemv(&av, &tmp1, &solver.mv, _state);
+        }
+        if( solver.needmtv )
+        {
+            
+            /*
+             * Multiply by design matrix A
+             */
+            sparsemtv(&av, &solver.x, &solver.mtv, _state);
+            
+            /*
+             * Multiply by preconditioner: solve TRSV(U',A*Solver.X)
+             */
+            sparsetrsv(&ata, ae_true, ae_false, 1, &solver.mtv, _state);
         }
     }
+    linlsqrresults(&solver, &tmp1, &srep, _state);
+    sparsetrsv(&ata, ae_true, ae_false, 0, &tmp1, _state);
+    
+    /*
+     * Generate output spline as a table of spline valued and first
+     * derivatives at nodes (used to build Hermite spline)
+     */
+    ae_vector_set_length(&sx, m, _state);
+    ae_vector_set_length(&sy, m, _state);
+    ae_vector_set_length(&sdy, m, _state);
     for(i=0; i<=m-1; i++)
     {
-        nmatrix.ptr.pp_double[i][i] = nmatrix.ptr.pp_double[i][i]+tdecay;
+        sx.ptr.p_double[i] = (double)i/(double)(m-1);
+        sy.ptr.p_double[i] = (double)(0);
+        sdy.ptr.p_double[i] = (double)(0);
     }
     for(i=0; i<=m-1; i++)
     {
-        rightpart.ptr.p_double[i] = (double)(0);
+        k0 = ae_maxint(i-(bfrad-1), 0, _state);
+        k1 = ae_minint(i+bfrad, m-1, _state);
+        for(j=k0; j<=k1; j++)
+        {
+            spline1ddiff(&basis1, (double)j/(double)(m-1)-(double)i/(double)(m-1), &v, &dv, &d2v, _state);
+            sy.ptr.p_double[j] = sy.ptr.p_double[j]+tmp1.ptr.p_double[i]*v;
+            sdy.ptr.p_double[j] = sdy.ptr.p_double[j]+tmp1.ptr.p_double[i]*dv;
+        }
     }
+    
+    /*
+     * Calculate model values
+     */
+    sparsemv(&av, &tmp1, &tmp0, _state);
     for(i=0; i<=n-1; i++)
     {
-        v = y->ptr.p_double[i]*w->ptr.p_double[i];
-        ae_v_addd(&rightpart.ptr.p_double[0], 1, &fmatrix.ptr.pp_double[i][0], 1, ae_v_len(0,m-1), v);
+        tmp0.ptr.p_double[i] = tmp0.ptr.p_double[i]/scaletargetsby;
     }
-    
-    /*
-     * Solve system
-     */
-    if( !spdmatrixcholesky(&nmatrix, m, ae_true, _state) )
-    {
-        *info = -4;
-        ae_frame_leave(_state);
-        return;
-    }
-    fblscholeskysolve(&nmatrix, 1.0, m, ae_true, &rightpart, &tmp0, _state);
-    ae_v_move(&c.ptr.p_double[0], 1, &rightpart.ptr.p_double[0], 1, ae_v_len(0,m-1));
-    
-    /*
-     * add nodes to force linearity outside of the fitting interval
-     */
-    spline1dgriddiffcubic(&bx, &c, m, 2, 0.0, 2, 0.0, &bd1, _state);
-    ae_vector_set_length(&tx, m+2, _state);
-    ae_vector_set_length(&ty, m+2, _state);
-    ae_vector_set_length(&td, m+2, _state);
-    ae_v_move(&tx.ptr.p_double[1], 1, &bx.ptr.p_double[0], 1, ae_v_len(1,m));
-    ae_v_move(&ty.ptr.p_double[1], 1, &rightpart.ptr.p_double[0], 1, ae_v_len(1,m));
-    ae_v_move(&td.ptr.p_double[1], 1, &bd1.ptr.p_double[0], 1, ae_v_len(1,m));
-    tx.ptr.p_double[0] = tx.ptr.p_double[1]-(tx.ptr.p_double[2]-tx.ptr.p_double[1]);
-    ty.ptr.p_double[0] = ty.ptr.p_double[1]-td.ptr.p_double[1]*(tx.ptr.p_double[2]-tx.ptr.p_double[1]);
-    td.ptr.p_double[0] = td.ptr.p_double[1];
-    tx.ptr.p_double[m+1] = tx.ptr.p_double[m]+(tx.ptr.p_double[m]-tx.ptr.p_double[m-1]);
-    ty.ptr.p_double[m+1] = ty.ptr.p_double[m]+td.ptr.p_double[m]*(tx.ptr.p_double[m]-tx.ptr.p_double[m-1]);
-    td.ptr.p_double[m+1] = td.ptr.p_double[m];
-    spline1dbuildhermite(&tx, &ty, &td, m+2, s, _state);
-    spline1dlintransx(s, 2/(xb-xa), -(xa+xb)/(xb-xa), _state);
-    spline1dlintransy(s, sb-sa, sa, _state);
-    *info = 1;
-    
-    /*
-     * Fill report
-     */
+    rss = 0.0;
+    nrel = 0;
     rep->rmserror = (double)(0);
+    rep->maxerror = (double)(0);
     rep->avgerror = (double)(0);
     rep->avgrelerror = (double)(0);
-    rep->maxerror = (double)(0);
-    relcnt = (double)(0);
-    spline1dconvcubic(&bx, &rightpart, m, 2, 0.0, 2, 0.0, x, n, &fcolumn, _state);
     for(i=0; i<=n-1; i++)
     {
-        v = (sb-sa)*fcolumn.ptr.p_double[i]+sa;
-        rep->rmserror = rep->rmserror+ae_sqr(v-yoriginal.ptr.p_double[i], _state);
-        rep->avgerror = rep->avgerror+ae_fabs(v-yoriginal.ptr.p_double[i], _state);
-        if( ae_fp_neq(yoriginal.ptr.p_double[i],(double)(0)) )
+        v = xywork.ptr.p_double[2*i+1]-tmp0.ptr.p_double[i];
+        rss = rss+v*v;
+        rep->rmserror = rep->rmserror+ae_sqr(v, _state);
+        rep->avgerror = rep->avgerror+ae_fabs(v, _state);
+        rep->maxerror = ae_maxreal(rep->maxerror, ae_fabs(v, _state), _state);
+        if( ae_fp_neq(y->ptr.p_double[i],(double)(0)) )
         {
-            rep->avgrelerror = rep->avgrelerror+ae_fabs(v-yoriginal.ptr.p_double[i], _state)/ae_fabs(yoriginal.ptr.p_double[i], _state);
-            relcnt = relcnt+1;
+            rep->avgrelerror = rep->avgrelerror+ae_fabs(v/y->ptr.p_double[i], _state);
+            nrel = nrel+1;
         }
-        rep->maxerror = ae_maxreal(rep->maxerror, ae_fabs(v-yoriginal.ptr.p_double[i], _state), _state);
     }
     rep->rmserror = ae_sqrt(rep->rmserror/n, _state);
     rep->avgerror = rep->avgerror/n;
-    if( ae_fp_neq(relcnt,(double)(0)) )
+    rep->avgrelerror = rep->avgrelerror/coalesce((double)(nrel), 1.0, _state);
+    
+    /*
+     * Append prior term.
+     * Transform spline to original coordinates.
+     * Output.
+     */
+    for(i=0; i<=m-1; i++)
     {
-        rep->avgrelerror = rep->avgrelerror/relcnt;
+        sy.ptr.p_double[i] = sy.ptr.p_double[i]+vterm.ptr.pp_double[0][0]*sx.ptr.p_double[i]+vterm.ptr.pp_double[0][1];
+        sdy.ptr.p_double[i] = sdy.ptr.p_double[i]+vterm.ptr.pp_double[0][0];
     }
+    for(i=0; i<=m-1; i++)
+    {
+        sx.ptr.p_double[i] = sx.ptr.p_double[i]*(xb-xa)+xa;
+        sdy.ptr.p_double[i] = sdy.ptr.p_double[i]/(xb-xa);
+    }
+    spline1dbuildhermite(&sx, &sy, &sdy, m, s, _state);
     ae_frame_leave(_state);
 }
 
@@ -55731,6 +55536,421 @@ void nsfitspherex(/* Real    */ ae_matrix* xy,
     *rhi = 0;
 
     fitspherex(xy, npoints, nx, problemtype, epsx, aulits, penalty, cx, rlo, rhi, _state);
+}
+
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 18.08.2009 by Bochkanov Sergey
+*************************************************************************/
+void spline1dfitpenalized(/* Real    */ ae_vector* x,
+     /* Real    */ ae_vector* y,
+     ae_int_t n,
+     ae_int_t m,
+     double rho,
+     ae_int_t* info,
+     spline1dinterpolant* s,
+     spline1dfitreport* rep,
+     ae_state *_state)
+{
+    ae_frame _frame_block;
+    ae_vector _x;
+    ae_vector _y;
+    ae_vector w;
+    ae_int_t i;
+
+    ae_frame_make(_state, &_frame_block);
+    memset(&_x, 0, sizeof(_x));
+    memset(&_y, 0, sizeof(_y));
+    memset(&w, 0, sizeof(w));
+    ae_vector_init_copy(&_x, x, _state, ae_true);
+    x = &_x;
+    ae_vector_init_copy(&_y, y, _state, ae_true);
+    y = &_y;
+    *info = 0;
+    _spline1dinterpolant_clear(s);
+    _spline1dfitreport_clear(rep);
+    ae_vector_init(&w, 0, DT_REAL, _state, ae_true);
+
+    ae_assert(n>=1, "Spline1DFitPenalized: N<1!", _state);
+    ae_assert(m>=4, "Spline1DFitPenalized: M<4!", _state);
+    ae_assert(x->cnt>=n, "Spline1DFitPenalized: Length(X)<N!", _state);
+    ae_assert(y->cnt>=n, "Spline1DFitPenalized: Length(Y)<N!", _state);
+    ae_assert(isfinitevector(x, n, _state), "Spline1DFitPenalized: X contains infinite or NAN values!", _state);
+    ae_assert(isfinitevector(y, n, _state), "Spline1DFitPenalized: Y contains infinite or NAN values!", _state);
+    ae_assert(ae_isfinite(rho, _state), "Spline1DFitPenalized: Rho is infinite!", _state);
+    ae_vector_set_length(&w, n, _state);
+    for(i=0; i<=n-1; i++)
+    {
+        w.ptr.p_double[i] = (double)(1);
+    }
+    spline1dfitpenalizedw(x, y, &w, n, m, rho, info, s, rep, _state);
+    ae_frame_leave(_state);
+}
+
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 19.10.2010 by Bochkanov Sergey
+*************************************************************************/
+void spline1dfitpenalizedw(/* Real    */ ae_vector* x,
+     /* Real    */ ae_vector* y,
+     /* Real    */ ae_vector* w,
+     ae_int_t n,
+     ae_int_t m,
+     double rho,
+     ae_int_t* info,
+     spline1dinterpolant* s,
+     spline1dfitreport* rep,
+     ae_state *_state)
+{
+    ae_frame _frame_block;
+    ae_vector _x;
+    ae_vector _y;
+    ae_vector _w;
+    ae_int_t i;
+    ae_int_t j;
+    ae_int_t b;
+    double v;
+    double relcnt;
+    double xa;
+    double xb;
+    double sa;
+    double sb;
+    ae_vector xoriginal;
+    ae_vector yoriginal;
+    double pdecay;
+    double tdecay;
+    ae_matrix fmatrix;
+    ae_vector fcolumn;
+    ae_vector y2;
+    ae_vector w2;
+    ae_vector xc;
+    ae_vector yc;
+    ae_vector dc;
+    double fdmax;
+    double admax;
+    ae_matrix amatrix;
+    ae_matrix d2matrix;
+    double fa;
+    double ga;
+    double fb;
+    double gb;
+    double lambdav;
+    ae_vector bx;
+    ae_vector by;
+    ae_vector bd1;
+    ae_vector bd2;
+    ae_vector tx;
+    ae_vector ty;
+    ae_vector td;
+    spline1dinterpolant bs;
+    ae_matrix nmatrix;
+    ae_vector rightpart;
+    fblslincgstate cgstate;
+    ae_vector c;
+    ae_vector tmp0;
+
+    ae_frame_make(_state, &_frame_block);
+    memset(&_x, 0, sizeof(_x));
+    memset(&_y, 0, sizeof(_y));
+    memset(&_w, 0, sizeof(_w));
+    memset(&xoriginal, 0, sizeof(xoriginal));
+    memset(&yoriginal, 0, sizeof(yoriginal));
+    memset(&fmatrix, 0, sizeof(fmatrix));
+    memset(&fcolumn, 0, sizeof(fcolumn));
+    memset(&y2, 0, sizeof(y2));
+    memset(&w2, 0, sizeof(w2));
+    memset(&xc, 0, sizeof(xc));
+    memset(&yc, 0, sizeof(yc));
+    memset(&dc, 0, sizeof(dc));
+    memset(&amatrix, 0, sizeof(amatrix));
+    memset(&d2matrix, 0, sizeof(d2matrix));
+    memset(&bx, 0, sizeof(bx));
+    memset(&by, 0, sizeof(by));
+    memset(&bd1, 0, sizeof(bd1));
+    memset(&bd2, 0, sizeof(bd2));
+    memset(&tx, 0, sizeof(tx));
+    memset(&ty, 0, sizeof(ty));
+    memset(&td, 0, sizeof(td));
+    memset(&bs, 0, sizeof(bs));
+    memset(&nmatrix, 0, sizeof(nmatrix));
+    memset(&rightpart, 0, sizeof(rightpart));
+    memset(&cgstate, 0, sizeof(cgstate));
+    memset(&c, 0, sizeof(c));
+    memset(&tmp0, 0, sizeof(tmp0));
+    ae_vector_init_copy(&_x, x, _state, ae_true);
+    x = &_x;
+    ae_vector_init_copy(&_y, y, _state, ae_true);
+    y = &_y;
+    ae_vector_init_copy(&_w, w, _state, ae_true);
+    w = &_w;
+    *info = 0;
+    _spline1dinterpolant_clear(s);
+    _spline1dfitreport_clear(rep);
+    ae_vector_init(&xoriginal, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&yoriginal, 0, DT_REAL, _state, ae_true);
+    ae_matrix_init(&fmatrix, 0, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&fcolumn, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&y2, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&w2, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&xc, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&yc, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&dc, 0, DT_INT, _state, ae_true);
+    ae_matrix_init(&amatrix, 0, 0, DT_REAL, _state, ae_true);
+    ae_matrix_init(&d2matrix, 0, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&bx, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&by, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&bd1, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&bd2, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&tx, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&ty, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&td, 0, DT_REAL, _state, ae_true);
+    _spline1dinterpolant_init(&bs, _state, ae_true);
+    ae_matrix_init(&nmatrix, 0, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&rightpart, 0, DT_REAL, _state, ae_true);
+    _fblslincgstate_init(&cgstate, _state, ae_true);
+    ae_vector_init(&c, 0, DT_REAL, _state, ae_true);
+    ae_vector_init(&tmp0, 0, DT_REAL, _state, ae_true);
+
+    ae_assert(n>=1, "Spline1DFitPenalizedW: N<1!", _state);
+    ae_assert(m>=4, "Spline1DFitPenalizedW: M<4!", _state);
+    ae_assert(x->cnt>=n, "Spline1DFitPenalizedW: Length(X)<N!", _state);
+    ae_assert(y->cnt>=n, "Spline1DFitPenalizedW: Length(Y)<N!", _state);
+    ae_assert(w->cnt>=n, "Spline1DFitPenalizedW: Length(W)<N!", _state);
+    ae_assert(isfinitevector(x, n, _state), "Spline1DFitPenalizedW: X contains infinite or NAN values!", _state);
+    ae_assert(isfinitevector(y, n, _state), "Spline1DFitPenalizedW: Y contains infinite or NAN values!", _state);
+    ae_assert(isfinitevector(w, n, _state), "Spline1DFitPenalizedW: Y contains infinite or NAN values!", _state);
+    ae_assert(ae_isfinite(rho, _state), "Spline1DFitPenalizedW: Rho is infinite!", _state);
+    
+    /*
+     * Prepare LambdaV
+     */
+    v = -ae_log(ae_machineepsilon, _state)/ae_log((double)(10), _state);
+    if( ae_fp_less(rho,-v) )
+    {
+        rho = -v;
+    }
+    if( ae_fp_greater(rho,v) )
+    {
+        rho = v;
+    }
+    lambdav = ae_pow((double)(10), rho, _state);
+    
+    /*
+     * Sort X, Y, W
+     */
+    heapsortdpoints(x, y, w, n, _state);
+    
+    /*
+     * Scale X, Y, XC, YC
+     */
+    lsfitscalexy(x, y, w, n, &xc, &yc, &dc, 0, &xa, &xb, &sa, &sb, &xoriginal, &yoriginal, _state);
+    
+    /*
+     * Allocate space
+     */
+    ae_matrix_set_length(&fmatrix, n, m, _state);
+    ae_matrix_set_length(&amatrix, m, m, _state);
+    ae_matrix_set_length(&d2matrix, m, m, _state);
+    ae_vector_set_length(&bx, m, _state);
+    ae_vector_set_length(&by, m, _state);
+    ae_vector_set_length(&fcolumn, n, _state);
+    ae_matrix_set_length(&nmatrix, m, m, _state);
+    ae_vector_set_length(&rightpart, m, _state);
+    ae_vector_set_length(&tmp0, ae_maxint(m, n, _state), _state);
+    ae_vector_set_length(&c, m, _state);
+    
+    /*
+     * Fill:
+     * * FMatrix by values of basis functions
+     * * TmpAMatrix by second derivatives of I-th function at J-th point
+     * * CMatrix by constraints
+     */
+    fdmax = (double)(0);
+    for(b=0; b<=m-1; b++)
+    {
+        
+        /*
+         * Prepare I-th basis function
+         */
+        for(j=0; j<=m-1; j++)
+        {
+            bx.ptr.p_double[j] = (double)(2*j)/(double)(m-1)-1;
+            by.ptr.p_double[j] = (double)(0);
+        }
+        by.ptr.p_double[b] = (double)(1);
+        spline1dgriddiff2cubic(&bx, &by, m, 2, 0.0, 2, 0.0, &bd1, &bd2, _state);
+        spline1dbuildcubic(&bx, &by, m, 2, 0.0, 2, 0.0, &bs, _state);
+        
+        /*
+         * Calculate B-th column of FMatrix
+         * Update FDMax (maximum column norm)
+         */
+        spline1dconvcubic(&bx, &by, m, 2, 0.0, 2, 0.0, x, n, &fcolumn, _state);
+        ae_v_move(&fmatrix.ptr.pp_double[0][b], fmatrix.stride, &fcolumn.ptr.p_double[0], 1, ae_v_len(0,n-1));
+        v = (double)(0);
+        for(i=0; i<=n-1; i++)
+        {
+            v = v+ae_sqr(w->ptr.p_double[i]*fcolumn.ptr.p_double[i], _state);
+        }
+        fdmax = ae_maxreal(fdmax, v, _state);
+        
+        /*
+         * Fill temporary with second derivatives of basis function
+         */
+        ae_v_move(&d2matrix.ptr.pp_double[b][0], 1, &bd2.ptr.p_double[0], 1, ae_v_len(0,m-1));
+    }
+    
+    /*
+     * * calculate penalty matrix A
+     * * calculate max of diagonal elements of A
+     * * calculate PDecay - coefficient before penalty matrix
+     */
+    for(i=0; i<=m-1; i++)
+    {
+        for(j=i; j<=m-1; j++)
+        {
+            
+            /*
+             * calculate integral(B_i''*B_j'') where B_i and B_j are
+             * i-th and j-th basis splines.
+             * B_i and B_j are piecewise linear functions.
+             */
+            v = (double)(0);
+            for(b=0; b<=m-2; b++)
+            {
+                fa = d2matrix.ptr.pp_double[i][b];
+                fb = d2matrix.ptr.pp_double[i][b+1];
+                ga = d2matrix.ptr.pp_double[j][b];
+                gb = d2matrix.ptr.pp_double[j][b+1];
+                v = v+(bx.ptr.p_double[b+1]-bx.ptr.p_double[b])*(fa*ga+(fa*(gb-ga)+ga*(fb-fa))/2+(fb-fa)*(gb-ga)/3);
+            }
+            amatrix.ptr.pp_double[i][j] = v;
+            amatrix.ptr.pp_double[j][i] = v;
+        }
+    }
+    admax = (double)(0);
+    for(i=0; i<=m-1; i++)
+    {
+        admax = ae_maxreal(admax, ae_fabs(amatrix.ptr.pp_double[i][i], _state), _state);
+    }
+    pdecay = lambdav*fdmax/admax;
+    
+    /*
+     * Calculate TDecay for Tikhonov regularization
+     */
+    tdecay = fdmax*(1+pdecay)*10*ae_machineepsilon;
+    
+    /*
+     * Prepare system
+     *
+     * NOTE: FMatrix is spoiled during this process
+     */
+    for(i=0; i<=n-1; i++)
+    {
+        v = w->ptr.p_double[i];
+        ae_v_muld(&fmatrix.ptr.pp_double[i][0], 1, ae_v_len(0,m-1), v);
+    }
+    rmatrixgemm(m, m, n, 1.0, &fmatrix, 0, 0, 1, &fmatrix, 0, 0, 0, 0.0, &nmatrix, 0, 0, _state);
+    for(i=0; i<=m-1; i++)
+    {
+        for(j=0; j<=m-1; j++)
+        {
+            nmatrix.ptr.pp_double[i][j] = nmatrix.ptr.pp_double[i][j]+pdecay*amatrix.ptr.pp_double[i][j];
+        }
+    }
+    for(i=0; i<=m-1; i++)
+    {
+        nmatrix.ptr.pp_double[i][i] = nmatrix.ptr.pp_double[i][i]+tdecay;
+    }
+    for(i=0; i<=m-1; i++)
+    {
+        rightpart.ptr.p_double[i] = (double)(0);
+    }
+    for(i=0; i<=n-1; i++)
+    {
+        v = y->ptr.p_double[i]*w->ptr.p_double[i];
+        ae_v_addd(&rightpart.ptr.p_double[0], 1, &fmatrix.ptr.pp_double[i][0], 1, ae_v_len(0,m-1), v);
+    }
+    
+    /*
+     * Solve system
+     */
+    if( !spdmatrixcholesky(&nmatrix, m, ae_true, _state) )
+    {
+        *info = -4;
+        ae_frame_leave(_state);
+        return;
+    }
+    fblscholeskysolve(&nmatrix, 1.0, m, ae_true, &rightpart, &tmp0, _state);
+    ae_v_move(&c.ptr.p_double[0], 1, &rightpart.ptr.p_double[0], 1, ae_v_len(0,m-1));
+    
+    /*
+     * add nodes to force linearity outside of the fitting interval
+     */
+    spline1dgriddiffcubic(&bx, &c, m, 2, 0.0, 2, 0.0, &bd1, _state);
+    ae_vector_set_length(&tx, m+2, _state);
+    ae_vector_set_length(&ty, m+2, _state);
+    ae_vector_set_length(&td, m+2, _state);
+    ae_v_move(&tx.ptr.p_double[1], 1, &bx.ptr.p_double[0], 1, ae_v_len(1,m));
+    ae_v_move(&ty.ptr.p_double[1], 1, &rightpart.ptr.p_double[0], 1, ae_v_len(1,m));
+    ae_v_move(&td.ptr.p_double[1], 1, &bd1.ptr.p_double[0], 1, ae_v_len(1,m));
+    tx.ptr.p_double[0] = tx.ptr.p_double[1]-(tx.ptr.p_double[2]-tx.ptr.p_double[1]);
+    ty.ptr.p_double[0] = ty.ptr.p_double[1]-td.ptr.p_double[1]*(tx.ptr.p_double[2]-tx.ptr.p_double[1]);
+    td.ptr.p_double[0] = td.ptr.p_double[1];
+    tx.ptr.p_double[m+1] = tx.ptr.p_double[m]+(tx.ptr.p_double[m]-tx.ptr.p_double[m-1]);
+    ty.ptr.p_double[m+1] = ty.ptr.p_double[m]+td.ptr.p_double[m]*(tx.ptr.p_double[m]-tx.ptr.p_double[m-1]);
+    td.ptr.p_double[m+1] = td.ptr.p_double[m];
+    spline1dbuildhermite(&tx, &ty, &td, m+2, s, _state);
+    spline1dlintransx(s, 2/(xb-xa), -(xa+xb)/(xb-xa), _state);
+    spline1dlintransy(s, sb-sa, sa, _state);
+    *info = 1;
+    
+    /*
+     * Fill report
+     */
+    rep->rmserror = (double)(0);
+    rep->avgerror = (double)(0);
+    rep->avgrelerror = (double)(0);
+    rep->maxerror = (double)(0);
+    relcnt = (double)(0);
+    spline1dconvcubic(&bx, &rightpart, m, 2, 0.0, 2, 0.0, x, n, &fcolumn, _state);
+    for(i=0; i<=n-1; i++)
+    {
+        v = (sb-sa)*fcolumn.ptr.p_double[i]+sa;
+        rep->rmserror = rep->rmserror+ae_sqr(v-yoriginal.ptr.p_double[i], _state);
+        rep->avgerror = rep->avgerror+ae_fabs(v-yoriginal.ptr.p_double[i], _state);
+        if( ae_fp_neq(yoriginal.ptr.p_double[i],(double)(0)) )
+        {
+            rep->avgrelerror = rep->avgrelerror+ae_fabs(v-yoriginal.ptr.p_double[i], _state)/ae_fabs(yoriginal.ptr.p_double[i], _state);
+            relcnt = relcnt+1;
+        }
+        rep->maxerror = ae_maxreal(rep->maxerror, ae_fabs(v-yoriginal.ptr.p_double[i], _state), _state);
+    }
+    rep->rmserror = ae_sqrt(rep->rmserror/n, _state);
+    rep->avgerror = rep->avgerror/n;
+    if( ae_fp_neq(relcnt,(double)(0)) )
+    {
+        rep->avgrelerror = rep->avgrelerror/relcnt;
+    }
+    ae_frame_leave(_state);
 }
 
 

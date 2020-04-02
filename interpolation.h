@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -2800,164 +2800,54 @@ double spline1dintegrate(const spline1dinterpolant &c, const double x, const xpa
 
 
 /*************************************************************************
-Fitting by penalized cubic spline.
+Fitting by smoothing (penalized) cubic spline.
 
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
+This function approximates N scattered points (some of X[] may be equal to
+each other) by cubic spline with M  nodes  at  equidistant  grid  spanning
+interval [min(x,xc),max(x,xc)].
 
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
+The problem is regularized by adding nonlinearity penalty to  usual  least
+squares penalty function:
 
-  ! COMMERCIAL EDITION OF ALGLIB:
-  !
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  !
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
+    MERIT_FUNC = F_LS + F_NL
+
+where F_LS is a least squares error  term,  and  F_NL  is  a  nonlinearity
+penalty which is roughly proportional to LambdaNS*integral{ S''(x)^2*dx }.
+Algorithm applies automatic renormalization of F_NL  which  makes  penalty
+term roughly invariant to scaling of X[] and changes in M.
+
+This function is a new edition  of  penalized  regression  spline fitting,
+a fast and compact one which needs much less resources that  its  previous
+version: just O(maxMN) memory and O(maxMN*log(maxMN)) time.
+
+NOTE: it is OK to run this function with both M<<N and M>>N;  say,  it  is
+      possible to process 100 points with 1000-node spline.
 
 INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y are processed
-            * if not given, automatically determined from X/Y sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
+    X           -   points, array[0..N-1].
+    Y           -   function values, array[0..N-1].
+    N           -   number of points (optional):
+                    * N>0
+                    * if given, only first N elements of X/Y are processed
+                    * if not given, automatically determined from lengths
+    M           -   number of basis functions ( = number_of_nodes), M>=4.
+    LambdaNS    -   LambdaNS>=0, regularization  constant  passed by user.
+                    It penalizes nonlinearity in the regression spline.
+                    Possible values to start from are 0.00001, 0.1, 1
 
 OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
     S   -   spline interpolant.
     Rep -   Following fields are set:
             * RMSError      rms error on the (X,Y).
             * AvgError      average error on the (X,Y).
             * AvgRelError   average relative error on the non-zero Y
             * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
 
   -- ALGLIB PROJECT --
-     Copyright 18.08.2009 by Bochkanov Sergey
+     Copyright 27.08.2019 by Bochkanov Sergey
 *************************************************************************/
-void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
-void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
-
-
-/*************************************************************************
-Weighted fitting by penalized cubic spline.
-
-Equidistant grid with M nodes on [min(x,xc),max(x,xc)] is  used  to  build
-basis functions. Basis functions are cubic splines with  natural  boundary
-conditions. Problem is regularized by  adding non-linearity penalty to the
-usual least squares penalty function:
-
-    S(x) = arg min { LS + P }, where
-    LS   = SUM { w[i]^2*(y[i] - S(x[i]))^2 } - least squares penalty
-    P    = C*10^rho*integral{ S''(x)^2*dx } - non-linearity penalty
-    rho  - tunable constant given by user
-    C    - automatically determined scale parameter,
-           makes penalty invariant with respect to scaling of X, Y, W.
-
-  ! COMMERCIAL EDITION OF ALGLIB:
-  !
-  ! Commercial Edition of ALGLIB includes following important improvements
-  ! of this function:
-  ! * high-performance native backend with same C# interface (C# version)
-  ! * multithreading support (C++ and C# versions)
-  ! * hardware vendor (Intel) implementations of linear algebra primitives
-  !   (C++ and C# versions, x86/x64 platform)
-  !
-  ! We recommend you to read 'Working with commercial version' section  of
-  ! ALGLIB Reference Manual in order to find out how to  use  performance-
-  ! related features provided by commercial edition of ALGLIB.
-
-INPUT PARAMETERS:
-    X   -   points, array[0..N-1].
-    Y   -   function values, array[0..N-1].
-    W   -   weights, array[0..N-1]
-            Each summand in square  sum  of  approximation deviations from
-            given  values  is  multiplied  by  the square of corresponding
-            weight. Fill it by 1's if you don't  want  to  solve  weighted
-            problem.
-    N   -   number of points (optional):
-            * N>0
-            * if given, only first N elements of X/Y/W are processed
-            * if not given, automatically determined from X/Y/W sizes
-    M   -   number of basis functions ( = number_of_nodes), M>=4.
-    Rho -   regularization  constant  passed   by   user.   It   penalizes
-            nonlinearity in the regression spline. It  is  logarithmically
-            scaled,  i.e.  actual  value  of  regularization  constant  is
-            calculated as 10^Rho. It is automatically scaled so that:
-            * Rho=2.0 corresponds to moderate amount of nonlinearity
-            * generally, it should be somewhere in the [-8.0,+8.0]
-            If you do not want to penalize nonlineary,
-            pass small Rho. Values as low as -15 should work.
-
-OUTPUT PARAMETERS:
-    Info-   same format as in LSFitLinearWC() subroutine.
-            * Info>0    task is solved
-            * Info<=0   an error occured:
-                        -4 means inconvergence of internal SVD or
-                           Cholesky decomposition; problem may be
-                           too ill-conditioned (very rare)
-    S   -   spline interpolant.
-    Rep -   Following fields are set:
-            * RMSError      rms error on the (X,Y).
-            * AvgError      average error on the (X,Y).
-            * AvgRelError   average relative error on the non-zero Y
-            * MaxError      maximum error
-                            NON-WEIGHTED ERRORS ARE CALCULATED
-
-IMPORTANT:
-    this subroitine doesn't calculate task's condition number for K<>0.
-
-NOTE 1: additional nodes are added to the spline outside  of  the  fitting
-interval to force linearity when x<min(x,xc) or x>max(x,xc).  It  is  done
-for consistency - we penalize non-linearity  at [min(x,xc),max(x,xc)],  so
-it is natural to force linearity outside of this interval.
-
-NOTE 2: function automatically sorts points,  so  caller may pass unsorted
-array.
-
-  -- ALGLIB PROJECT --
-     Copyright 19.10.2010 by Bochkanov Sergey
-*************************************************************************/
-void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
-void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
+void spline1dfit(const real_1d_array &x, const real_1d_array &y, const ae_int_t n, const ae_int_t m, const double lambdans, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
+void spline1dfit(const real_1d_array &x, const real_1d_array &y, const ae_int_t m, const double lambdans, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
 
 
 /*************************************************************************
@@ -8419,6 +8309,38 @@ Use fitspherex() instead.
      Copyright 14.04.2017 by Bochkanov Sergey
 *************************************************************************/
 void nsfitspherex(const real_2d_array &xy, const ae_int_t npoints, const ae_int_t nx, const ae_int_t problemtype, const double epsx, const ae_int_t aulits, const double penalty, real_1d_array &cx, double &rlo, double &rhi, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 18.08.2009 by Bochkanov Sergey
+*************************************************************************/
+void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
+void spline1dfitpenalized(const real_1d_array &x, const real_1d_array &y, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+This function is an obsolete and deprecated version of fitting by
+penalized cubic spline.
+
+It was superseded by spline1dfit(), which is an orders of magnitude faster
+and more memory-efficient implementation.
+
+Do NOT use this function in the new code!
+
+  -- ALGLIB PROJECT --
+     Copyright 19.10.2010 by Bochkanov Sergey
+*************************************************************************/
+void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t n, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
+void spline1dfitpenalizedw(const real_1d_array &x, const real_1d_array &y, const real_1d_array &w, const ae_int_t m, const double rho, ae_int_t &info, spline1dinterpolant &s, spline1dfitreport &rep, const xparams _xparams = alglib::xdefault);
 #endif
 }
 
@@ -8750,22 +8672,11 @@ void spline1dlintransy(spline1dinterpolant* c,
 double spline1dintegrate(spline1dinterpolant* c,
      double x,
      ae_state *_state);
-void spline1dfitpenalized(/* Real    */ ae_vector* x,
+void spline1dfit(/* Real    */ ae_vector* x,
      /* Real    */ ae_vector* y,
      ae_int_t n,
      ae_int_t m,
-     double rho,
-     ae_int_t* info,
-     spline1dinterpolant* s,
-     spline1dfitreport* rep,
-     ae_state *_state);
-void spline1dfitpenalizedw(/* Real    */ ae_vector* x,
-     /* Real    */ ae_vector* y,
-     /* Real    */ ae_vector* w,
-     ae_int_t n,
-     ae_int_t m,
-     double rho,
-     ae_int_t* info,
+     double lambdans,
      spline1dinterpolant* s,
      spline1dfitreport* rep,
      ae_state *_state);
@@ -10019,6 +9930,25 @@ void nsfitspherex(/* Real    */ ae_matrix* xy,
      /* Real    */ ae_vector* cx,
      double* rlo,
      double* rhi,
+     ae_state *_state);
+void spline1dfitpenalized(/* Real    */ ae_vector* x,
+     /* Real    */ ae_vector* y,
+     ae_int_t n,
+     ae_int_t m,
+     double rho,
+     ae_int_t* info,
+     spline1dinterpolant* s,
+     spline1dfitreport* rep,
+     ae_state *_state);
+void spline1dfitpenalizedw(/* Real    */ ae_vector* x,
+     /* Real    */ ae_vector* y,
+     /* Real    */ ae_vector* w,
+     ae_int_t n,
+     ae_int_t m,
+     double rho,
+     ae_int_t* info,
+     spline1dinterpolant* s,
+     spline1dfitreport* rep,
      ae_state *_state);
 #endif
 

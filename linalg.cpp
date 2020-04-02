@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -1340,6 +1340,77 @@ void sparsemtv(const sparsematrix &s, const real_1d_array &x, real_1d_array &y, 
     if( _xparams.flags!=0x0 )
         ae_state_set_flags(&_alglib_env_state, _xparams.flags);
     alglib_impl::sparsemtv(const_cast<alglib_impl::sparsematrix*>(s.c_ptr()), const_cast<alglib_impl::ae_vector*>(x.c_ptr()), const_cast<alglib_impl::ae_vector*>(y.c_ptr()), &_alglib_env_state);
+    alglib_impl::ae_state_clear(&_alglib_env_state);
+    return;
+}
+
+/*************************************************************************
+This function calculates generalized sparse matrix-vector product
+
+    y := alpha*op(S)*x + beta*y
+
+Matrix S must be stored in CRS or SKS format (exception  will  be  thrown
+otherwise). op(S) can be either S or S^T.
+
+NOTE: this  function  expects  Y  to  be  large enough to store result. No
+      automatic preallocation happens for smaller arrays.
+
+INPUT PARAMETERS
+    S           -   sparse matrix in CRS or SKS format.
+    Alpha       -   source coefficient
+    OpS         -   operation type:
+                    * OpS=0     =>  op(S) = S
+                    * OpS=1     =>  op(S) = S^T
+    X           -   input vector, must have at least Cols(op(S))+IX elements
+    IX          -   subvector offset
+    Beta        -   destination coefficient
+    Y           -   preallocated output array, must have at least Rows(op(S))+IY elements
+    IY          -   subvector offset
+
+OUTPUT PARAMETERS
+    Y           -   elements [IY...IY+Rows(op(S))-1] are replaced by result,
+                    other elements are not modified
+
+HANDLING OF SPECIAL CASES:
+* below M=Rows(op(S)) and N=Cols(op(S)). Although current  ALGLIB  version
+  does not allow you to  create  zero-sized  sparse  matrices,  internally
+  ALGLIB  can  deal  with  such matrices. So, comments for M or N equal to
+  zero are for internal use only.
+* if M=0, then subroutine does nothing. It does not even touch arrays.
+* if N=0 or Alpha=0.0, then:
+  * if Beta=0, then Y is filled by zeros. S and X are  not  referenced  at
+    all. Initial values of Y are ignored (we do not  multiply  Y by  zero,
+    we just rewrite it by zeros)
+  * if Beta<>0, then Y is replaced by Beta*Y
+* if M>0, N>0, Alpha<>0, but  Beta=0, then  Y is replaced by alpha*op(S)*x
+  initial state of Y  is ignored (rewritten without initial multiplication
+  by zeros).
+
+NOTE: this function throws exception when called for non-CRS/SKS  matrix.
+You must convert your matrix with SparseConvertToCRS/SKS()  before  using
+this function.
+
+  -- ALGLIB PROJECT --
+     Copyright 10.12.2019 by Bochkanov Sergey
+*************************************************************************/
+void sparsegemv(const sparsematrix &s, const double alpha, const ae_int_t ops, const real_1d_array &x, const ae_int_t ix, const double beta, const real_1d_array &y, const ae_int_t iy, const xparams _xparams)
+{
+    jmp_buf _break_jump;
+    alglib_impl::ae_state _alglib_env_state;
+    alglib_impl::ae_state_init(&_alglib_env_state);
+    if( setjmp(_break_jump) )
+    {
+#if !defined(AE_NO_EXCEPTIONS)
+        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
+#else
+        _ALGLIB_SET_ERROR_FLAG(_alglib_env_state.error_msg);
+        return;
+#endif
+    }
+    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
+    if( _xparams.flags!=0x0 )
+        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
+    alglib_impl::sparsegemv(const_cast<alglib_impl::sparsematrix*>(s.c_ptr()), alpha, ops, const_cast<alglib_impl::ae_vector*>(x.c_ptr()), ix, beta, const_cast<alglib_impl::ae_vector*>(y.c_ptr()), iy, &_alglib_env_state);
     alglib_impl::ae_state_clear(&_alglib_env_state);
     return;
 }
@@ -3136,6 +3207,38 @@ void cmatrixcopy(const ae_int_t m, const ae_int_t n, const complex_2d_array &a, 
 Copy
 
 Input parameters:
+    N   -   subvector size
+    A   -   source vector, N elements are copied
+    IA  -   source offset (first element index)
+    B   -   destination vector, must be large enough to store result
+    IB  -   destination offset (first element index)
+*************************************************************************/
+void rvectorcopy(const ae_int_t n, const real_1d_array &a, const ae_int_t ia, const real_1d_array &b, const ae_int_t ib, const xparams _xparams)
+{
+    jmp_buf _break_jump;
+    alglib_impl::ae_state _alglib_env_state;
+    alglib_impl::ae_state_init(&_alglib_env_state);
+    if( setjmp(_break_jump) )
+    {
+#if !defined(AE_NO_EXCEPTIONS)
+        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
+#else
+        _ALGLIB_SET_ERROR_FLAG(_alglib_env_state.error_msg);
+        return;
+#endif
+    }
+    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
+    if( _xparams.flags!=0x0 )
+        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
+    alglib_impl::rvectorcopy(n, const_cast<alglib_impl::ae_vector*>(a.c_ptr()), ia, const_cast<alglib_impl::ae_vector*>(b.c_ptr()), ib, &_alglib_env_state);
+    alglib_impl::ae_state_clear(&_alglib_env_state);
+    return;
+}
+
+/*************************************************************************
+Copy
+
+Input parameters:
     M   -   number of rows
     N   -   number of columns
     A   -   source matrix, MxN submatrix is copied and transposed
@@ -3163,6 +3266,47 @@ void rmatrixcopy(const ae_int_t m, const ae_int_t n, const real_2d_array &a, con
     if( _xparams.flags!=0x0 )
         ae_state_set_flags(&_alglib_env_state, _xparams.flags);
     alglib_impl::rmatrixcopy(m, n, const_cast<alglib_impl::ae_matrix*>(a.c_ptr()), ia, ja, const_cast<alglib_impl::ae_matrix*>(b.c_ptr()), ib, jb, &_alglib_env_state);
+    alglib_impl::ae_state_clear(&_alglib_env_state);
+    return;
+}
+
+/*************************************************************************
+Performs generalized copy: B := Beta*B + Alpha*A.
+
+If Beta=0, then previous contents of B is simply ignored. If Alpha=0, then
+A is ignored and not referenced. If both Alpha and Beta  are  zero,  B  is
+filled by zeros.
+
+Input parameters:
+    M   -   number of rows
+    N   -   number of columns
+    Alpha-  coefficient
+    A   -   source matrix, MxN submatrix is copied and transposed
+    IA  -   submatrix offset (row index)
+    JA  -   submatrix offset (column index)
+    Beta-   coefficient
+    B   -   destination matrix, must be large enough to store result
+    IB  -   submatrix offset (row index)
+    JB  -   submatrix offset (column index)
+*************************************************************************/
+void rmatrixgencopy(const ae_int_t m, const ae_int_t n, const double alpha, const real_2d_array &a, const ae_int_t ia, const ae_int_t ja, const double beta, const real_2d_array &b, const ae_int_t ib, const ae_int_t jb, const xparams _xparams)
+{
+    jmp_buf _break_jump;
+    alglib_impl::ae_state _alglib_env_state;
+    alglib_impl::ae_state_init(&_alglib_env_state);
+    if( setjmp(_break_jump) )
+    {
+#if !defined(AE_NO_EXCEPTIONS)
+        _ALGLIB_CPP_EXCEPTION(_alglib_env_state.error_msg);
+#else
+        _ALGLIB_SET_ERROR_FLAG(_alglib_env_state.error_msg);
+        return;
+#endif
+    }
+    ae_state_set_break_jump(&_alglib_env_state, &_break_jump);
+    if( _xparams.flags!=0x0 )
+        ae_state_set_flags(&_alglib_env_state, _xparams.flags);
+    alglib_impl::rmatrixgencopy(m, n, alpha, const_cast<alglib_impl::ae_matrix*>(a.c_ptr()), ia, ja, beta, const_cast<alglib_impl::ae_matrix*>(b.c_ptr()), ib, jb, &_alglib_env_state);
     alglib_impl::ae_state_clear(&_alglib_env_state);
     return;
 }
@@ -13958,6 +14102,289 @@ void sparsemtv(sparsematrix* s,
 
 
 /*************************************************************************
+This function calculates generalized sparse matrix-vector product
+
+    y := alpha*op(S)*x + beta*y
+
+Matrix S must be stored in CRS or SKS format (exception  will  be  thrown
+otherwise). op(S) can be either S or S^T.
+
+NOTE: this  function  expects  Y  to  be  large enough to store result. No
+      automatic preallocation happens for smaller arrays.
+
+INPUT PARAMETERS
+    S           -   sparse matrix in CRS or SKS format.
+    Alpha       -   source coefficient
+    OpS         -   operation type:
+                    * OpS=0     =>  op(S) = S
+                    * OpS=1     =>  op(S) = S^T
+    X           -   input vector, must have at least Cols(op(S))+IX elements
+    IX          -   subvector offset
+    Beta        -   destination coefficient
+    Y           -   preallocated output array, must have at least Rows(op(S))+IY elements
+    IY          -   subvector offset
+    
+OUTPUT PARAMETERS
+    Y           -   elements [IY...IY+Rows(op(S))-1] are replaced by result,
+                    other elements are not modified
+
+HANDLING OF SPECIAL CASES:
+* below M=Rows(op(S)) and N=Cols(op(S)). Although current  ALGLIB  version
+  does not allow you to  create  zero-sized  sparse  matrices,  internally
+  ALGLIB  can  deal  with  such matrices. So, comments for M or N equal to
+  zero are for internal use only.
+* if M=0, then subroutine does nothing. It does not even touch arrays.
+* if N=0 or Alpha=0.0, then:
+  * if Beta=0, then Y is filled by zeros. S and X are  not  referenced  at
+    all. Initial values of Y are ignored (we do not  multiply  Y by  zero,
+    we just rewrite it by zeros)
+  * if Beta<>0, then Y is replaced by Beta*Y
+* if M>0, N>0, Alpha<>0, but  Beta=0, then  Y is replaced by alpha*op(S)*x
+  initial state of Y  is ignored (rewritten without initial multiplication
+  by zeros).
+    
+NOTE: this function throws exception when called for non-CRS/SKS  matrix.
+You must convert your matrix with SparseConvertToCRS/SKS()  before  using
+this function.
+     
+  -- ALGLIB PROJECT --
+     Copyright 10.12.2019 by Bochkanov Sergey
+*************************************************************************/
+void sparsegemv(sparsematrix* s,
+     double alpha,
+     ae_int_t ops,
+     /* Real    */ ae_vector* x,
+     ae_int_t ix,
+     double beta,
+     /* Real    */ ae_vector* y,
+     ae_int_t iy,
+     ae_state *_state)
+{
+    ae_int_t opm;
+    ae_int_t opn;
+    ae_int_t rawm;
+    ae_int_t rawn;
+    ae_int_t i;
+    ae_int_t j;
+    double tval;
+    ae_int_t lt;
+    ae_int_t rt;
+    ae_int_t ct;
+    ae_int_t d;
+    ae_int_t u;
+    ae_int_t ri;
+    ae_int_t ri1;
+    double v;
+    double vv;
+    ae_int_t lt1;
+    ae_int_t rt1;
+
+
+    ae_assert(ops==0||ops==1, "SparseGEMV: incorrect OpS", _state);
+    ae_assert(s->matrixtype==1||s->matrixtype==2, "SparseGEMV: incorrect matrix type (convert your matrix to CRS/SKS)", _state);
+    if( ops==0 )
+    {
+        opm = s->m;
+        opn = s->n;
+    }
+    else
+    {
+        opm = s->n;
+        opn = s->m;
+    }
+    ae_assert(opm>=0&&opn>=0, "SparseGEMV: op(S) has negative size", _state);
+    ae_assert(opn==0||x->cnt+ix>=opn, "SparseGEMV: X is too short", _state);
+    ae_assert(opm==0||y->cnt+iy>=opm, "SparseGEMV: X is too short", _state);
+    rawm = s->m;
+    rawn = s->n;
+    
+    /*
+     * Quick exit strategies
+     */
+    if( opm==0 )
+    {
+        return;
+    }
+    if( ae_fp_neq(beta,(double)(0)) )
+    {
+        for(i=0; i<=opm-1; i++)
+        {
+            y->ptr.p_double[iy+i] = beta*y->ptr.p_double[iy+i];
+        }
+    }
+    else
+    {
+        for(i=0; i<=opm-1; i++)
+        {
+            y->ptr.p_double[iy+i] = 0.0;
+        }
+    }
+    if( opn==0||ae_fp_eq(alpha,(double)(0)) )
+    {
+        return;
+    }
+    
+    /*
+     * Now we have OpM>=1, OpN>=1, Alpha<>0
+     */
+    if( ops==0 )
+    {
+        
+        /*
+         * Compute generalized product y := alpha*S*x + beta*y
+         * (with "beta*y" part already computed).
+         */
+        if( s->matrixtype==1 )
+        {
+            
+            /*
+             * CRS format.
+             * Perform integrity check.
+             */
+            ae_assert(s->ninitialized==s->ridx.ptr.p_int[s->m], "SparseGEMV: some rows/elements of the CRS matrix were not initialized (you must initialize everything you promised to SparseCreateCRS)", _state);
+            
+            /*
+             * Try vendor kernels
+             */
+            if( sparsegemvcrsmkl(0, s->m, s->n, alpha, &s->vals, &s->idx, &s->ridx, x, ix, 1.0, y, iy, _state) )
+            {
+                return;
+            }
+            
+            /*
+             * Our own implementation
+             */
+            for(i=0; i<=rawm-1; i++)
+            {
+                tval = (double)(0);
+                lt = s->ridx.ptr.p_int[i];
+                rt = s->ridx.ptr.p_int[i+1]-1;
+                for(j=lt; j<=rt; j++)
+                {
+                    tval = tval+x->ptr.p_double[s->idx.ptr.p_int[j]+ix]*s->vals.ptr.p_double[j];
+                }
+                y->ptr.p_double[i+iy] = alpha*tval+y->ptr.p_double[i+iy];
+            }
+            return;
+        }
+        if( s->matrixtype==2 )
+        {
+            
+            /*
+             * SKS format
+             */
+            ae_assert(s->m==s->n, "SparseMV: non-square SKS matrices are not supported", _state);
+            for(i=0; i<=rawn-1; i++)
+            {
+                ri = s->ridx.ptr.p_int[i];
+                ri1 = s->ridx.ptr.p_int[i+1];
+                d = s->didx.ptr.p_int[i];
+                u = s->uidx.ptr.p_int[i];
+                v = s->vals.ptr.p_double[ri+d]*x->ptr.p_double[i+ix];
+                if( d>0 )
+                {
+                    lt = ri;
+                    rt = ri+d-1;
+                    lt1 = i-d+ix;
+                    rt1 = i-1+ix;
+                    vv = ae_v_dotproduct(&s->vals.ptr.p_double[lt], 1, &x->ptr.p_double[lt1], 1, ae_v_len(lt,rt));
+                    v = v+vv;
+                }
+                y->ptr.p_double[i+iy] = alpha*v+y->ptr.p_double[i+iy];
+                if( u>0 )
+                {
+                    lt = ri1-u;
+                    rt = ri1-1;
+                    lt1 = i-u+iy;
+                    rt1 = i-1+iy;
+                    v = alpha*x->ptr.p_double[i+ix];
+                    ae_v_addd(&y->ptr.p_double[lt1], 1, &s->vals.ptr.p_double[lt], 1, ae_v_len(lt1,rt1), v);
+                }
+            }
+            return;
+        }
+    }
+    else
+    {
+        
+        /*
+         * Compute generalized product y := alpha*S^T*x + beta*y
+         * (with "beta*y" part already computed).
+         */
+        if( s->matrixtype==1 )
+        {
+            
+            /*
+             * CRS format
+             * Perform integrity check.
+             */
+            ae_assert(s->ninitialized==s->ridx.ptr.p_int[s->m], "SparseGEMV: some rows/elements of the CRS matrix were not initialized (you must initialize everything you promised to SparseCreateCRS)", _state);
+            
+            /*
+             * Try vendor kernels
+             */
+            if( sparsegemvcrsmkl(1, s->m, s->n, alpha, &s->vals, &s->idx, &s->ridx, x, ix, 1.0, y, iy, _state) )
+            {
+                return;
+            }
+            
+            /*
+             * Our own implementation
+             */
+            for(i=0; i<=rawm-1; i++)
+            {
+                lt = s->ridx.ptr.p_int[i];
+                rt = s->ridx.ptr.p_int[i+1];
+                v = alpha*x->ptr.p_double[i+ix];
+                for(j=lt; j<=rt-1; j++)
+                {
+                    ct = s->idx.ptr.p_int[j]+iy;
+                    y->ptr.p_double[ct] = y->ptr.p_double[ct]+v*s->vals.ptr.p_double[j];
+                }
+            }
+            return;
+        }
+        if( s->matrixtype==2 )
+        {
+            
+            /*
+             * SKS format
+             */
+            ae_assert(s->m==s->n, "SparseGEMV: non-square SKS matrices are not supported", _state);
+            for(i=0; i<=rawn-1; i++)
+            {
+                ri = s->ridx.ptr.p_int[i];
+                ri1 = s->ridx.ptr.p_int[i+1];
+                d = s->didx.ptr.p_int[i];
+                u = s->uidx.ptr.p_int[i];
+                if( d>0 )
+                {
+                    lt = ri;
+                    rt = ri+d-1;
+                    lt1 = i-d+iy;
+                    rt1 = i-1+iy;
+                    v = alpha*x->ptr.p_double[i+ix];
+                    ae_v_addd(&y->ptr.p_double[lt1], 1, &s->vals.ptr.p_double[lt], 1, ae_v_len(lt1,rt1), v);
+                }
+                v = alpha*s->vals.ptr.p_double[ri+d]*x->ptr.p_double[i+ix];
+                if( u>0 )
+                {
+                    lt = ri1-u;
+                    rt = ri1-1;
+                    lt1 = i-u+ix;
+                    rt1 = i-1+ix;
+                    vv = ae_v_dotproduct(&s->vals.ptr.p_double[lt], 1, &x->ptr.p_double[lt1], 1, ae_v_len(lt,rt));
+                    v = v+alpha*vv;
+                }
+                y->ptr.p_double[i+iy] = v+y->ptr.p_double[i+iy];
+            }
+            return;
+        }
+    }
+}
+
+
+/*************************************************************************
 This function simultaneously calculates two matrix-vector products:
     S*x and S^T*x.
 S must be square (non-rectangular) matrix stored in  CRS  or  SKS  format
@@ -18004,6 +18431,28 @@ void sparsecreatecrsinplace(sparsematrix* s, ae_state *_state)
     n = s->n;
     
     /*
+     * Quick exit for M=0 or N=0
+     */
+    ae_assert(s->m>=0, "SparseCreateCRSInplace: integrity check failed", _state);
+    ae_assert(s->n>=0, "SparseCreateCRSInplace: integrity check failed", _state);
+    if( m==0||n==0 )
+    {
+        s->matrixtype = 1;
+        s->ninitialized = 0;
+        ivectorsetlengthatleast(&s->ridx, s->m+1, _state);
+        ivectorsetlengthatleast(&s->didx, s->m, _state);
+        ivectorsetlengthatleast(&s->uidx, s->m, _state);
+        for(i=0; i<=s->m-1; i++)
+        {
+            s->ridx.ptr.p_int[i] = 0;
+            s->uidx.ptr.p_int[i] = 0;
+            s->didx.ptr.p_int[i] = 0;
+        }
+        s->ridx.ptr.p_int[s->m] = 0;
+        return;
+    }
+    
+    /*
      * Perform integrity check
      */
     ae_assert(s->m>0, "SparseCreateCRSInplace: integrity check failed", _state);
@@ -19066,6 +19515,37 @@ void cmatrixcopy(ae_int_t m,
 Copy
 
 Input parameters:
+    N   -   subvector size
+    A   -   source vector, N elements are copied
+    IA  -   source offset (first element index)
+    B   -   destination vector, must be large enough to store result
+    IB  -   destination offset (first element index)
+*************************************************************************/
+void rvectorcopy(ae_int_t n,
+     /* Real    */ ae_vector* a,
+     ae_int_t ia,
+     /* Real    */ ae_vector* b,
+     ae_int_t ib,
+     ae_state *_state)
+{
+    ae_int_t i;
+
+
+    if( n==0 )
+    {
+        return;
+    }
+    for(i=0; i<=n-1; i++)
+    {
+        b->ptr.p_double[ib+i] = a->ptr.p_double[ia+i];
+    }
+}
+
+
+/*************************************************************************
+Copy
+
+Input parameters:
     M   -   number of rows
     N   -   number of columns
     A   -   source matrix, MxN submatrix is copied and transposed
@@ -19095,6 +19575,104 @@ void rmatrixcopy(ae_int_t m,
     for(i=0; i<=m-1; i++)
     {
         ae_v_move(&b->ptr.pp_double[ib+i][jb], 1, &a->ptr.pp_double[ia+i][ja], 1, ae_v_len(jb,jb+n-1));
+    }
+}
+
+
+/*************************************************************************
+Performs generalized copy: B := Beta*B + Alpha*A.
+
+If Beta=0, then previous contents of B is simply ignored. If Alpha=0, then
+A is ignored and not referenced. If both Alpha and Beta  are  zero,  B  is
+filled by zeros.
+
+Input parameters:
+    M   -   number of rows
+    N   -   number of columns
+    Alpha-  coefficient
+    A   -   source matrix, MxN submatrix is copied and transposed
+    IA  -   submatrix offset (row index)
+    JA  -   submatrix offset (column index)
+    Beta-   coefficient
+    B   -   destination matrix, must be large enough to store result
+    IB  -   submatrix offset (row index)
+    JB  -   submatrix offset (column index)
+*************************************************************************/
+void rmatrixgencopy(ae_int_t m,
+     ae_int_t n,
+     double alpha,
+     /* Real    */ ae_matrix* a,
+     ae_int_t ia,
+     ae_int_t ja,
+     double beta,
+     /* Real    */ ae_matrix* b,
+     ae_int_t ib,
+     ae_int_t jb,
+     ae_state *_state)
+{
+    ae_int_t i;
+    ae_int_t j;
+
+
+    if( m==0||n==0 )
+    {
+        return;
+    }
+    
+    /*
+     * Zero-fill
+     */
+    if( ae_fp_eq(alpha,(double)(0))&&ae_fp_eq(beta,(double)(0)) )
+    {
+        for(i=0; i<=m-1; i++)
+        {
+            for(j=0; j<=n-1; j++)
+            {
+                b->ptr.pp_double[ib+i][jb+j] = (double)(0);
+            }
+        }
+        return;
+    }
+    
+    /*
+     * Inplace multiply
+     */
+    if( ae_fp_eq(alpha,(double)(0)) )
+    {
+        for(i=0; i<=m-1; i++)
+        {
+            for(j=0; j<=n-1; j++)
+            {
+                b->ptr.pp_double[ib+i][jb+j] = beta*b->ptr.pp_double[ib+i][jb+j];
+            }
+        }
+        return;
+    }
+    
+    /*
+     * Multiply and copy
+     */
+    if( ae_fp_eq(beta,(double)(0)) )
+    {
+        for(i=0; i<=m-1; i++)
+        {
+            for(j=0; j<=n-1; j++)
+            {
+                b->ptr.pp_double[ib+i][jb+j] = alpha*a->ptr.pp_double[ia+i][ja+j];
+            }
+        }
+        return;
+    }
+    
+    /*
+     * Generic
+     */
+    for(i=0; i<=m-1; i++)
+    {
+        for(j=0; j<=n-1; j++)
+        {
+            b->ptr.pp_double[ib+i][jb+j] = alpha*a->ptr.pp_double[ia+i][ja+j]+beta*b->ptr.pp_double[ib+i][jb+j];
+        }
     }
 }
 

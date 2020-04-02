@@ -1,5 +1,5 @@
 /*************************************************************************
-ALGLIB 3.15.0 (source code generated 2019-02-20)
+ALGLIB 3.16.0 (source code generated 2019-12-19)
 Copyright (c) Sergey Bochkanov (ALGLIB project).
 
 >>> SOURCE LICENSE >>>
@@ -2987,6 +2987,61 @@ OUTPUT PARAMETERS
      Copyright 26.12.2017 by Bochkanov Sergey
 *************************************************************************/
 void sparsecholeskysolvesks(const sparsematrix &a, const ae_int_t n, const bool isupper, const real_1d_array &b, sparsesolverreport &rep, real_1d_array &x, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+Sparse linear solver for A*x=b with general (nonsymmetric) N*N sparse real
+matrix A, N*1 vectors x and b.
+
+This solver converts input matrix to CRS format, performs LU factorization
+and uses sparse triangular solvers to get solution of the original system.
+
+INPUT PARAMETERS
+    A       -   sparse matrix, must be NxN exactly, any storage format
+    N       -   size of A, N>0
+    B       -   array[0..N-1], right part
+
+OUTPUT PARAMETERS
+    X       -   array[N], it contains:
+                * rep.terminationtype>0    =>  solution
+                * rep.terminationtype=-3   =>  filled by zeros
+    Rep     -   solver report, following fields are set:
+                * rep.terminationtype - solver status; >0 for success,
+                  set to -3 on failure (degenerate system).
+
+  -- ALGLIB --
+     Copyright 26.12.2017 by Bochkanov Sergey
+*************************************************************************/
+void sparsesolve(const sparsematrix &a, const ae_int_t n, const real_1d_array &b, real_1d_array &x, sparsesolverreport &rep, const xparams _xparams = alglib::xdefault);
+
+
+/*************************************************************************
+Sparse linear solver for A*x=b with general (nonsymmetric) N*N sparse real
+matrix A given by its LU factorization, N*1 vectors x and b.
+
+IMPORTANT: this solver requires input matrix  to  be  in  the  CRS  sparse
+           storage format. An exception will  be  generated  if  you  pass
+           matrix in some other format (HASH or SKS).
+
+INPUT PARAMETERS
+    A       -   LU factorization of the sparse matrix, must be NxN exactly
+                in CRS storage format
+    P, Q    -   pivot indexes from LU factorization
+    N       -   size of A, N>0
+    B       -   array[0..N-1], right part
+
+OUTPUT PARAMETERS
+    X       -   array[N], it contains:
+                * rep.terminationtype>0    =>  solution
+                * rep.terminationtype=-3   =>  filled by zeros
+    Rep     -   solver report, following fields are set:
+                * rep.terminationtype - solver status; >0 for success,
+                  set to -3 on failure (degenerate system).
+
+  -- ALGLIB --
+     Copyright 26.12.2017 by Bochkanov Sergey
+*************************************************************************/
+void sparselusolve(const sparsematrix &a, const integer_1d_array &p, const integer_1d_array &q, const ae_int_t n, const real_1d_array &b, real_1d_array &x, sparsesolverreport &rep, const xparams _xparams = alglib::xdefault);
 #endif
 
 #if defined(AE_COMPILE_LINCG) || !defined(AE_PARTIAL_BUILD)
@@ -3595,6 +3650,20 @@ void sparsecholeskysolvesks(sparsematrix* a,
      /* Real    */ ae_vector* b,
      sparsesolverreport* rep,
      /* Real    */ ae_vector* x,
+     ae_state *_state);
+void sparsesolve(sparsematrix* a,
+     ae_int_t n,
+     /* Real    */ ae_vector* b,
+     /* Real    */ ae_vector* x,
+     sparsesolverreport* rep,
+     ae_state *_state);
+void sparselusolve(sparsematrix* a,
+     /* Integer */ ae_vector* p,
+     /* Integer */ ae_vector* q,
+     ae_int_t n,
+     /* Real    */ ae_vector* b,
+     /* Real    */ ae_vector* x,
+     sparsesolverreport* rep,
      ae_state *_state);
 void _sparsesolverreport_init(void* _p, ae_state *_state, ae_bool make_automatic);
 void _sparsesolverreport_init_copy(void* _dst, void* _src, ae_state *_state, ae_bool make_automatic);

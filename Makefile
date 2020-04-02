@@ -10,7 +10,7 @@ all: libalg.a
 	
 
 libalg.a:
-	g++ $(CPPFLAGS) *.cpp
+	g++ $(CPPFLAGS) src/*.cpp
 	ar rcs $@ *.o
 	rm -f *.gch *.o
 

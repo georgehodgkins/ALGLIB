@@ -2,16 +2,16 @@
 #include <math.h>
 #include "alglibinternal.h"
 #include "alglibmisc.h"
-#include "diffequations.h"
 #include "linalg.h"
-#include "optimization.h"
 #include "solvers.h"
-#include "statistics.h"
-#include "dataanalysis.h"
+#include "optimization.h"
+#include "diffequations.h"
 #include "specialfunctions.h"
 #include "integration.h"
-#include "fasttransforms.h"
+#include "statistics.h"
 #include "interpolation.h"
+#include "fasttransforms.h"
+#include "dataanalysis.h"
 
 using namespace alglib;
 
@@ -419,6 +419,19 @@ void  nlcfunc2_jac(const real_1d_array &x, real_1d_array &fi, real_2d_array &jac
     jac[2][1] = 2*x[1];
     jac[2][2] = 0.0;
 }
+void  nlcfunc2_fvec(const real_1d_array &x, real_1d_array &fi, void *ptr)
+{
+    //
+    // this callback calculates
+    //
+    //     f0(x0,x1,x2) = x0+x1
+    //     f1(x0,x1,x2) = x2-exp(x0)
+    //     f2(x0,x1,x2) = x0^2+x1^2-1
+    //
+    fi[0] = x[0]+x[1];
+    fi[1] = x[2]-exp(x[0]);
+    fi[2] = x[0]*x[0] + x[1]*x[1] - 1.0;
+}
 void  nsfunc1_jac(const real_1d_array &x, real_1d_array &fi, real_2d_array &jac, void *ptr)
 {
     //
@@ -576,12 +589,88 @@ void s1_grad(const real_1d_array &x, double &func, real_1d_array &grad, void *pt
     func = pow(1+x[0],-0.2) + pow(1-x[0],-0.3) + 1000*x[0];
     grad[0] = -0.2*pow(1+x[0],-1.2) +0.3*pow(1-x[0],-1.3) + 1000;
 }
+void  multiobjective2_fvec(const real_1d_array &x, real_1d_array &fi, void *ptr)
+{
+    //
+    // this callback calculates the bi-objective target
+    //
+    //     f0(x0,x1) = x0^2 + (x1-1)^2
+    //     f1(x0,x1) = (x0-1(^2 + x1^2
+    //
+    fi[0] = x[0]*x[0]+(x[1]-1)*(x[1]-1);
+    fi[1] = (x[0]-1)*(x[0]-1)+x[1]*x[1];
+}
+void  multiobjective2_jac(const real_1d_array &x, real_1d_array &fi, real_2d_array &jac, void *ptr)
+{
+    //
+    // this callback calculates the bi-objective target
+    //
+    //     f0(x0,x1) = x0^2 + (x1-1)^2
+    //     f1(x0,x1) = (x0-1(^2 + x1^2
+    //
+    // and Jacobian matrix J = [dfi/dxj]
+    //
+    fi[0] = x[0]*x[0]+(x[1]-1)*(x[1]-1);
+    fi[1] = (x[0]-1)*(x[0]-1)+x[1]*x[1];
+    jac[0][0] = 2*x[0];
+    jac[0][1] = 2*(x[1]-1);
+    jac[1][0] = 2*(x[0]-1);
+    jac[1][1] = 2*x[1];
+}
+void  multiobjective2constr_fvec(const real_1d_array &x, real_1d_array &fi, void *ptr)
+{
+    //
+    // this callback calculates the bi-objective target
+    //
+    //     f0(x0,x1) = x0^2 + (x1-1)^2
+    //     f1(x0,x1) = (x0-1(^2 + x1^2
+    //
+    // nonlinear constraint function
+    //
+    //     f2(x0,x1) = x0^2 + x1^2
+    //
+    fi[0] = x[0]*x[0]+(x[1]-1)*(x[1]-1);
+    fi[1] = (x[0]-1)*(x[0]-1)+x[1]*x[1];
+    fi[2] = x[0]*x[0]+x[1]*x[1];
+}
+void  multiobjective2constr_jac(const real_1d_array &x, real_1d_array &fi, real_2d_array &jac, void *ptr)
+{
+    //
+    // this callback calculates the bi-objective target
+    //
+    //     f0(x0,x1) = x0^2 + (x1-1)^2
+    //     f1(x0,x1) = (x0-1(^2 + x1^2
+    //
+    // nonlinear constraint function
+    //
+    //     f2(x0,x1) = x0^2 + x1^2
+    //
+    // and Jacobian matrix J = [dfi/dxj]
+    //
+    fi[0] = x[0]*x[0]+(x[1]-1)*(x[1]-1);
+    fi[1] = (x[0]-1)*(x[0]-1)+x[1]*x[1];
+    fi[2] = x[0]*x[0]+x[1]*x[1];
+    jac[0][0] = 2*x[0];
+    jac[0][1] = 2*(x[1]-1);
+    jac[1][0] = 2*(x[0]-1);
+    jac[1][1] = 2*x[1];
+    jac[2][0] = 2*x[0];
+    jac[2][1] = 2*x[1];
+}
 
 int main()
 {
     bool _TotalResult = true;
     bool _TestResult;
     int _spoil_scenario;
+    printf("CPUID:%s%s%s\n", alglib_impl::ae_cpuid()&alglib_impl::CPU_SSE2 ? " sse2" : "", alglib_impl::ae_cpuid()&alglib_impl::CPU_AVX2 ? " avx2" : "", alglib_impl::ae_cpuid()&alglib_impl::CPU_FMA ? " fma" : "");
+#if AE_OS==AE_WINDOWS
+    printf("OS: Windows\n");
+#elif AE_OS==AE_POSIX
+    printf("OS: POSIX\n");
+#else
+    printf("OS: unknown\n");
+#endif
     printf("C++ tests. Please wait...\n");
 #if AE_MALLOC==AE_BASIC_STATIC_MALLOC
     const ae_int_t _static_pool_size = 1000000;
@@ -635,209 +724,197 @@ int main()
     try
     {
         //
-        // TEST nneighbor_d_1
-        //      Nearest neighbor search, KNN queries
+        // TEST xdebug_t1
+        //      Test initialization (out parameter) and update (shared parameter) for records
         //
-        printf("0/151\n");
+        printf("0/162\n");
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        try
         {
-            try
-            {
-                real_2d_array a = "[[0,0],[0,1],[1,0],[1,1]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                ae_int_t nx = 2;
-                ae_int_t ny = 0;
-                ae_int_t normtype = 2;
-                kdtree kdt;
-                real_1d_array x;
-                real_2d_array r = "[[]]";
-                ae_int_t k;
-                kdtreebuild(a, nx, ny, normtype, kdt);
-                x = "[-1,0]";
-                k = kdtreequeryknn(kdt, x, 1);
-                _TestResult = _TestResult && doc_test_int(k, 1);
-                kdtreequeryresultsx(kdt, r);
-                _TestResult = _TestResult && doc_test_real_matrix(r, "[[0,0]]", 0.05);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+            xdebugrecord1 rec1;
+
+            xdebuginitrecord1(rec1);
+            _TestResult = _TestResult && doc_test_int(rec1.i, 1);
+            _TestResult = _TestResult && doc_test_complex(rec1.c, alglib::complex(1,+1), 0.00005);
+            _TestResult = _TestResult && doc_test_real_vector(rec1.a, "[2,3]", 0.0005);
+
+            xdebugupdaterecord1(rec1);
+            _TestResult = _TestResult && doc_test_int(rec1.i, 2);
+            _TestResult = _TestResult && doc_test_complex(rec1.c, alglib::complex(3,+4), 0.00005);
+            _TestResult = _TestResult && doc_test_real_vector(rec1.a, "[2,3,6]", 0.0005);
         }
+        catch(ap_error)
+        { _TestResult = false; }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "nneighbor_d_1");
+            printf("%-32s FAILED\n", "xdebug_t1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST nneighbor_t_2
-        //      Subsequent queries; buffered functions must use previously allocated storage (if large enough), so buffer may contain some info from previous call
+        // TEST ablas_d_gemm
+        //      Matrix multiplication (single-threaded)
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        try
         {
-            try
-            {
-                real_2d_array a = "[[0,0],[0,1],[1,0],[1,1]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                ae_int_t nx = 2;
-                ae_int_t ny = 0;
-                ae_int_t normtype = 2;
-                kdtree kdt;
-                real_1d_array x;
-                real_2d_array rx = "[[]]";
-                ae_int_t k;
-                kdtreebuild(a, nx, ny, normtype, kdt);
-                x = "[+2,0]";
-                k = kdtreequeryknn(kdt, x, 2, true);
-                _TestResult = _TestResult && doc_test_int(k, 2);
-                kdtreequeryresultsx(kdt, rx);
-                _TestResult = _TestResult && doc_test_real_matrix(rx, "[[1,0],[1,1]]", 0.05);
-                x = "[-2,0]";
-                k = kdtreequeryknn(kdt, x, 1, true);
-                _TestResult = _TestResult && doc_test_int(k, 1);
-                kdtreequeryresultsx(kdt, rx);
-                _TestResult = _TestResult && doc_test_real_matrix(rx, "[[0,0],[1,1]]", 0.05);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+            real_2d_array a = "[[2,1],[1,3]]";
+            real_2d_array b = "[[2,1],[0,1]]";
+            real_2d_array c = "[[0,0],[0,0]]";
+
+            //
+            // rmatrixgemm() function allows us to calculate matrix product C:=A*B or
+            // to perform more general operation, C:=alpha*op1(A)*op2(B)+beta*C,
+            // where A, B, C are rectangular matrices, op(X) can be X or X^T,
+            // alpha and beta are scalars.
+            //
+            // This function:
+            // * can apply transposition and/or multiplication by scalar to operands
+            // * can use arbitrary part of matrices A/B (given by submatrix offset)
+            // * can store result into arbitrary part of C
+            // * for performance reasons requires C to be preallocated
+            //
+            // Parameters of this function are:
+            // * M, N, K            -   sizes of op1(A) (which is MxK), op2(B) (which
+            //                          is KxN) and C (which is MxN)
+            // * Alpha              -   coefficient before A*B
+            // * A, IA, JA          -   matrix A and offset of the submatrix
+            // * OpTypeA            -   transformation type:
+            //                          0 - no transformation
+            //                          1 - transposition
+            // * B, IB, JB          -   matrix B and offset of the submatrix
+            // * OpTypeB            -   transformation type:
+            //                          0 - no transformation
+            //                          1 - transposition
+            // * Beta               -   coefficient before C
+            // * C, IC, JC          -   preallocated matrix C and offset of the submatrix
+            //
+            // Below we perform simple product C:=A*B (alpha=1, beta=0)
+            //
+            // IMPORTANT: this function works with preallocated C, which must be large
+            //            enough to store multiplication result.
+            //
+            ae_int_t m = 2;
+            ae_int_t n = 2;
+            ae_int_t k = 2;
+            double alpha = 1.0;
+            ae_int_t ia = 0;
+            ae_int_t ja = 0;
+            ae_int_t optypea = 0;
+            ae_int_t ib = 0;
+            ae_int_t jb = 0;
+            ae_int_t optypeb = 0;
+            double beta = 0.0;
+            ae_int_t ic = 0;
+            ae_int_t jc = 0;
+            rmatrixgemm(m, n, k, alpha, a, ia, ja, optypea, b, ib, jb, optypeb, beta, c, ic, jc);
+            _TestResult = _TestResult && doc_test_real_matrix(c, "[[4,3],[2,4]]", 0.0001);
+
+            //
+            // Now we try to apply some simple transformation to operands: C:=A*B^T
+            //
+            optypeb = 1;
+            rmatrixgemm(m, n, k, alpha, a, ia, ja, optypea, b, ib, jb, optypeb, beta, c, ic, jc);
+            _TestResult = _TestResult && doc_test_real_matrix(c, "[[5,1],[5,3]]", 0.0001);
         }
+        catch(ap_error)
+        { _TestResult = false; }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "nneighbor_t_2");
+            printf("%-32s FAILED\n", "ablas_d_gemm");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST nneighbor_d_2
-        //      Serialization of KD-trees
+        // TEST ablas_d_syrk
+        //      Symmetric rank-K update (single-threaded)
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        try
         {
-            try
-            {
-                real_2d_array a = "[[0,0],[0,1],[1,0],[1,1]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                ae_int_t nx = 2;
-                ae_int_t ny = 0;
-                ae_int_t normtype = 2;
-                kdtree kdt0;
-                kdtree kdt1;
-                std::string s;
-                real_1d_array x;
-                real_2d_array r0 = "[[]]";
-                real_2d_array r1 = "[[]]";
+            //
+            // rmatrixsyrk() function allows us to calculate symmetric rank-K update
+            // C := beta*C + alpha*A'*A, where C is square N*N matrix, A is square K*N
+            // matrix, alpha and beta are scalars. It is also possible to update by
+            // adding A*A' instead of A'*A.
+            //
+            // Parameters of this function are:
+            // * N, K       -   matrix size
+            // * Alpha      -   coefficient before A
+            // * A, IA, JA  -   matrix and submatrix offsets
+            // * OpTypeA    -   multiplication type:
+            //                  * 0 - A*A^T is calculated
+            //                  * 2 - A^T*A is calculated
+            // * Beta       -   coefficient before C
+            // * C, IC, JC  -   preallocated input/output matrix and submatrix offsets
+            // * IsUpper    -   whether upper or lower triangle of C is updated;
+            //                  this function updates only one half of C, leaving
+            //                  other half unchanged (not referenced at all).
+            //
+            // Below we will show how to calculate simple product C:=A'*A
+            //
+            // NOTE: beta=0 and we do not use previous value of C, but still it
+            //       MUST be preallocated.
+            //
+            ae_int_t n = 2;
+            ae_int_t k = 1;
+            double alpha = 1.0;
+            ae_int_t ia = 0;
+            ae_int_t ja = 0;
+            ae_int_t optypea = 2;
+            double beta = 0.0;
+            ae_int_t ic = 0;
+            ae_int_t jc = 0;
+            bool isupper = true;
+            real_2d_array a = "[[1,2]]";
 
-                //
-                // Build tree and serialize it
-                //
-                kdtreebuild(a, nx, ny, normtype, kdt0);
-                alglib::kdtreeserialize(kdt0, s);
-                alglib::kdtreeunserialize(s, kdt1);
+            // preallocate space to store result
+            real_2d_array c = "[[0,0],[0,0]]";
 
-                //
-                // Compare results from KNN queries
-                //
-                x = "[-1,0]";
-                kdtreequeryknn(kdt0, x, 1);
-                kdtreequeryresultsx(kdt0, r0);
-                kdtreequeryknn(kdt1, x, 1);
-                kdtreequeryresultsx(kdt1, r1);
-                _TestResult = _TestResult && doc_test_real_matrix(r0, "[[0,0]]", 0.05);
-                _TestResult = _TestResult && doc_test_real_matrix(r1, "[[0,0]]", 0.05);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+            // calculate product, store result into upper part of c
+            rmatrixsyrk(n, k, alpha, a, ia, ja, optypea, beta, c, ic, jc, isupper);
+
+            // output result.
+            // IMPORTANT: lower triangle of C was NOT updated!
+            _TestResult = _TestResult && doc_test_real_matrix(c, "[[1,2],[0,4]]", 0.0001);
         }
+        catch(ap_error)
+        { _TestResult = false; }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "nneighbor_d_2");
+            printf("%-32s FAILED\n", "ablas_d_syrk");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST odesolver_d1
-        //      Solving y'=-y with ODE solver
+        // TEST ablas_t_complex
+        //      Basis test for complex matrix functions (correctness and presence of SMP support)
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<13; _spoil_scenario++)
+        try
         {
-            try
-            {
-                real_1d_array y = "[1]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array x = "[0, 1, 2, 3]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(x);
-                double eps = 0.00001;
-                if( _spoil_scenario==7 )
-                    eps = fp_nan;
-                if( _spoil_scenario==8 )
-                    eps = fp_posinf;
-                if( _spoil_scenario==9 )
-                    eps = fp_neginf;
-                double h = 0;
-                if( _spoil_scenario==10 )
-                    h = fp_nan;
-                if( _spoil_scenario==11 )
-                    h = fp_posinf;
-                if( _spoil_scenario==12 )
-                    h = fp_neginf;
-                odesolverstate s;
-                ae_int_t m;
-                real_1d_array xtbl;
-                real_2d_array ytbl;
-                odesolverreport rep;
-                odesolverrkck(y, x, eps, h, s);
-                alglib::odesolversolve(s, ode_function_1_diff);
-                odesolverresults(s, m, xtbl, ytbl, rep);
-                _TestResult = _TestResult && doc_test_int(m, 4);
-                _TestResult = _TestResult && doc_test_real_vector(xtbl, "[0, 1, 2, 3]", 0.005);
-                _TestResult = _TestResult && doc_test_real_matrix(ytbl, "[[1], [0.367], [0.135], [0.050]]", 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+            complex_2d_array a;
+            complex_2d_array b;
+            complex_2d_array c;
+
+            // test cmatrixgemm()
+            a = "[[2i,1i],[1,3]]";
+            b = "[[2,1],[0,1]]";
+            c = "[[0,0],[0,0]]";
+            cmatrixgemm(2, 2, 2, 1.0, a, 0, 0, 0, b, 0, 0, 0, 0.0, c, 0, 0);
+            _TestResult = _TestResult && doc_test_complex_matrix(c, "[[4i,3i],[2,4]]", 0.0001);
         }
+        catch(ap_error)
+        { _TestResult = false; }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "odesolver_d1");
+            printf("%-32s FAILED\n", "ablas_t_complex");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -1018,167 +1095,1538 @@ int main()
 
 
         //
-        // TEST ablas_d_gemm
-        //      Matrix multiplication (single-threaded)
+        // TEST solve_real
+        //      Solving dense linear equations
         //
         _TestResult = true;
-        try
+        for(_spoil_scenario=-1; _spoil_scenario<43; _spoil_scenario++)
         {
-            real_2d_array a = "[[2,1],[1,3]]";
-            real_2d_array b = "[[2,1],[0,1]]";
-            real_2d_array c = "[[0,0],[0,0]]";
+            try
+            {
+                //
+                // This example demonstrates solution of a dense real linear system
+                //
+                real_1d_array x;
+                integer_1d_array pivots;
+                densesolverreport rep;
 
-            //
-            // rmatrixgemm() function allows us to calculate matrix product C:=A*B or
-            // to perform more general operation, C:=alpha*op1(A)*op2(B)+beta*C,
-            // where A, B, C are rectangular matrices, op(X) can be X or X^T,
-            // alpha and beta are scalars.
-            //
-            // This function:
-            // * can apply transposition and/or multiplication by scalar to operands
-            // * can use arbitrary part of matrices A/B (given by submatrix offset)
-            // * can store result into arbitrary part of C
-            // * for performance reasons requires C to be preallocated
-            //
-            // Parameters of this function are:
-            // * M, N, K            -   sizes of op1(A) (which is MxK), op2(B) (which
-            //                          is KxN) and C (which is MxN)
-            // * Alpha              -   coefficient before A*B
-            // * A, IA, JA          -   matrix A and offset of the submatrix
-            // * OpTypeA            -   transformation type:
-            //                          0 - no transformation
-            //                          1 - transposition
-            // * B, IB, JB          -   matrix B and offset of the submatrix
-            // * OpTypeB            -   transformation type:
-            //                          0 - no transformation
-            //                          1 - transposition
-            // * Beta               -   coefficient before C
-            // * C, IC, JC          -   preallocated matrix C and offset of the submatrix
-            //
-            // Below we perform simple product C:=A*B (alpha=1, beta=0)
-            //
-            // IMPORTANT: this function works with preallocated C, which must be large
-            //            enough to store multiplication result.
-            //
-            ae_int_t m = 2;
-            ae_int_t n = 2;
-            ae_int_t k = 2;
-            double alpha = 1.0;
-            ae_int_t ia = 0;
-            ae_int_t ja = 0;
-            ae_int_t optypea = 0;
-            ae_int_t ib = 0;
-            ae_int_t jb = 0;
-            ae_int_t optypeb = 0;
-            double beta = 0.0;
-            ae_int_t ic = 0;
-            ae_int_t jc = 0;
-            rmatrixgemm(m, n, k, alpha, a, ia, ja, optypea, b, ib, jb, optypeb, beta, c, ic, jc);
-            _TestResult = _TestResult && doc_test_real_matrix(c, "[[4,3],[2,4]]", 0.0001);
+                //
+                // First, solve A*x=b with a feature-rich rmatrixsolve() which supports iterative improvement
+                // and condition number estimation
+                //
+                real_2d_array a = "[[4,2],[-1,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(a);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(a);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(a);
+                real_1d_array b = "[8,5]";
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(b);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(b);
+                rmatrixsolve(a, b, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 2.0000]", 0.00005);
 
-            //
-            // Now we try to apply some simple transformation to operands: C:=A*B^T
-            //
-            optypeb = 1;
-            rmatrixgemm(m, n, k, alpha, a, ia, ja, optypea, b, ib, jb, optypeb, beta, c, ic, jc);
-            _TestResult = _TestResult && doc_test_real_matrix(c, "[[5,1],[5,3]]", 0.0001);
+                //
+                // Then, solve C*x=d with rmatrixsolvefast() which has lower overhead
+                //
+                real_2d_array c = "[[3,1],[2,4]]";
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_nan(c);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_posinf(c);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_neginf(c);
+                if( _spoil_scenario==15 )
+                    spoil_matrix_by_adding_row(c);
+                if( _spoil_scenario==16 )
+                    spoil_matrix_by_adding_col(c);
+                if( _spoil_scenario==17 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==18 )
+                    spoil_matrix_by_deleting_col(c);
+                real_1d_array d = "[2,-2]";
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_nan(d);
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_posinf(d);
+                if( _spoil_scenario==21 )
+                    spoil_vector_by_neginf(d);
+                if( _spoil_scenario==22 )
+                    spoil_vector_by_adding_element(d);
+                if( _spoil_scenario==23 )
+                    spoil_vector_by_deleting_element(d);
+                rmatrixsolvefast(c, d);
+                _TestResult = _TestResult && doc_test_real_vector(d, "[1.0000, -1.0000]", 0.00005);
+
+                //
+                // Sometimes you have LU decomposition of the system matrix readily
+                // available. In such cases it is possible to save a lot of time by
+                // passing precomputed LU factors to rmatrixlusolve(). The only
+                // downside of such approach is that iterative refinement is unavailable
+                // because original (unmodified) form of the system matrix is unknown
+                // to ALGLIB.
+                //
+                // However, if you have BOTH original matrix and its LU decomposition,
+                // it is possible to use rmatrixmixedsolve() which accepts both matrix
+                // itself and its factors, and uses original matrix to refine solution
+                // obtained with LU factors.
+                //
+                real_2d_array e = "[[3,4],[2,4]]";
+                if( _spoil_scenario==24 )
+                    spoil_matrix_by_nan(e);
+                if( _spoil_scenario==25 )
+                    spoil_matrix_by_posinf(e);
+                if( _spoil_scenario==26 )
+                    spoil_matrix_by_neginf(e);
+                if( _spoil_scenario==27 )
+                    spoil_matrix_by_adding_row(e);
+                if( _spoil_scenario==28 )
+                    spoil_matrix_by_adding_col(e);
+                if( _spoil_scenario==29 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==30 )
+                    spoil_matrix_by_deleting_col(e);
+                real_2d_array lue = "[[3,4],[2,4]]";
+                if( _spoil_scenario==31 )
+                    spoil_matrix_by_nan(lue);
+                if( _spoil_scenario==32 )
+                    spoil_matrix_by_posinf(lue);
+                if( _spoil_scenario==33 )
+                    spoil_matrix_by_neginf(lue);
+                if( _spoil_scenario==34 )
+                    spoil_matrix_by_adding_row(lue);
+                if( _spoil_scenario==35 )
+                    spoil_matrix_by_adding_col(lue);
+                if( _spoil_scenario==36 )
+                    spoil_matrix_by_deleting_row(lue);
+                if( _spoil_scenario==37 )
+                    spoil_matrix_by_deleting_col(lue);
+                real_1d_array f = "[2,0]";
+                if( _spoil_scenario==38 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==39 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==40 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==41 )
+                    spoil_vector_by_adding_element(f);
+                if( _spoil_scenario==42 )
+                    spoil_vector_by_deleting_element(f);
+                rmatrixlu(lue, pivots);
+                rmatrixlusolve(lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[2.0000, -1.0000]", 0.00005);
+
+                rmatrixmixedsolve(e, lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[2.0000, -1.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
         }
-        catch(ap_error)
-        { _TestResult = false; }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "ablas_d_gemm");
+            printf("%-32s FAILED\n", "solve_real");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST ablas_d_syrk
-        //      Symmetric rank-K update (single-threaded)
+        // TEST solve_ls
+        //      Solving dense linear equations in the least squares sense
         //
         _TestResult = true;
-        try
+        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
         {
-            //
-            // rmatrixsyrk() function allows us to calculate symmetric rank-K update
-            // C := beta*C + alpha*A'*A, where C is square N*N matrix, A is square K*N
-            // matrix, alpha and beta are scalars. It is also possible to update by
-            // adding A*A' instead of A'*A.
-            //
-            // Parameters of this function are:
-            // * N, K       -   matrix size
-            // * Alpha      -   coefficient before A
-            // * A, IA, JA  -   matrix and submatrix offsets
-            // * OpTypeA    -   multiplication type:
-            //                  * 0 - A*A^T is calculated
-            //                  * 2 - A^T*A is calculated
-            // * Beta       -   coefficient before C
-            // * C, IC, JC  -   preallocated input/output matrix and submatrix offsets
-            // * IsUpper    -   whether upper or lower triangle of C is updated;
-            //                  this function updates only one half of C, leaving
-            //                  other half unchanged (not referenced at all).
-            //
-            // Below we will show how to calculate simple product C:=A'*A
-            //
-            // NOTE: beta=0 and we do not use previous value of C, but still it
-            //       MUST be preallocated.
-            //
-            ae_int_t n = 2;
-            ae_int_t k = 1;
-            double alpha = 1.0;
-            ae_int_t ia = 0;
-            ae_int_t ja = 0;
-            ae_int_t optypea = 2;
-            double beta = 0.0;
-            ae_int_t ic = 0;
-            ae_int_t jc = 0;
-            bool isupper = true;
-            real_2d_array a = "[[1,2]]";
-
-            // preallocate space to store result
-            real_2d_array c = "[[0,0],[0,0]]";
-
-            // calculate product, store result into upper part of c
-            rmatrixsyrk(n, k, alpha, a, ia, ja, optypea, beta, c, ic, jc, isupper);
-
-            // output result.
-            // IMPORTANT: lower triangle of C was NOT updated!
-            _TestResult = _TestResult && doc_test_real_matrix(c, "[[1,2],[0,4]]", 0.0001);
+            try
+            {
+                real_1d_array x;
+                densesolverlsreport rep;
+                real_2d_array a = "[[4,2],[-1,3],[6,5]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(a);
+                real_1d_array b = "[8,5,16]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(b);
+                rmatrixsolvels(a, b, 0.0, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 2.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
         }
-        catch(ap_error)
-        { _TestResult = false; }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "ablas_d_syrk");
+            printf("%-32s FAILED\n", "solve_ls");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST ablas_t_complex
-        //      Basis test for complex matrix functions (correctness and presence of SMP support)
+        // TEST solve_real_m
+        //      Solving dense linear matrix equations
         //
         _TestResult = true;
-        try
+        for(_spoil_scenario=-1; _spoil_scenario<37; _spoil_scenario++)
         {
-            complex_2d_array a;
-            complex_2d_array b;
-            complex_2d_array c;
+            try
+            {
+                //
+                // This example demonstrates solution of a dense real matrix system
+                //
+                real_2d_array x;
+                integer_1d_array pivots;
+                densesolverreport rep;
 
-            // test cmatrixgemm()
-            a = "[[2i,1i],[1,3]]";
-            b = "[[2,1],[0,1]]";
-            c = "[[0,0],[0,0]]";
-            cmatrixgemm(2, 2, 2, 1.0, a, 0, 0, 0, b, 0, 0, 0, 0.0, c, 0, 0);
-            _TestResult = _TestResult && doc_test_complex_matrix(c, "[[4i,3i],[2,4]]", 0.0001);
+                //
+                // First, solve A*X=B with a feature-rich rmatrixsolvem() which supports
+                // iterative improvement and condition number estimation. Here A is
+                // an N*N matrix, X is an N*M matrix, B is an N*M matrix.
+                //
+                real_2d_array a = "[[4,2],[-1,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(a);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(a);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(a);
+                real_2d_array b = "[[8,10,4],[5,1,-1]]";
+                if( _spoil_scenario==7 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==8 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==9 )
+                    spoil_matrix_by_neginf(b);
+                rmatrixsolvem(a, b, true, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_matrix(x, "[[1.0000, 2.0000,1.0000],[2.0000,1.0000,0.0000]]", 0.00005);
+
+                //
+                // Then, solve C*X=D with rmatrixsolvemfast() which has lower overhead
+                // due to condition number estimation and iterative refinement parts
+                // being dropped.
+                //
+                real_2d_array c = "[[3,1],[2,4]]";
+                if( _spoil_scenario==10 )
+                    spoil_matrix_by_nan(c);
+                if( _spoil_scenario==11 )
+                    spoil_matrix_by_posinf(c);
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_neginf(c);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_adding_row(c);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_adding_col(c);
+                if( _spoil_scenario==15 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==16 )
+                    spoil_matrix_by_deleting_col(c);
+                real_2d_array d = "[[2,1],[-2,4]]";
+                if( _spoil_scenario==17 )
+                    spoil_matrix_by_nan(d);
+                if( _spoil_scenario==18 )
+                    spoil_matrix_by_posinf(d);
+                if( _spoil_scenario==19 )
+                    spoil_matrix_by_neginf(d);
+                rmatrixsolvemfast(c, d);
+                _TestResult = _TestResult && doc_test_real_matrix(d, "[[1.0000,0.0000],[-1.0000,1.0000]]", 0.00005);
+
+                //
+                // Sometimes you have LU decomposition of the system matrix readily
+                // available. In such cases it is possible to save a lot of time by
+                // passing precomputed LU factors to rmatrixlusolve(). The only
+                // downside of such approach is that iterative refinement is unavailable
+                // because original (unmodified) form of the system matrix is unknown
+                // to ALGLIB.
+                //
+                // However, if you have BOTH original matrix and its LU decomposition,
+                // it is possible to use rmatrixmixedsolve() which accepts both matrix
+                // itself and its factors, and uses original matrix to refine solution
+                // obtained with LU factors.
+                //
+                real_2d_array e = "[[3,4],[2,4]]";
+                if( _spoil_scenario==20 )
+                    spoil_matrix_by_nan(e);
+                if( _spoil_scenario==21 )
+                    spoil_matrix_by_posinf(e);
+                if( _spoil_scenario==22 )
+                    spoil_matrix_by_neginf(e);
+                if( _spoil_scenario==23 )
+                    spoil_matrix_by_adding_row(e);
+                if( _spoil_scenario==24 )
+                    spoil_matrix_by_adding_col(e);
+                if( _spoil_scenario==25 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==26 )
+                    spoil_matrix_by_deleting_col(e);
+                real_2d_array lue = "[[3,4],[2,4]]";
+                if( _spoil_scenario==27 )
+                    spoil_matrix_by_nan(lue);
+                if( _spoil_scenario==28 )
+                    spoil_matrix_by_posinf(lue);
+                if( _spoil_scenario==29 )
+                    spoil_matrix_by_neginf(lue);
+                if( _spoil_scenario==30 )
+                    spoil_matrix_by_adding_row(lue);
+                if( _spoil_scenario==31 )
+                    spoil_matrix_by_adding_col(lue);
+                if( _spoil_scenario==32 )
+                    spoil_matrix_by_deleting_row(lue);
+                if( _spoil_scenario==33 )
+                    spoil_matrix_by_deleting_col(lue);
+                real_2d_array f = "[[2,5],[0,6]]";
+                if( _spoil_scenario==34 )
+                    spoil_matrix_by_nan(f);
+                if( _spoil_scenario==35 )
+                    spoil_matrix_by_posinf(f);
+                if( _spoil_scenario==36 )
+                    spoil_matrix_by_neginf(f);
+                rmatrixlu(lue, pivots);
+                rmatrixlusolvem(lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_matrix(x, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+
+                rmatrixmixedsolvem(e, lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_matrix(x, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
         }
-        catch(ap_error)
-        { _TestResult = false; }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "ablas_t_complex");
+            printf("%-32s FAILED\n", "solve_real_m");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST solve_complex
+        //      Solving dense complex linear equations
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<43; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates solution of a complex linear system
+                //
+                complex_1d_array x;
+                integer_1d_array pivots;
+                densesolverreport rep;
+
+                //
+                // First, solve A*x=b with a feature-rich cmatrixsolve() which supports iterative improvement
+                // and condition number estimation
+                //
+                complex_2d_array a = "[[-4,2i],[-1i,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(a);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(a);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(a);
+                complex_1d_array b = "[8i,5]";
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(b);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(b);
+                cmatrixsolve(a, b, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_vector(x, "[-1.0000i, 2.0000]", 0.00005);
+
+                //
+                // Then, solve C*x=d with cmatrixsolvefast() which has lower overhead
+                //
+                complex_2d_array c = "[[3i,1],[2i,4]]";
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_nan(c);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_posinf(c);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_neginf(c);
+                if( _spoil_scenario==15 )
+                    spoil_matrix_by_adding_row(c);
+                if( _spoil_scenario==16 )
+                    spoil_matrix_by_adding_col(c);
+                if( _spoil_scenario==17 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==18 )
+                    spoil_matrix_by_deleting_col(c);
+                complex_1d_array d = "[2,-2]";
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_nan(d);
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_posinf(d);
+                if( _spoil_scenario==21 )
+                    spoil_vector_by_neginf(d);
+                if( _spoil_scenario==22 )
+                    spoil_vector_by_adding_element(d);
+                if( _spoil_scenario==23 )
+                    spoil_vector_by_deleting_element(d);
+                cmatrixsolvefast(c, d);
+                _TestResult = _TestResult && doc_test_complex_vector(d, "[-1.0000i, -1.0000]", 0.00005);
+
+                //
+                // Sometimes you have LU decomposition of the system matrix readily
+                // available. In such cases it is possible to save a lot of time by
+                // passing precomputed LU factors to cmatrixlusolve(). The only
+                // downside of such approach is that iterative refinement is unavailable
+                // because original (unmodified) form of the system matrix is unknown
+                // to ALGLIB.
+                //
+                // However, if you have BOTH original matrix and its LU decomposition,
+                // it is possible to use cmatrixmixedsolve() which accepts both matrix
+                // itself and its factors, and uses original matrix to refine solution
+                // obtained with LU factors.
+                //
+                complex_2d_array e = "[[-3,4i],[2i,4]]";
+                if( _spoil_scenario==24 )
+                    spoil_matrix_by_nan(e);
+                if( _spoil_scenario==25 )
+                    spoil_matrix_by_posinf(e);
+                if( _spoil_scenario==26 )
+                    spoil_matrix_by_neginf(e);
+                if( _spoil_scenario==27 )
+                    spoil_matrix_by_adding_row(e);
+                if( _spoil_scenario==28 )
+                    spoil_matrix_by_adding_col(e);
+                if( _spoil_scenario==29 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==30 )
+                    spoil_matrix_by_deleting_col(e);
+                complex_2d_array lue = "[[-3,4i],[2i,4]]";
+                if( _spoil_scenario==31 )
+                    spoil_matrix_by_nan(lue);
+                if( _spoil_scenario==32 )
+                    spoil_matrix_by_posinf(lue);
+                if( _spoil_scenario==33 )
+                    spoil_matrix_by_neginf(lue);
+                if( _spoil_scenario==34 )
+                    spoil_matrix_by_adding_row(lue);
+                if( _spoil_scenario==35 )
+                    spoil_matrix_by_adding_col(lue);
+                if( _spoil_scenario==36 )
+                    spoil_matrix_by_deleting_row(lue);
+                if( _spoil_scenario==37 )
+                    spoil_matrix_by_deleting_col(lue);
+                complex_1d_array f = "[2i,0]";
+                if( _spoil_scenario==38 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==39 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==40 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==41 )
+                    spoil_vector_by_adding_element(f);
+                if( _spoil_scenario==42 )
+                    spoil_vector_by_deleting_element(f);
+                cmatrixlu(lue, pivots);
+                cmatrixlusolve(lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_vector(x, "[-2.0000i, -1.0000]", 0.00005);
+
+                cmatrixmixedsolve(e, lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_vector(x, "[-2.0000i, -1.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "solve_complex");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST solve_complex_m
+        //      Solving complex matrix equations
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<37; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates solution of a dense complex matrix system
+                //
+                complex_2d_array x;
+                integer_1d_array pivots;
+                densesolverreport rep;
+
+                //
+                // First, solve A*X=B with a feature-rich cmatrixsolvem() which supports
+                // iterative improvement and condition number estimation. Here A is
+                // an N*N matrix, X is an N*M matrix, B is an N*M matrix.
+                //
+                complex_2d_array a = "[[4i,-2],[-1,3i]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(a);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(a);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(a);
+                complex_2d_array b = "[[8i,10i,4i],[5,1,-1]]";
+                if( _spoil_scenario==7 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==8 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==9 )
+                    spoil_matrix_by_neginf(b);
+                cmatrixsolvem(a, b, true, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_matrix(x, "[[1.0000, 2.0000,1.0000],[-2.0000i,-1.0000i,0.0000]]", 0.00005);
+
+                //
+                // Then, solve C*X=D with cmatrixsolvemfast() which has lower overhead
+                // due to condition number estimation and iterative refinement parts
+                // being dropped.
+                //
+                complex_2d_array c = "[[3,1],[2,4]]";
+                if( _spoil_scenario==10 )
+                    spoil_matrix_by_nan(c);
+                if( _spoil_scenario==11 )
+                    spoil_matrix_by_posinf(c);
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_neginf(c);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_adding_row(c);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_adding_col(c);
+                if( _spoil_scenario==15 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==16 )
+                    spoil_matrix_by_deleting_col(c);
+                complex_2d_array d = "[[2,1],[-2,4]]";
+                if( _spoil_scenario==17 )
+                    spoil_matrix_by_nan(d);
+                if( _spoil_scenario==18 )
+                    spoil_matrix_by_posinf(d);
+                if( _spoil_scenario==19 )
+                    spoil_matrix_by_neginf(d);
+                cmatrixsolvemfast(c, d);
+                _TestResult = _TestResult && doc_test_complex_matrix(d, "[[1.0000,0.0000],[-1.0000,1.0000]]", 0.00005);
+
+                //
+                // Sometimes you have LU decomposition of the system matrix readily
+                // available. In such cases it is possible to save a lot of time by
+                // passing precomputed LU factors to cmatrixlusolve(). The only
+                // downside of such approach is that iterative refinement is unavailable
+                // because original (unmodified) form of the system matrix is unknown
+                // to ALGLIB.
+                //
+                // However, if you have BOTH original matrix and its LU decomposition,
+                // it is possible to use cmatrixmixedsolve() which accepts both matrix
+                // itself and its factors, and uses original matrix to refine solution
+                // obtained with LU factors.
+                //
+                complex_2d_array e = "[[3,4],[2,4]]";
+                if( _spoil_scenario==20 )
+                    spoil_matrix_by_nan(e);
+                if( _spoil_scenario==21 )
+                    spoil_matrix_by_posinf(e);
+                if( _spoil_scenario==22 )
+                    spoil_matrix_by_neginf(e);
+                if( _spoil_scenario==23 )
+                    spoil_matrix_by_adding_row(e);
+                if( _spoil_scenario==24 )
+                    spoil_matrix_by_adding_col(e);
+                if( _spoil_scenario==25 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==26 )
+                    spoil_matrix_by_deleting_col(e);
+                complex_2d_array lue = "[[3,4],[2,4]]";
+                if( _spoil_scenario==27 )
+                    spoil_matrix_by_nan(lue);
+                if( _spoil_scenario==28 )
+                    spoil_matrix_by_posinf(lue);
+                if( _spoil_scenario==29 )
+                    spoil_matrix_by_neginf(lue);
+                if( _spoil_scenario==30 )
+                    spoil_matrix_by_adding_row(lue);
+                if( _spoil_scenario==31 )
+                    spoil_matrix_by_adding_col(lue);
+                if( _spoil_scenario==32 )
+                    spoil_matrix_by_deleting_row(lue);
+                if( _spoil_scenario==33 )
+                    spoil_matrix_by_deleting_col(lue);
+                complex_2d_array f = "[[2,5],[0,6]]";
+                if( _spoil_scenario==34 )
+                    spoil_matrix_by_nan(f);
+                if( _spoil_scenario==35 )
+                    spoil_matrix_by_posinf(f);
+                if( _spoil_scenario==36 )
+                    spoil_matrix_by_neginf(f);
+                cmatrixlu(lue, pivots);
+                cmatrixlusolvem(lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_matrix(x, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+
+                cmatrixmixedsolvem(e, lue, pivots, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_matrix(x, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "solve_complex_m");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST solve_spd
+        //      Solving symmetric positive definite linear equations
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<18; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates solution of a symmetric positive definite real system
+                //
+                real_1d_array x;
+                densesolverreport rep;
+                bool isupper = true;
+
+                //
+                // First, solve A*x=b with a feature-rich spdmatrixsolve() which supports iterative improvement
+                // and condition number estimation
+                //
+                real_2d_array a = "[[4,1],[1,4]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_adding_row(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_adding_col(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_col(a);
+                real_1d_array b = "[6,9]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_adding_element(b);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_deleting_element(b);
+                spdmatrixsolve(a, isupper, b, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 2.0000]", 0.00005);
+
+                //
+                // Then, solve C*x=d with spdmatrixsolvefast() which has lower overhead
+                //
+                real_2d_array c = "[[3,1],[1,3]]";
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_adding_row(c);
+                if( _spoil_scenario==7 )
+                    spoil_matrix_by_adding_col(c);
+                if( _spoil_scenario==8 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==9 )
+                    spoil_matrix_by_deleting_col(c);
+                real_1d_array d = "[2,-2]";
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(d);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(d);
+                spdmatrixsolvefast(c, isupper, d);
+                _TestResult = _TestResult && doc_test_real_vector(d, "[1.0000, -1.0000]", 0.00005);
+
+                //
+                // Sometimes you have Cholesky decomposition of the system matrix readily
+                // available. In such cases it is possible to save a lot of time by
+                // passing precomputed Cholesky factor to spdmatrixcholeskysolve(). The only
+                // downside of such approach is that iterative refinement is unavailable
+                // because original (unmodified) form of the system matrix is unknown
+                // to ALGLIB.
+                //
+                real_2d_array e = "[[3,2],[2,3]]";
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_adding_row(e);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_adding_col(e);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==15 )
+                    spoil_matrix_by_deleting_col(e);
+                real_1d_array f = "[4,1]";
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_adding_element(f);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_deleting_element(f);
+                spdmatrixcholesky(e, isupper);
+                spdmatrixcholeskysolve(e, isupper, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[2.0000, -1.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "solve_spd");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST solve_hpd
+        //      Solving Hermitian positive definite linear equations
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<18; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates solution of a Hermitian positive definite complex system
+                //
+                complex_1d_array x;
+                densesolverreport rep;
+                bool isupper = true;
+
+                //
+                // First, solve A*x=b with a feature-rich hpdmatrixsolve() which supports iterative improvement
+                // and condition number estimation
+                //
+                complex_2d_array a = "[[4,1i],[-1i,4]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_adding_row(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_adding_col(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_col(a);
+                complex_1d_array b = "[6,-9i]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_adding_element(b);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_deleting_element(b);
+                hpdmatrixsolve(a, isupper, b, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_vector(x, "[1.0000, -2.0000i]", 0.00005);
+
+                //
+                // Then, solve C*x=d with hpdmatrixsolvefast() which has lower overhead
+                //
+                complex_2d_array c = "[[3,-1i],[1i,3]]";
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_adding_row(c);
+                if( _spoil_scenario==7 )
+                    spoil_matrix_by_adding_col(c);
+                if( _spoil_scenario==8 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==9 )
+                    spoil_matrix_by_deleting_col(c);
+                complex_1d_array d = "[-2i,-2]";
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(d);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(d);
+                hpdmatrixsolvefast(c, isupper, d);
+                _TestResult = _TestResult && doc_test_complex_vector(d, "[-1.0000i, -1.0000]", 0.00005);
+
+                //
+                // Sometimes you have Cholesky decomposition of the system matrix readily
+                // available. In such cases it is possible to save a lot of time by
+                // passing precomputed Cholesky factor to hpdmatrixcholeskysolve(). The only
+                // downside of such approach is that iterative refinement is unavailable
+                // because original (unmodified) form of the system matrix is unknown
+                // to ALGLIB.
+                //
+                complex_2d_array e = "[[3,2],[2,3]]";
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_adding_row(e);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_adding_col(e);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==15 )
+                    spoil_matrix_by_deleting_col(e);
+                complex_1d_array f = "[4,1]";
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_adding_element(f);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_deleting_element(f);
+                hpdmatrixcholesky(e, isupper);
+                hpdmatrixcholeskysolve(e, isupper, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_vector(x, "[2.0000, -1.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "solve_hpd");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST solve_real_tst
+        //      .
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<36; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array x;
+                integer_1d_array pivots;
+                densesolverreport rep;
+                real_2d_array a = "[[4,2],[-1,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(a);
+                real_1d_array b = "[8,5]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_deleting_element(b);
+                rmatrixsolve(a, 2, b, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 2.0000]", 0.00005);
+                real_2d_array c = "[[3,1],[2,4]]";
+                if( _spoil_scenario==9 )
+                    spoil_matrix_by_nan(c);
+                if( _spoil_scenario==10 )
+                    spoil_matrix_by_posinf(c);
+                if( _spoil_scenario==11 )
+                    spoil_matrix_by_neginf(c);
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_deleting_col(c);
+                real_1d_array d = "[2,-2]";
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_nan(d);
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_posinf(d);
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_neginf(d);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_deleting_element(d);
+                rmatrixsolvefast(c, 2, d);
+                _TestResult = _TestResult && doc_test_real_vector(d, "[1.0000, -1.0000]", 0.00005);
+
+                real_2d_array e = "[[3,4],[2,4]]";
+                if( _spoil_scenario==18 )
+                    spoil_matrix_by_nan(e);
+                if( _spoil_scenario==19 )
+                    spoil_matrix_by_posinf(e);
+                if( _spoil_scenario==20 )
+                    spoil_matrix_by_neginf(e);
+                if( _spoil_scenario==21 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==22 )
+                    spoil_matrix_by_deleting_col(e);
+                real_2d_array lue = "[[3,4],[2,4]]";
+                if( _spoil_scenario==23 )
+                    spoil_matrix_by_nan(lue);
+                if( _spoil_scenario==24 )
+                    spoil_matrix_by_posinf(lue);
+                if( _spoil_scenario==25 )
+                    spoil_matrix_by_neginf(lue);
+                if( _spoil_scenario==26 )
+                    spoil_matrix_by_deleting_row(lue);
+                if( _spoil_scenario==27 )
+                    spoil_matrix_by_deleting_col(lue);
+                real_1d_array f = "[2,0]";
+                if( _spoil_scenario==28 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==29 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==30 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==31 )
+                    spoil_vector_by_deleting_element(f);
+                rmatrixlu(lue, 2, 2, pivots);
+                rmatrixlusolve(lue, pivots, 2, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[2.0000, -1.0000]", 0.00005);
+
+                rmatrixmixedsolve(e, lue, pivots, 2, f, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[2.0000, -1.0000]", 0.00005);
+
+                real_1d_array f1 = "[2,0]";
+                if( _spoil_scenario==32 )
+                    spoil_vector_by_nan(f1);
+                if( _spoil_scenario==33 )
+                    spoil_vector_by_posinf(f1);
+                if( _spoil_scenario==34 )
+                    spoil_vector_by_neginf(f1);
+                if( _spoil_scenario==35 )
+                    spoil_vector_by_deleting_element(f1);
+                rmatrixlusolvefast(lue, pivots, 2, f1);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(f1, "[2.0000, -1.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "solve_real_tst");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST solve_real_m_test
+        //      .
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<43; _spoil_scenario++)
+        {
+            try
+            {
+                real_2d_array x;
+                integer_1d_array pivots;
+                densesolverreport rep;
+                real_2d_array a = "[[4,2],[-1,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(a);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(a);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(a);
+                real_2d_array b = "[[8,10,4],[5,1,-1]]";
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==7 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==8 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==9 )
+                    spoil_matrix_by_deleting_col(b);
+                rmatrixsolvem(a, 2, b, 3, true, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_matrix(x, "[[1.0000, 2.0000,1.0000],[2.0000,1.0000,0.0000]]", 0.00005);
+                real_2d_array c = "[[3,1],[2,4]]";
+                if( _spoil_scenario==10 )
+                    spoil_matrix_by_nan(c);
+                if( _spoil_scenario==11 )
+                    spoil_matrix_by_posinf(c);
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_neginf(c);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_deleting_row(c);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_deleting_col(c);
+                real_2d_array d = "[[2,1],[-2,4]]";
+                if( _spoil_scenario==15 )
+                    spoil_matrix_by_nan(d);
+                if( _spoil_scenario==16 )
+                    spoil_matrix_by_posinf(d);
+                if( _spoil_scenario==17 )
+                    spoil_matrix_by_neginf(d);
+                if( _spoil_scenario==18 )
+                    spoil_matrix_by_deleting_row(d);
+                if( _spoil_scenario==19 )
+                    spoil_matrix_by_deleting_col(d);
+                rmatrixsolvemfast(c, 2, d, 2);
+                _TestResult = _TestResult && doc_test_real_matrix(d, "[[1.0000,0.0000],[-1.0000,1.0000]]", 0.00005);
+
+                real_2d_array e = "[[3,4],[2,4]]";
+                if( _spoil_scenario==20 )
+                    spoil_matrix_by_nan(e);
+                if( _spoil_scenario==21 )
+                    spoil_matrix_by_posinf(e);
+                if( _spoil_scenario==22 )
+                    spoil_matrix_by_neginf(e);
+                if( _spoil_scenario==23 )
+                    spoil_matrix_by_deleting_row(e);
+                if( _spoil_scenario==24 )
+                    spoil_matrix_by_deleting_col(e);
+                real_2d_array lue = "[[3,4],[2,4]]";
+                if( _spoil_scenario==25 )
+                    spoil_matrix_by_nan(lue);
+                if( _spoil_scenario==26 )
+                    spoil_matrix_by_posinf(lue);
+                if( _spoil_scenario==27 )
+                    spoil_matrix_by_neginf(lue);
+                if( _spoil_scenario==28 )
+                    spoil_matrix_by_deleting_row(lue);
+                if( _spoil_scenario==29 )
+                    spoil_matrix_by_deleting_col(lue);
+                real_2d_array f = "[[2,5],[0,6]]";
+                if( _spoil_scenario==30 )
+                    spoil_matrix_by_nan(f);
+                if( _spoil_scenario==31 )
+                    spoil_matrix_by_posinf(f);
+                if( _spoil_scenario==32 )
+                    spoil_matrix_by_neginf(f);
+                if( _spoil_scenario==33 )
+                    spoil_matrix_by_deleting_row(f);
+                if( _spoil_scenario==34 )
+                    spoil_matrix_by_deleting_col(f);
+                rmatrixlu(lue, 2, 2, pivots);
+                rmatrixlusolvem(lue, pivots, 2, f, 2, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_matrix(x, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+
+                rmatrixmixedsolvem(e, lue, pivots, 2, f, 2, x, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_matrix(x, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+
+                real_2d_array f1 = "[[2,5],[0,6]]";
+                if( _spoil_scenario==35 )
+                    spoil_matrix_by_nan(f1);
+                if( _spoil_scenario==36 )
+                    spoil_matrix_by_posinf(f1);
+                if( _spoil_scenario==37 )
+                    spoil_matrix_by_neginf(f1);
+                rmatrixlusolvemfast(lue, pivots, f1);
+                _TestResult = _TestResult && doc_test_real_matrix(f1, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+
+                real_2d_array f2 = "[[2,5],[0,6]]";
+                if( _spoil_scenario==38 )
+                    spoil_matrix_by_nan(f2);
+                if( _spoil_scenario==39 )
+                    spoil_matrix_by_posinf(f2);
+                if( _spoil_scenario==40 )
+                    spoil_matrix_by_neginf(f2);
+                if( _spoil_scenario==41 )
+                    spoil_matrix_by_deleting_row(f2);
+                if( _spoil_scenario==42 )
+                    spoil_matrix_by_deleting_col(f2);
+                rmatrixlusolvemfast(lue, pivots, 2, f2, 2);
+                _TestResult = _TestResult && doc_test_real_matrix(f2, "[[2.0000,-1.0000],[-1.0000,2.0000]]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "solve_real_m_test");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lincg_d_1
+        //      Solution of sparse linear systems with CG
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example illustrates solution of sparse linear systems with
+                // conjugate gradient method.
+                // 
+                // Suppose that we have linear system A*x=b with sparse symmetric
+                // positive definite A (represented by sparsematrix object)
+                //         [ 5 1       ]
+                //         [ 1 7 2     ]
+                //     A = [   2 8 1   ]
+                //         [     1 4 1 ]
+                //         [       1 4 ]
+                // and right part b
+                //     [  7 ]
+                //     [ 17 ]
+                // b = [ 14 ]
+                //     [ 10 ]
+                //     [  6 ]
+                // and we want to solve this system using sparse linear CG. In order
+                // to do so, we have to create left part (sparsematrix object) and
+                // right part (dense array).
+                //
+                // Initially, sparse matrix is created in the Hash-Table format,
+                // which allows easy initialization, but do not allow matrix to be
+                // used in the linear solvers. So after construction you should convert
+                // sparse matrix to CRS format (one suited for linear operations).
+                //
+                // It is important to note that in our example we initialize full
+                // matrix A, both lower and upper triangles. However, it is symmetric
+                // and sparse solver needs just one half of the matrix. So you may
+                // save about half of the space by filling only one of the triangles.
+                //
+                sparsematrix a;
+                sparsecreate(5, 5, a);
+                sparseset(a, 0, 0, 5.0);
+                sparseset(a, 0, 1, 1.0);
+                sparseset(a, 1, 0, 1.0);
+                sparseset(a, 1, 1, 7.0);
+                sparseset(a, 1, 2, 2.0);
+                sparseset(a, 2, 1, 2.0);
+                sparseset(a, 2, 2, 8.0);
+                sparseset(a, 2, 3, 1.0);
+                sparseset(a, 3, 2, 1.0);
+                sparseset(a, 3, 3, 4.0);
+                sparseset(a, 3, 4, 1.0);
+                sparseset(a, 4, 3, 1.0);
+                sparseset(a, 4, 4, 4.0);
+
+                //
+                // Now our matrix is fully initialized, but we have to do one more
+                // step - convert it from Hash-Table format to CRS format (see
+                // documentation on sparse matrices for more information about these
+                // formats).
+                //
+                // If you omit this call, ALGLIB will generate exception on the first
+                // attempt to use A in linear operations. 
+                //
+                sparseconverttocrs(a);
+
+                //
+                // Initialization of the right part
+                //
+                real_1d_array b = "[7,17,14,10,6]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(b);
+
+                //
+                // Now we have to create linear solver object and to use it for the
+                // solution of the linear system.
+                //
+                // NOTE: lincgsolvesparse() accepts additional parameter which tells
+                //       what triangle of the symmetric matrix should be used - upper
+                //       or lower. Because we've filled both parts of the matrix, we
+                //       can use any part - upper or lower.
+                //
+                lincgstate s;
+                lincgreport rep;
+                real_1d_array x;
+                lincgcreate(5, s);
+                lincgsolvesparse(s, a, true, b);
+                lincgresults(s, x, rep);
+
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.000,2.000,1.000,2.000,1.000]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lincg_d_1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST linlsqr_d_1
+        //      Solution of sparse linear systems with CG
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example illustrates solution of sparse linear least squares problem
+                // with LSQR algorithm.
+                // 
+                // Suppose that we have least squares problem min|A*x-b| with sparse A
+                // represented by sparsematrix object
+                //         [ 1 1 ]
+                //         [ 1 1 ]
+                //     A = [ 2 1 ]
+                //         [ 1   ]
+                //         [   1 ]
+                // and right part b
+                //     [ 4 ]
+                //     [ 2 ]
+                // b = [ 4 ]
+                //     [ 1 ]
+                //     [ 2 ]
+                // and we want to solve this system in the least squares sense using
+                // LSQR algorithm. In order to do so, we have to create left part
+                // (sparsematrix object) and right part (dense array).
+                //
+                // Initially, sparse matrix is created in the Hash-Table format,
+                // which allows easy initialization, but do not allow matrix to be
+                // used in the linear solvers. So after construction you should convert
+                // sparse matrix to CRS format (one suited for linear operations).
+                //
+                sparsematrix a;
+                sparsecreate(5, 2, a);
+                sparseset(a, 0, 0, 1.0);
+                sparseset(a, 0, 1, 1.0);
+                sparseset(a, 1, 0, 1.0);
+                sparseset(a, 1, 1, 1.0);
+                sparseset(a, 2, 0, 2.0);
+                sparseset(a, 2, 1, 1.0);
+                sparseset(a, 3, 0, 1.0);
+                sparseset(a, 4, 1, 1.0);
+
+                //
+                // Now our matrix is fully initialized, but we have to do one more
+                // step - convert it from Hash-Table format to CRS format (see
+                // documentation on sparse matrices for more information about these
+                // formats).
+                //
+                // If you omit this call, ALGLIB will generate exception on the first
+                // attempt to use A in linear operations. 
+                //
+                sparseconverttocrs(a);
+
+                //
+                // Initialization of the right part
+                //
+                real_1d_array b = "[4,2,4,1,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(b);
+
+                //
+                // Now we have to create linear solver object and to use it for the
+                // solution of the linear system.
+                //
+                linlsqrstate s;
+                linlsqrreport rep;
+                real_1d_array x;
+                linlsqrcreate(5, 2, s);
+                linlsqrsolvesparse(s, a, b);
+                linlsqrresults(s, x, rep);
+
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 4);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.000,2.000]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "linlsqr_d_1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST solvesks_d_1
+        //      Solving low profile positive definite sparse systems with Skyline (SKS) solver
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates creation/initialization of the sparse matrix
+                // in the SKS (Skyline) storage format and solution using SKS-based direct
+                // solver.
+                //
+                // NOTE: the SKS solver is intended for 'easy' tasks, i.e. low-profile positive
+                //       definite systems (e.g. matrices with average bandwidth as low as 3),
+                //       where it can avoid some overhead associated with more powerful supernodal
+                //       Cholesky solver with AMD ordering.
+                //
+                //       It is recommended to use more powerful solvers for more difficult problems:
+                //       * sparsespdsolve() for larger sparse positive definite systems
+                //       * sparsesolve() for general (nonsymmetric) linear systems
+                //
+                // First, we have to create matrix and initialize it. Matrix is created
+                // in the SKS format, using fixed bandwidth initialization function.
+                // Several points should be noted:
+                //
+                // 1. SKS sparse storage format also allows variable bandwidth matrices;
+                //    we just do not want to overcomplicate this example.
+                //
+                // 2. SKS format requires you to specify matrix geometry prior to
+                //    initialization of its elements with sparseset(). If you specified
+                //    bandwidth=1, you can not change your mind afterwards and call
+                //    sparseset() for non-existent elements.
+                // 
+                // 3. Because SKS solver need just one triangle of SPD matrix, we can
+                //    omit initialization of the lower triangle of our matrix.
+                //
+                ae_int_t n = 4;
+                ae_int_t bandwidth = 1;
+                sparsematrix s;
+                sparsecreatesksband(n, n, bandwidth, s);
+                sparseset(s, 0, 0, 2.0);
+                sparseset(s, 0, 1, 1.0);
+                sparseset(s, 1, 1, 3.0);
+                sparseset(s, 1, 2, 1.0);
+                sparseset(s, 2, 2, 3.0);
+                sparseset(s, 2, 3, 1.0);
+                sparseset(s, 3, 3, 2.0);
+
+                //
+                // Now we have symmetric positive definite 4x4 system width bandwidth=1:
+                //
+                //     [ 2 1     ]   [ x0]]   [  4 ]
+                //     [ 1 3 1   ]   [ x1 ]   [ 10 ]
+                //     [   1 3 1 ] * [ x2 ] = [ 15 ]
+                //     [     1 2 ]   [ x3 ]   [ 11 ]
+                //
+                // After successful creation we can call SKS solver.
+                //
+                real_1d_array b = "[4,10,15,11]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(b);
+                sparsesolverreport rep;
+                real_1d_array x;
+                bool isuppertriangle = true;
+                sparsespdsolvesks(s, isuppertriangle, b, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 2.0000, 3.0000, 4.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "solvesks_d_1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST sparse_solve_cholesky
+        //      Solving positive definite sparse linear systems with the supernodal Cholesky solver
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates creation/initialization of a sparse matrix and linear
+                // system solution using Cholesky-based direct solver. This solver can handle any
+                // problem sizes - from several tens of variables to millions of variables.
+                //
+                // First, we create a sparse matrix in the flexible hash table-based storage format,
+                // initialize it and convert to the CRS format. Because the matrix is symmetric,
+                // it is enough to specify only one triangle. The example below initializes the
+                // lower one.
+                //
+                ae_int_t n = 4;
+                sparsematrix s;
+                sparsecreate(n, n, 0, s);
+                sparseset(s, 0, 0, 2.0);
+                sparseset(s, 1, 0, 1.0);
+                sparseset(s, 1, 1, 3.0);
+                sparseset(s, 2, 1, 1.0);
+                sparseset(s, 2, 2, 3.0);
+                sparseset(s, 3, 2, 1.0);
+                sparseset(s, 3, 3, 2.0);
+
+                //
+                // Now we have symmetric positive definite 4x4 system
+                //
+                //     [ 2 1     ]   [ x0]]   [  4 ]
+                //     [ 1 3 1   ]   [ x1 ]   [ 10 ]
+                //     [   1 3 1 ] * [ x2 ] = [ 15 ]
+                //     [     1 2 ]   [ x3 ]   [ 11 ]
+                //
+                // Now, it is time to call the solver.
+                //
+                real_1d_array b = "[4,10,15,11]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(b);
+                sparsesolverreport rep;
+                real_1d_array x;
+                bool isuppertriangle = false;
+                sparsespdsolve(s, isuppertriangle, b, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 2.0000, 3.0000, 4.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "sparse_solve_cholesky");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST sparse_solve
+        //      Solving general sparse linear systems
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates creation/initialization of a sparse matrix and linear
+                // system solution using a direct solver. This solver can handle any problem sizes
+                // - from several tens of variables to millions of variables.
+                //
+                // First, we create a sparse matrix in the flexible hash table-based storage format,
+                // initialize it and convert to the CRS format.
+                //
+                ae_int_t n = 4;
+                sparsematrix s;
+                sparsecreate(n, n, 0, s);
+                sparseset(s, 0, 0, 2.0);
+                sparseset(s, 0, 1, 1.0);
+                sparseset(s, 1, 0, 1.0);
+                sparseset(s, 1, 1, 3.0);
+                sparseset(s, 1, 2, -1.0);
+                sparseset(s, 2, 2, 3.0);
+                sparseset(s, 2, 3, 1.0);
+                sparseset(s, 3, 2, 1.0);
+                sparseset(s, 3, 3, 2.0);
+
+                //
+                // Now we have symmetric positive definite 4x4 system
+                //
+                //     [ 2 1     ]   [ x0]]   [ 3 ]
+                //     [ 1 3 -1  ]   [ x1 ]   [ 2 ]
+                //     [     3 1 ] * [ x2 ] = [ 8 ]
+                //     [     1 2 ]   [ x3 ]   [ 6 ]
+                //
+                // Now, it is time to call the solver. The sparsesolve() function supports several
+                // solvers, our recommendation is to choose the default one. In the current version
+                // it is a supernodal solver with static pivoting, followed by the iterative refinement.
+                //
+                real_1d_array b = "[3,2,8,6]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(b);
+                sparsesolverreport rep;
+                real_1d_array x;
+                ae_int_t solvertype = 0;
+                sparsesolve(s, b, solvertype, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 1.0000, 2.0000, 2.0000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "sparse_solve");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -1208,10 +2656,9 @@ int main()
                     spoil_matrix_by_deleting_row(a);
                 if( _spoil_scenario==6 )
                     spoil_matrix_by_deleting_col(a);
-                ae_int_t info;
                 matinvreport rep;
-                rmatrixinverse(a, info, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
+                rmatrixinverse(a, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
                 _TestResult = _TestResult && doc_test_real_matrix(a, "[[0.5,0.5],[-0.5,0.5]]", 0.00005);
                 _TestResult = _TestResult && doc_test_real(rep.r1, 0.5, 0.00005);
                 _TestResult = _TestResult && doc_test_real(rep.rinf, 0.5, 0.00005);
@@ -1252,10 +2699,9 @@ int main()
                     spoil_matrix_by_deleting_row(a);
                 if( _spoil_scenario==6 )
                     spoil_matrix_by_deleting_col(a);
-                ae_int_t info;
                 matinvreport rep;
-                cmatrixinverse(a, info, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
+                cmatrixinverse(a, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
                 _TestResult = _TestResult && doc_test_complex_matrix(a, "[[-0.5i,-0.5i],[-0.5,0.5]]", 0.00005);
                 _TestResult = _TestResult && doc_test_real(rep.r1, 0.5, 0.00005);
                 _TestResult = _TestResult && doc_test_real(rep.rinf, 0.5, 0.00005);
@@ -1277,30 +2723,44 @@ int main()
         //      SPD matrix inverse
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
         {
             try
             {
                 real_2d_array a = "[[2,1],[1,2]]";
                 if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                if( _spoil_scenario==3 )
                     spoil_matrix_by_adding_row(a);
-                if( _spoil_scenario==4 )
+                if( _spoil_scenario==1 )
                     spoil_matrix_by_adding_col(a);
-                if( _spoil_scenario==5 )
+                if( _spoil_scenario==2 )
                     spoil_matrix_by_deleting_row(a);
-                if( _spoil_scenario==6 )
+                if( _spoil_scenario==3 )
                     spoil_matrix_by_deleting_col(a);
-                ae_int_t info;
                 matinvreport rep;
-                spdmatrixinverse(a, info, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                _TestResult = _TestResult && doc_test_real_matrix(a, "[[0.666666,-0.333333],[-0.333333,0.666666]]", 0.00005);
+
+                //
+                // The matrix is given by its upper and lower triangles
+                //
+                //     [ 2 1 ]
+                //     [ 1 2 ]
+                //
+                // However, spdmatrixinverse() accepts and modifies only one triangle - either
+                // the upper or the lower one. The other triangle is left untouched. In this example
+                // we modify the lower triangle. Thus, the inverse matrix is
+                //
+                //     [  2/3 -1/3 ]
+                //     [ -1/3  2/3 ]
+                //
+                // but only lower triangle is returned, and the upper triangle is not modified:
+                //
+                //     [  2/3   1  ]
+                //     [ -1/3  2/3 ]
+                //
+                //
+                bool isupper = false;
+                spdmatrixinverse(a, isupper, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_real_matrix(a, "[[0.666666,1],[-0.333333,0.666666]]", 0.00005);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -1319,30 +2779,44 @@ int main()
         //      HPD matrix inverse
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
         {
             try
             {
                 complex_2d_array a = "[[2,1],[1,2]]";
                 if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                if( _spoil_scenario==3 )
                     spoil_matrix_by_adding_row(a);
-                if( _spoil_scenario==4 )
+                if( _spoil_scenario==1 )
                     spoil_matrix_by_adding_col(a);
-                if( _spoil_scenario==5 )
+                if( _spoil_scenario==2 )
                     spoil_matrix_by_deleting_row(a);
-                if( _spoil_scenario==6 )
+                if( _spoil_scenario==3 )
                     spoil_matrix_by_deleting_col(a);
-                ae_int_t info;
                 matinvreport rep;
-                hpdmatrixinverse(a, info, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                _TestResult = _TestResult && doc_test_complex_matrix(a, "[[0.666666,-0.333333],[-0.333333,0.666666]]", 0.00005);
+
+                //
+                // The matrix is given by its upper and lower triangles
+                //
+                //     [ 2 1 ]
+                //     [ 1 2 ]
+                //
+                // However, hpdmatrixinverse() accepts and modifies only one triangle - either
+                // the upper or the lower one. The other triangle is left untouched. In this example
+                // we modify the lower triangle. Thus, the inverse matrix is
+                //
+                //     [  2/3 -1/3 ]
+                //     [ -1/3  2/3 ]
+                //
+                // but only lower triangle is returned, and the upper triangle is not modified:
+                //
+                //     [  2/3   1  ]
+                //     [ -1/3  2/3 ]
+                //
+                //
+                bool isupper = false;
+                hpdmatrixinverse(a, isupper, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && doc_test_complex_matrix(a, "[[0.666666,1],[-0.333333,0.666666]]", 0.00005);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -1364,10 +2838,9 @@ int main()
         try
         {
             real_2d_array a = "[[1,-1],[-2,2]]";
-            ae_int_t info;
             matinvreport rep;
-            rmatrixinverse(a, info, rep);
-            _TestResult = _TestResult && doc_test_int(info, -3);
+            rmatrixinverse(a, rep);
+            _TestResult = _TestResult && doc_test_int(rep.terminationtype, -3);
             _TestResult = _TestResult && doc_test_real(rep.r1, 0.0, 0.00005);
             _TestResult = _TestResult && doc_test_real(rep.rinf, 0.0, 0.00005);
         }
@@ -1389,10 +2862,9 @@ int main()
         try
         {
             complex_2d_array a = "[[1i,-1i],[-2,2]]";
-            ae_int_t info;
             matinvreport rep;
-            cmatrixinverse(a, info, rep);
-            _TestResult = _TestResult && doc_test_int(info, -3);
+            cmatrixinverse(a, rep);
+            _TestResult = _TestResult && doc_test_int(rep.terminationtype, -3);
             _TestResult = _TestResult && doc_test_real(rep.r1, 0.0, 0.00005);
             _TestResult = _TestResult && doc_test_real(rep.rinf, 0.0, 0.00005);
         }
@@ -1401,52 +2873,6 @@ int main()
         if( !_TestResult)
         {
             printf("%-32s FAILED\n", "matinv_t_c1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matinv_e_spd1
-        //      Attempt to use SPD function on nonsymmetrix matrix
-        //
-        _TestResult = true;
-        try
-        {
-            real_2d_array a = "[[1,0],[1,1]]";
-            ae_int_t info;
-            matinvreport rep;
-            spdmatrixinverse(a, info, rep);
-            _TestResult = false;
-        }
-        catch(ap_error)
-        {}
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matinv_e_spd1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matinv_e_hpd1
-        //      Attempt to use SPD function on nonsymmetrix matrix
-        //
-        _TestResult = true;
-        try
-        {
-            complex_2d_array a = "[[1,0],[1,1]]";
-            ae_int_t info;
-            matinvreport rep;
-            hpdmatrixinverse(a, info, rep);
-            _TestResult = false;
-        }
-        catch(ap_error)
-        {}
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matinv_e_hpd1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -1470,10 +2896,23 @@ int main()
                 // * initial point x=[0,0]
                 // * unit scale being set for all variables (see minlbfgssetscale for more info)
                 // * stopping criteria set to "terminate after short enough step"
-                // * OptGuard integrity check being used to check problem statement
-                //   for some common errors like nonsmoothness or bad analytic gradient
                 //
-                // First, we create optimizer object and tune its properties
+                // First, we create optimizer object and tune its properties.
+                //
+                // IMPORTANT: the  LBFGS  optimizer  supports  parallel parallel numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is  present  in  commercial  ALGLIB  editions greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on  minlbfgsoptimize() function for
+                //            more information.
                 //
                 real_1d_array x = "[0,0]";
                 if( _spoil_scenario==0 )
@@ -1517,47 +2956,12 @@ int main()
                 minlbfgssetscale(state, s);
 
                 //
-                // Activate OptGuard integrity checking.
-                //
-                // OptGuard monitor helps to catch common coding and problem statement
-                // issues, like:
-                // * discontinuity of the target function (C0 continuity violation)
-                // * nonsmoothness of the target function (C1 continuity violation)
-                // * erroneous analytic gradient, i.e. one inconsistent with actual
-                //   change in the target/constraints
-                //
-                // OptGuard is essential for early prototyping stages because such
-                // problems often result in premature termination of the optimizer
-                // which is really hard to distinguish from the correct termination.
-                //
-                // IMPORTANT: GRADIENT VERIFICATION IS PERFORMED BY MEANS OF NUMERICAL
-                //            DIFFERENTIATION. DO NOT USE IT IN PRODUCTION CODE!!!!!!!
-                //
-                //            Other OptGuard checks add moderate overhead, but anyway
-                //            it is better to turn them off when they are not needed.
-                //
-                minlbfgsoptguardsmoothness(state);
-                minlbfgsoptguardgradient(state, 0.001);
-
-                //
                 // Optimize and examine results.
                 //
                 minlbfgsreport rep;
                 alglib::minlbfgsoptimize(state, function1_grad);
                 minlbfgsresults(state, x, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
-
-                //
-                // Check that OptGuard did not report errors
-                //
-                // NOTE: want to test OptGuard? Try breaking the gradient - say, add
-                //       1.0 to some of its components.
-                //
-                optguardreport ogrep;
-                minlbfgsoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -1701,8 +3105,26 @@ int main()
             try
             {
                 //
-                // This example demonstrates minimization of f(x,y) = 100*(x+3)^4+(y-3)^4
+                // This example demonstrates minimization of
+                //
+                //     f(x,y) = 100*(x+3)^4+(y-3)^4
+                //
                 // using numerical differentiation to calculate gradient.
+                //
+                // IMPORTANT: the  LBFGS  optimizer  supports  parallel parallel numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is  present  in  commercial  ALGLIB  editions greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on  minlbfgsoptimize() function for
+                //            more information.
                 //
                 real_1d_array x = "[0,0]";
                 if( _spoil_scenario==0 )
@@ -1764,88 +3186,59 @@ int main()
 
 
         //
-        // TEST linlsqr_d_1
-        //      Solution of sparse linear systems with CG
+        // TEST minlbfgs_t_1
+        //      Test buffered results which use shared convention for one of its parameters
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<15; _spoil_scenario++)
         {
             try
             {
-                //
-                // This example illustrates solution of sparse linear least squares problem
-                // with LSQR algorithm.
-                // 
-                // Suppose that we have least squares problem min|A*x-b| with sparse A
-                // represented by sparsematrix object
-                //         [ 1 1 ]
-                //         [ 1 1 ]
-                //     A = [ 2 1 ]
-                //         [ 1   ]
-                //         [   1 ]
-                // and right part b
-                //     [ 4 ]
-                //     [ 2 ]
-                // b = [ 4 ]
-                //     [ 1 ]
-                //     [ 2 ]
-                // and we want to solve this system in the least squares sense using
-                // LSQR algorithm. In order to do so, we have to create left part
-                // (sparsematrix object) and right part (dense array).
-                //
-                // Initially, sparse matrix is created in the Hash-Table format,
-                // which allows easy initialization, but do not allow matrix to be
-                // used in the linear solvers. So after construction you should convert
-                // sparse matrix to CRS format (one suited for linear operations).
-                //
-                sparsematrix a;
-                sparsecreate(5, 2, a);
-                sparseset(a, 0, 0, 1.0);
-                sparseset(a, 0, 1, 1.0);
-                sparseset(a, 1, 0, 1.0);
-                sparseset(a, 1, 1, 1.0);
-                sparseset(a, 2, 0, 2.0);
-                sparseset(a, 2, 1, 1.0);
-                sparseset(a, 3, 0, 1.0);
-                sparseset(a, 4, 1, 1.0);
-
-                //
-                // Now our matrix is fully initialized, but we have to do one more
-                // step - convert it from Hash-Table format to CRS format (see
-                // documentation on sparse matrices for more information about these
-                // formats).
-                //
-                // If you omit this call, ALGLIB will generate exception on the first
-                // attempt to use A in linear operations. 
-                //
-                sparseconverttocrs(a);
-
-                //
-                // Initialization of the right part
-                //
-                real_1d_array b = "[4,2,4,1,2]";
+                real_1d_array x = "[0,0]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(b);
+                    spoil_vector_by_nan(x);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(b);
+                    spoil_vector_by_posinf(x);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(b);
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
                 if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(b);
-
-                //
-                // Now we have to create linear solver object and to use it for the
-                // solution of the linear system.
-                //
-                linlsqrstate s;
-                linlsqrreport rep;
-                real_1d_array x;
-                linlsqrcreate(5, 2, s);
-                linlsqrsolvesparse(s, a, b);
-                linlsqrresults(s, x, rep);
-
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 4);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[1.000,2.000]", 0.005);
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                double epsg = 0;
+                if( _spoil_scenario==6 )
+                    epsg = fp_nan;
+                if( _spoil_scenario==7 )
+                    epsg = fp_posinf;
+                if( _spoil_scenario==8 )
+                    epsg = fp_neginf;
+                double epsf = 0;
+                if( _spoil_scenario==9 )
+                    epsf = fp_nan;
+                if( _spoil_scenario==10 )
+                    epsf = fp_posinf;
+                if( _spoil_scenario==11 )
+                    epsf = fp_neginf;
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==12 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==13 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==14 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                minlbfgsstate state;
+                minlbfgscreate(1, x, state);
+                minlbfgssetcond(state, epsg, epsf, epsx, maxits);
+                minlbfgssetscale(state, s);
+                minlbfgsreport rep;
+                alglib::minlbfgsoptimize(state, function1_grad);
+                minlbfgsresults(state, x, rep);
+                minlbfgsresultsbuf(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -1853,7 +3246,7 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "linlsqr_d_1");
+            printf("%-32s FAILED\n", "minlbfgs_t_1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -2289,7 +3682,7 @@ int main()
         //      Unconstrained dense quadratic programming
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<17; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
         {
             try
             {
@@ -2298,71 +3691,55 @@ int main()
                 //
                 // Exact solution is [x0,x1] = [3,2]
                 //
-                // We provide algorithm with starting point, although in this case
-                // (dense matrix, no constraints) it can work without such information.
-                //
-                // Several QP solvers are tried: QuickQP, BLEIC, DENSE-AUL.
-                //
                 // IMPORTANT: this solver minimizes  following  function:
+                //
                 //     f(x) = 0.5*x'*A*x + b'*x.
+                //
                 // Note that quadratic term has 0.5 before it. So if you want to minimize
                 // quadratic function, you should rewrite it in such way that quadratic term
                 // is multiplied by 0.5 too.
                 //
                 // For example, our function is f(x)=x0^2+x1^2+..., but we rewrite it as 
+                //
                 //     f(x) = 0.5*(2*x0^2+2*x1^2) + .... 
+                //
                 // and pass diag(2,2) as quadratic term - NOT diag(1,1)!
                 //
                 real_2d_array a = "[[2,0],[0,2]]";
                 if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                if( _spoil_scenario==3 )
                     spoil_matrix_by_deleting_row(a);
-                if( _spoil_scenario==4 )
+                if( _spoil_scenario==1 )
                     spoil_matrix_by_deleting_col(a);
                 real_1d_array b = "[-6,-4]";
-                if( _spoil_scenario==5 )
+                if( _spoil_scenario==2 )
                     spoil_vector_by_nan(b);
-                if( _spoil_scenario==6 )
+                if( _spoil_scenario==3 )
                     spoil_vector_by_posinf(b);
-                if( _spoil_scenario==7 )
+                if( _spoil_scenario==4 )
                     spoil_vector_by_neginf(b);
-                if( _spoil_scenario==8 )
+                if( _spoil_scenario==5 )
                     spoil_vector_by_deleting_element(b);
-                real_1d_array x0 = "[0,1]";
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_nan(x0);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_posinf(x0);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_neginf(x0);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_deleting_element(x0);
                 real_1d_array s = "[1,1]";
-                if( _spoil_scenario==13 )
+                if( _spoil_scenario==6 )
                     spoil_vector_by_nan(s);
-                if( _spoil_scenario==14 )
+                if( _spoil_scenario==7 )
                     spoil_vector_by_posinf(s);
-                if( _spoil_scenario==15 )
+                if( _spoil_scenario==8 )
                     spoil_vector_by_neginf(s);
-                if( _spoil_scenario==16 )
+                if( _spoil_scenario==9 )
                     spoil_vector_by_deleting_element(s);
+                bool isupper = true;
                 real_1d_array x;
                 minqpstate state;
                 minqpreport rep;
 
-                // create solver, set quadratic/linear terms
+                // create the solver, set quadratic/linear terms
                 minqpcreate(2, state);
-                minqpsetquadraticterm(state, a);
+                minqpsetquadraticterm(state, a, isupper);
                 minqpsetlinearterm(state, b);
-                minqpsetstartingpoint(state, x0);
 
-                // Set scale of the parameters.
-                // It is strongly recommended that you set scale of your variables.
+                // Set the scale of the parameters.
+                // It is strongly recommended that you set the scale of your variables.
                 // Knowing their scales is essential for evaluation of stopping criteria
                 // and for preconditioning of the algorithm steps.
                 // You can find more information on scaling at http://www.alglib.net/optimization/scaling.php
@@ -2372,45 +3749,27 @@ int main()
                 minqpsetscale(state, s);
 
                 //
-                // Solve problem with QuickQP solver.
+                // Solve problem with the sparse interior-point method (sparse IPM) solver.
                 //
-                // This solver is intended for medium and large-scale problems with box
-                // constraints (general linear constraints are not supported), but it can
-                // also be efficiently used on unconstrained problems.
+                // This solver is intended for large-scale sparse problems with box and linear
+                // constraints, but it will work on such a toy problem too.
                 //
                 // Default stopping criteria are used, Newton phase is active.
                 //
-                minqpsetalgoquickqp(state, 0.0, 0.0, 0.0, 0, true);
+                minqpsetalgosparseipm(state, 0.0);
                 minqpoptimize(state);
                 minqpresults(state, x, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x, "[3,2]", 0.005);
 
                 //
-                // Solve problem with BLEIC-based QP solver.
+                // Solve problem with dense IPM solver.
                 //
-                // This solver is intended for problems with moderate (up to 50) number
-                // of general linear constraints and unlimited number of box constraints.
-                // Of course, unconstrained problems can be solved too.
-                //
-                // Default stopping criteria are used.
-                //
-                minqpsetalgobleic(state, 0.0, 0.0, 0.0, 0);
-                minqpoptimize(state);
-                minqpresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[3,2]", 0.005);
-
-                //
-                // Solve problem with DENSE-AUL solver.
-                //
-                // This solver is optimized for problems with up to several thousands of
-                // variables and large amount of general linear constraints. Problems with
-                // less than 50 general linear constraints can be efficiently solved with
-                // BLEIC, problems with box-only constraints can be solved with QuickQP.
-                // However, DENSE-AUL will work in any (including unconstrained) case.
+                // This solver is optimized for problems with dense linear constraints and/or
+                // dense quadratic term.
                 //
                 // Default stopping criteria are used.
                 //
-                minqpsetalgodenseaul(state, 1.0e-9, 1.0e+4, 5);
+                minqpsetalgodenseipm(state, 0.0);
                 minqpoptimize(state);
                 minqpresults(state, x, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x, "[3,2]", 0.005);
@@ -2429,91 +3788,75 @@ int main()
 
         //
         // TEST minqp_d_bc1
-        //      Bound constrained dense quadratic programming
+        //      Box constrained dense quadratic programming
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<21; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<14; _spoil_scenario++)
         {
             try
             {
                 //
                 // This example demonstrates minimization of F(x0,x1) = x0^2 + x1^2 -6*x0 - 4*x1
-                // subject to bound constraints 0<=x0<=2.5, 0<=x1<=2.5
+                // subject to Box constraints 0<=x0<=2.5, 0<=x1<=2.5
                 //
                 // Exact solution is [x0,x1] = [2.5,2]
                 //
-                // We provide algorithm with starting point. With such small problem good starting
-                // point is not really necessary, but with high-dimensional problem it can save us
-                // a lot of time.
-                //
-                // Several QP solvers are tried: QuickQP, BLEIC, DENSE-AUL.
-                //
                 // IMPORTANT: this solver minimizes  following  function:
+                //
                 //     f(x) = 0.5*x'*A*x + b'*x.
+                //
                 // Note that quadratic term has 0.5 before it. So if you want to minimize
                 // quadratic function, you should rewrite it in such way that quadratic term
                 // is multiplied by 0.5 too.
+                //
                 // For example, our function is f(x)=x0^2+x1^2+..., but we rewrite it as 
+                //
                 //     f(x) = 0.5*(2*x0^2+2*x1^2) + ....
+                //
                 // and pass diag(2,2) as quadratic term - NOT diag(1,1)!
                 //
                 real_2d_array a = "[[2,0],[0,2]]";
                 if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                if( _spoil_scenario==3 )
                     spoil_matrix_by_deleting_row(a);
-                if( _spoil_scenario==4 )
+                if( _spoil_scenario==1 )
                     spoil_matrix_by_deleting_col(a);
                 real_1d_array b = "[-6,-4]";
-                if( _spoil_scenario==5 )
+                if( _spoil_scenario==2 )
                     spoil_vector_by_nan(b);
-                if( _spoil_scenario==6 )
+                if( _spoil_scenario==3 )
                     spoil_vector_by_posinf(b);
-                if( _spoil_scenario==7 )
+                if( _spoil_scenario==4 )
                     spoil_vector_by_neginf(b);
-                if( _spoil_scenario==8 )
+                if( _spoil_scenario==5 )
                     spoil_vector_by_deleting_element(b);
-                real_1d_array x0 = "[0,1]";
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_nan(x0);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_posinf(x0);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_neginf(x0);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_deleting_element(x0);
                 real_1d_array s = "[1,1]";
-                if( _spoil_scenario==13 )
+                if( _spoil_scenario==6 )
                     spoil_vector_by_nan(s);
-                if( _spoil_scenario==14 )
+                if( _spoil_scenario==7 )
                     spoil_vector_by_posinf(s);
-                if( _spoil_scenario==15 )
+                if( _spoil_scenario==8 )
                     spoil_vector_by_neginf(s);
-                if( _spoil_scenario==16 )
+                if( _spoil_scenario==9 )
                     spoil_vector_by_deleting_element(s);
                 real_1d_array bndl = "[0.0,0.0]";
-                if( _spoil_scenario==17 )
+                if( _spoil_scenario==10 )
                     spoil_vector_by_nan(bndl);
-                if( _spoil_scenario==18 )
+                if( _spoil_scenario==11 )
                     spoil_vector_by_deleting_element(bndl);
                 real_1d_array bndu = "[2.5,2.5]";
-                if( _spoil_scenario==19 )
+                if( _spoil_scenario==12 )
                     spoil_vector_by_nan(bndu);
-                if( _spoil_scenario==20 )
+                if( _spoil_scenario==13 )
                     spoil_vector_by_deleting_element(bndu);
+                bool isupper = true;
                 real_1d_array x;
                 minqpstate state;
                 minqpreport rep;
 
                 // create solver, set quadratic/linear terms
                 minqpcreate(2, state);
-                minqpsetquadraticterm(state, a);
+                minqpsetquadraticterm(state, a, isupper);
                 minqpsetlinearterm(state, b);
-                minqpsetstartingpoint(state, x0);
                 minqpsetbc(state, bndl, bndu);
 
                 // Set scale of the parameters.
@@ -2527,44 +3870,27 @@ int main()
                 minqpsetscale(state, s);
 
                 //
-                // Solve problem with QuickQP solver.
+                // Solve problem with the sparse interior-point method (sparse IPM) solver.
                 //
-                // This solver is intended for medium and large-scale problems with box
-                // constraints (general linear constraints are not supported).
+                // This solver is intended for large-scale sparse problems with box and linear
+                // constraints, but it will work on such a toy problem too.
                 //
                 // Default stopping criteria are used, Newton phase is active.
                 //
-                minqpsetalgoquickqp(state, 0.0, 0.0, 0.0, 0, true);
-                minqpoptimize(state);
-                minqpresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 4);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[2.5,2]", 0.005);
-
-                //
-                // Solve problem with BLEIC-based QP solver.
-                //
-                // This solver is intended for problems with moderate (up to 50) number
-                // of general linear constraints and unlimited number of box constraints.
-                //
-                // Default stopping criteria are used.
-                //
-                minqpsetalgobleic(state, 0.0, 0.0, 0.0, 0);
+                minqpsetalgosparseipm(state, 0.0);
                 minqpoptimize(state);
                 minqpresults(state, x, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x, "[2.5,2]", 0.005);
 
                 //
-                // Solve problem with DENSE-AUL solver.
+                // Solve problem with dense IPM solver.
                 //
-                // This solver is optimized for problems with up to several thousands of
-                // variables and large amount of general linear constraints. Problems with
-                // less than 50 general linear constraints can be efficiently solved with
-                // BLEIC, problems with box-only constraints can be solved with QuickQP.
-                // However, DENSE-AUL will work in any (including unconstrained) case.
+                // This solver is optimized for problems with dense linear constraints and/or
+                // dense quadratic term.
                 //
                 // Default stopping criteria are used.
                 //
-                minqpsetalgodenseaul(state, 1.0e-9, 1.0e+4, 5);
+                minqpsetalgodenseipm(state, 0.0);
                 minqpoptimize(state);
                 minqpresults(state, x, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x, "[2.5,2]", 0.005);
@@ -2586,7 +3912,7 @@ int main()
         //      Linearly constrained dense quadratic programming
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<16; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<13; _spoil_scenario++)
         {
             try
             {
@@ -2597,58 +3923,58 @@ int main()
                 // Exact solution is [x0,x1] = [1.5,0.5]
                 //
                 // IMPORTANT: this solver minimizes  following  function:
+                //
                 //     f(x) = 0.5*x'*A*x + b'*x.
+                //
                 // Note that quadratic term has 0.5 before it. So if you want to minimize
                 // quadratic function, you should rewrite it in such way that quadratic term
                 // is multiplied by 0.5 too.
+                //
                 // For example, our function is f(x)=x0^2+x1^2+..., but we rewrite it as 
+                //
                 //     f(x) = 0.5*(2*x0^2+2*x1^2) + ....
+                //
                 // and pass diag(2,2) as quadratic term - NOT diag(1,1)!
                 //
                 real_2d_array a = "[[2,0],[0,2]]";
                 if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                if( _spoil_scenario==3 )
                     spoil_matrix_by_deleting_row(a);
-                if( _spoil_scenario==4 )
+                if( _spoil_scenario==1 )
                     spoil_matrix_by_deleting_col(a);
                 real_1d_array b = "[-6,-4]";
-                if( _spoil_scenario==5 )
+                if( _spoil_scenario==2 )
                     spoil_vector_by_nan(b);
-                if( _spoil_scenario==6 )
+                if( _spoil_scenario==3 )
                     spoil_vector_by_posinf(b);
-                if( _spoil_scenario==7 )
+                if( _spoil_scenario==4 )
                     spoil_vector_by_neginf(b);
-                if( _spoil_scenario==8 )
+                if( _spoil_scenario==5 )
                     spoil_vector_by_deleting_element(b);
                 real_1d_array s = "[1,1]";
-                if( _spoil_scenario==9 )
+                if( _spoil_scenario==6 )
                     spoil_vector_by_nan(s);
-                if( _spoil_scenario==10 )
+                if( _spoil_scenario==7 )
                     spoil_vector_by_posinf(s);
-                if( _spoil_scenario==11 )
+                if( _spoil_scenario==8 )
                     spoil_vector_by_neginf(s);
-                if( _spoil_scenario==12 )
+                if( _spoil_scenario==9 )
                     spoil_vector_by_deleting_element(s);
                 real_2d_array c = "[[1.0,1.0,2.0]]";
-                if( _spoil_scenario==13 )
+                if( _spoil_scenario==10 )
                     spoil_matrix_by_nan(c);
-                if( _spoil_scenario==14 )
+                if( _spoil_scenario==11 )
                     spoil_matrix_by_posinf(c);
-                if( _spoil_scenario==15 )
+                if( _spoil_scenario==12 )
                     spoil_matrix_by_neginf(c);
                 integer_1d_array ct = "[-1]";
+                bool isupper = true;
                 real_1d_array x;
                 minqpstate state;
                 minqpreport rep;
 
                 // create solver, set quadratic/linear terms
                 minqpcreate(2, state);
-                minqpsetquadraticterm(state, a);
+                minqpsetquadraticterm(state, a, isupper);
                 minqpsetlinearterm(state, b);
                 minqpsetlc(state, c, ct);
 
@@ -2663,46 +3989,30 @@ int main()
                 minqpsetscale(state, s);
 
                 //
-                // Solve problem with BLEIC-based QP solver.
+                // Solve problem with the sparse interior-point method (sparse IPM) solver.
                 //
-                // This solver is intended for problems with moderate (up to 50) number
-                // of general linear constraints and unlimited number of box constraints.
+                // This solver is intended for large-scale sparse problems with box and linear
+                // constraints, but it will work on such a toy problem too.
+                //
+                // Default stopping criteria are used, Newton phase is active.
+                //
+                minqpsetalgosparseipm(state, 0.0);
+                minqpoptimize(state);
+                minqpresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.5,0.5]", 0.005);
+
+                //
+                // Solve problem with dense IPM solver.
+                //
+                // This solver is optimized for problems with dense linear constraints and/or
+                // dense quadratic term.
                 //
                 // Default stopping criteria are used.
                 //
-                minqpsetalgobleic(state, 0.0, 0.0, 0.0, 0);
+                minqpsetalgodenseipm(state, 0.0);
                 minqpoptimize(state);
                 minqpresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[1.500,0.500]", 0.05);
-
-                //
-                // Solve problem with DENSE-AUL solver.
-                //
-                // This solver is optimized for problems with up to several thousands of
-                // variables and large amount of general linear constraints. Problems with
-                // less than 50 general linear constraints can be efficiently solved with
-                // BLEIC, problems with box-only constraints can be solved with QuickQP.
-                // However, DENSE-AUL will work in any (including unconstrained) case.
-                //
-                // Default stopping criteria are used.
-                //
-                minqpsetalgodenseaul(state, 1.0e-9, 1.0e+4, 5);
-                minqpoptimize(state);
-                minqpresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[1.500,0.500]", 0.05);
-
-                //
-                // Solve problem with QuickQP solver.
-                //
-                // This solver is intended for medium and large-scale problems with box
-                // constraints, and...
-                //
-                // ...Oops! It does not support general linear constraints, -5 returned as completion code!
-                //
-                minqpsetalgoquickqp(state, 0.0, 0.0, 0.0, 0, true);
-                minqpoptimize(state);
-                minqpresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, -5);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[1.5,0.5]", 0.005);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -2798,15 +4108,27 @@ int main()
                 minqpsetscale(state, s);
 
                 //
-                // Solve problem with BLEIC-based QP solver.
+                // Solve problem with the sparse interior-point method (sparse IPM) solver.
                 //
-                // This solver is intended for problems with moderate (up to 50) number
-                // of general linear constraints and unlimited number of box constraints.
-                // It also supports sparse problems.
+                // This solver is intended for large-scale sparse problems with box and linear
+                // constraints, but it will work on such a toy problem too.
+                //
+                // Default stopping criteria are used, Newton phase is active.
+                //
+                minqpsetalgosparseipm(state, 0.0);
+                minqpoptimize(state);
+                minqpresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[3,2]", 0.005);
+
+                //
+                // Solve problem with dense IPM solver.
+                //
+                // This solver is optimized for problems with dense linear constraints and/or
+                // dense quadratic term.
                 //
                 // Default stopping criteria are used.
                 //
-                minqpsetalgobleic(state, 0.0, 0.0, 0.0, 0);
+                minqpsetalgodenseipm(state, 0.0);
                 minqpoptimize(state);
                 minqpresults(state, x, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x, "[3,2]", 0.005);
@@ -2828,7 +4150,7 @@ int main()
         //      Nonconvex quadratic programming
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<21; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<18; _spoil_scenario++)
         {
             try
             {
@@ -2838,9 +4160,9 @@ int main()
                 // subject to constraints x0,x1 in [1.0,2.0]
                 // Exact solution is [x0,x1] = [2,2].
                 //
-                // Non-convex problems are harded to solve than convex ones, and they
-                // may have more than one local minimum. However, ALGLIB solves may deal
-                // with such problems (altough they do not guarantee convergence to
+                // Non-convex problems are harder to solve than convex ones, and they
+                // may have more than one local minimum. However, ALGLIB solvers may deal
+                // with such problems (although they do not guarantee convergence to
                 // global minimum).
                 //
                 // IMPORTANT: this solver minimizes  following  function:
@@ -2855,50 +4177,45 @@ int main()
                 //
                 real_2d_array a = "[[-2,0],[0,-2]]";
                 if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(a);
-                if( _spoil_scenario==3 )
                     spoil_matrix_by_deleting_row(a);
-                if( _spoil_scenario==4 )
+                if( _spoil_scenario==1 )
                     spoil_matrix_by_deleting_col(a);
                 real_1d_array x0 = "[1,1]";
-                if( _spoil_scenario==5 )
+                if( _spoil_scenario==2 )
                     spoil_vector_by_nan(x0);
-                if( _spoil_scenario==6 )
+                if( _spoil_scenario==3 )
                     spoil_vector_by_posinf(x0);
-                if( _spoil_scenario==7 )
+                if( _spoil_scenario==4 )
                     spoil_vector_by_neginf(x0);
-                if( _spoil_scenario==8 )
+                if( _spoil_scenario==5 )
                     spoil_vector_by_deleting_element(x0);
                 real_1d_array s = "[1,1]";
-                if( _spoil_scenario==9 )
+                if( _spoil_scenario==6 )
                     spoil_vector_by_nan(s);
-                if( _spoil_scenario==10 )
+                if( _spoil_scenario==7 )
                     spoil_vector_by_posinf(s);
-                if( _spoil_scenario==11 )
+                if( _spoil_scenario==8 )
                     spoil_vector_by_neginf(s);
-                if( _spoil_scenario==12 )
+                if( _spoil_scenario==9 )
                     spoil_vector_by_deleting_element(s);
                 real_1d_array bndl = "[1.0,1.0]";
-                if( _spoil_scenario==13 )
+                if( _spoil_scenario==10 )
                     spoil_vector_by_nan(bndl);
-                if( _spoil_scenario==14 )
+                if( _spoil_scenario==11 )
                     spoil_vector_by_deleting_element(bndl);
                 real_1d_array bndu = "[2.0,2.0]";
-                if( _spoil_scenario==15 )
+                if( _spoil_scenario==12 )
                     spoil_vector_by_nan(bndu);
-                if( _spoil_scenario==16 )
+                if( _spoil_scenario==13 )
                     spoil_vector_by_deleting_element(bndu);
+                bool isupper = true;
                 real_1d_array x;
                 minqpstate state;
                 minqpreport rep;
 
                 // create solver, set quadratic/linear terms, constraints
                 minqpcreate(2, state);
-                minqpsetquadraticterm(state, a);
+                minqpsetquadraticterm(state, a, isupper);
                 minqpsetstartingpoint(state, x0);
                 minqpsetbc(state, bndl, bndu);
 
@@ -2918,7 +4235,6 @@ int main()
                 //
                 // This solver is intended for problems with moderate (up to 50) number
                 // of general linear constraints and unlimited number of box constraints.
-                //
                 // It may solve non-convex problems as long as they are bounded from
                 // below under constraints.
                 //
@@ -2932,15 +4248,11 @@ int main()
                 //
                 // Solve problem with DENSE-AUL solver.
                 //
-                // This solver is optimized for problems with up to several thousands of
+                // This solver is optimized for nonconvex problems with up to several thousands of
                 // variables and large amount of general linear constraints. Problems with
                 // less than 50 general linear constraints can be efficiently solved with
                 // BLEIC, problems with box-only constraints can be solved with QuickQP.
                 // However, DENSE-AUL will work in any (including unconstrained) case.
-                //
-                // Algorithm convergence is guaranteed only for convex case, but you may
-                // expect that it will work for non-convex problems too (because near the
-                // solution they are locally convex).
                 //
                 // Default stopping criteria are used.
                 //
@@ -2956,14 +4268,14 @@ int main()
                 // -4 is returned as completion code. However, DENSE-AUL is unable to detect
                 // such situation and it will cycle forever (we do not test it here).
                 real_1d_array nobndl = "[-inf,-inf]";
-                if( _spoil_scenario==17 )
+                if( _spoil_scenario==14 )
                     spoil_vector_by_nan(nobndl);
-                if( _spoil_scenario==18 )
+                if( _spoil_scenario==15 )
                     spoil_vector_by_deleting_element(nobndl);
                 real_1d_array nobndu = "[+inf,+inf]";
-                if( _spoil_scenario==19 )
+                if( _spoil_scenario==16 )
                     spoil_vector_by_nan(nobndu);
-                if( _spoil_scenario==20 )
+                if( _spoil_scenario==17 )
                     spoil_vector_by_deleting_element(nobndu);
                 minqpsetbc(state, nobndl, nobndu);
                 minqpsetalgobleic(state, 0.0, 0.0, 0.0, 0);
@@ -2978,6 +4290,925 @@ int main()
         if( !_TestResult)
         {
             printf("%-32s FAILED\n", "minqp_d_nonconvex");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST minlm_d_v
+        //      Nonlinear least squares optimization using function vector only
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
+                //
+                //     f0(x0,x1) = 10*(x0+3)^2
+                //     f1(x0,x1) = (x1-3)^2
+                //
+                // using "V" mode of the Levenberg-Marquardt optimizer (function values only,
+                // no Jacobian information). The optimization algorithm uses function vector
+                //
+                //     f[] = {f1,f2}
+                //
+                // No other information (Jacobian, gradient, etc.) is needed.
+                //
+                // IMPORTANT: the  MINLM  optimizer  supports  parallel parallel numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is present  in  commercial  ALGLIB  editions, greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            If  you  solve  a  curve fitting problem, i.e. the  function
+                //            vector is actually the same function computed  at  different
+                //            points of a data points space, then it may be better to  use
+                //            an LSFIT curve fitting solver, which offers more fine-grained
+                //            parallelism due to knowledge of the  problem  structure.  In
+                //            particular, it can accelerate both numerical differentiation
+                //            and problems with user-supplied gradients.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on   minlmoptimize()  function  for
+                //            more information.
+                //
+                real_1d_array x = "[0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==6 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==7 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==8 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                minlmstate state;
+                minlmreport rep;
+
+                //
+                // Create optimizer, tell it to:
+                // * use numerical differentiation with step equal to 0.0001
+                // * use unit scale for all variables (s is a unit vector)
+                // * stop after short enough step (less than epsx)
+                //
+                minlmcreatev(2, x, 0.0001, state);
+                minlmsetcond(state, epsx, maxits);
+                minlmsetscale(state, s);
+
+                //
+                // Optimize
+                //
+                alglib::minlmoptimize(state, function1_fvec);
+
+                //
+                // Test optimization results
+                //
+                // NOTE: because we use numerical differentiation, we do not
+                //       verify Jacobian correctness - it is always "correct".
+                //       However, if you switch to analytic gradient, consider
+                //       checking it with OptGuard (see other examples).
+                //
+                minlmresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "minlm_d_v");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST minlm_d_vj
+        //      Nonlinear least squares optimization using function vector and Jacobian
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
+                //
+                //     f0(x0,x1) = 10*(x0+3)^2
+                //     f1(x0,x1) = (x1-3)^2
+                //
+                // using "VJ" mode of the Levenberg-Marquardt optimizer.  The optimization
+                // algorithm uses the  function  vector  f[] = {f1,f2}  and  the  Jacobian
+                // matrix J = {dfi/dxj}, both of them provided by user.
+                //
+                // IMPORTANT: the   MINLM   optimizer  supports     parallel     numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is present  in  commercial  ALGLIB  editions, greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            If  you  solve  a  curve fitting problem, i.e. the  function
+                //            vector is actually the same function computed  at  different
+                //            points of a data points space, then it may be better to  use
+                //            an LSFIT curve fitting solver, which offers more fine-grained
+                //            parallelism due to knowledge of the  problem  structure.  In
+                //            particular, it can accelerate both numerical differentiation
+                //            and problems with user-supplied gradients.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on   minlmoptimize()  function  for
+                //            more information.
+                //
+                real_1d_array x = "[0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==6 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==7 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==8 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                minlmstate state;
+
+                //
+                // Create optimizer, tell it to:
+                // * use analytic gradient provided by user
+                // * use unit scale for all variables (s is a unit vector)
+                // * stop after short enough step (less than epsx)
+                //
+                minlmcreatevj(2, x, state);
+                minlmsetcond(state, epsx, maxits);
+                minlmsetscale(state, s);
+
+                //
+                // Optimize
+                //
+                alglib::minlmoptimize(state, function1_fvec, function1_jac);
+
+                //
+                // Test optimization results
+                //
+                minlmreport rep;
+                minlmresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "minlm_d_vj");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST minlm_d_vb
+        //      Bound constrained nonlinear least squares optimization
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<13; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
+                //
+                //     f0(x0,x1) = 10*(x0+3)^2
+                //     f1(x0,x1) = (x1-3)^2
+                //
+                // with box constraints
+                //
+                //     -1 <= x0 <= +1
+                //     -1 <= x1 <= +1
+                //
+                // using "V" mode of the Levenberg-Marquardt optimizer.  The  optimization
+                // algorithm uses function  vector  f[] = {f1,f2}.  No  other  information
+                // (Jacobian, gradient, etc.) is needed.
+                //
+                // IMPORTANT: the  MINLM  optimizer  supports  parallel parallel numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is present  in  commercial  ALGLIB  editions, greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            If  you  solve  a  curve fitting problem, i.e. the  function
+                //            vector is actually the same function computed  at  different
+                //            points of a data points space, then it may be better to  use
+                //            an LSFIT curve fitting solver, which offers more fine-grained
+                //            parallelism due to knowledge of the  problem  structure.  In
+                //            particular, it can accelerate both numerical differentiation
+                //            and problems with user-supplied gradients.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on   minlmoptimize()  function  for
+                //            more information.
+                //
+                real_1d_array x = "[0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                real_1d_array bndl = "[-1,-1]";
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_nan(bndl);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(bndl);
+                real_1d_array bndu = "[+1,+1]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(bndu);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(bndu);
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==10 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==11 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==12 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                minlmstate state;
+
+                //
+                // Create optimizer, tell it to:
+                // * use numerical differentiation with step equal to 1.0
+                // * use unit scale for all variables (s is a unit vector)
+                // * stop after short enough step (less than epsx)
+                // * set box constraints
+                //
+                minlmcreatev(2, x, 0.0001, state);
+                minlmsetbc(state, bndl, bndu);
+                minlmsetcond(state, epsx, maxits);
+                minlmsetscale(state, s);
+
+                //
+                // Optimize
+                //
+                alglib::minlmoptimize(state, function1_fvec);
+
+                //
+                // Test optimization results
+                //
+                // NOTE: because we use numerical differentiation, we do not
+                //       verify Jacobian correctness - it is always "correct".
+                //       However, if you switch to analytic gradient, consider
+                //       checking it with OptGuard (see other examples).
+                //
+                minlmreport rep;
+                minlmresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-1,+1]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "minlm_d_vb");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST minlm_d_restarts
+        //      Efficient restarts of LM optimizer
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
+                //
+                //     f0(x0,x1) = 10*(x0+3)^2
+                //     f1(x0,x1) = (x1-3)^2
+                //
+                // using several starting points and efficient restarts.
+                //
+                real_1d_array x;
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==0 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==1 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==2 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                minlmstate state;
+                minlmreport rep;
+
+                //
+                // create optimizer using minlmcreatev()
+                //
+                x = "[10,10]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(x);
+                minlmcreatev(2, x, 0.0001, state);
+                minlmsetcond(state, epsx, maxits);
+                alglib::minlmoptimize(state, function1_fvec);
+                minlmresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
+
+                //
+                // restart optimizer using minlmrestartfrom()
+                //
+                // we can use different starting point, different function,
+                // different stopping conditions, but the problem size
+                // must remain unchanged.
+                //
+                x = "[4,4]";
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_neginf(x);
+                minlmrestartfrom(state, x);
+                alglib::minlmoptimize(state, function2_fvec);
+                minlmresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[0,1]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "minlm_d_restarts");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST mincg_d_1
+        //      Nonlinear optimization by CG
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<15; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of
+                //
+                //     f(x,y) = 100*(x+3)^4+(y-3)^4
+                //
+                // using nonlinear conjugate gradient method with:
+                // * initial point x=[0,0]
+                // * unit scale being set for all variables (see mincgsetscale for more info)
+                // * stopping criteria set to "terminate after short enough step"
+                // * OptGuard integrity check being used to check problem statement
+                //   for some common errors like nonsmoothness or bad analytic gradient
+                //
+                // First, we create optimizer object and tune its properties
+                //
+                real_1d_array x = "[0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                double epsg = 0;
+                if( _spoil_scenario==6 )
+                    epsg = fp_nan;
+                if( _spoil_scenario==7 )
+                    epsg = fp_posinf;
+                if( _spoil_scenario==8 )
+                    epsg = fp_neginf;
+                double epsf = 0;
+                if( _spoil_scenario==9 )
+                    epsf = fp_nan;
+                if( _spoil_scenario==10 )
+                    epsf = fp_posinf;
+                if( _spoil_scenario==11 )
+                    epsf = fp_neginf;
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==12 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==13 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==14 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                mincgstate state;
+                mincgcreate(x, state);
+                mincgsetcond(state, epsg, epsf, epsx, maxits);
+                mincgsetscale(state, s);
+
+                //
+                // Activate OptGuard integrity checking.
+                //
+                // OptGuard monitor helps to catch common coding and problem statement
+                // issues, like:
+                // * discontinuity of the target function (C0 continuity violation)
+                // * nonsmoothness of the target function (C1 continuity violation)
+                // * erroneous analytic gradient, i.e. one inconsistent with actual
+                //   change in the target/constraints
+                //
+                // OptGuard is essential for early prototyping stages because such
+                // problems often result in premature termination of the optimizer
+                // which is really hard to distinguish from the correct termination.
+                //
+                // IMPORTANT: GRADIENT VERIFICATION IS PERFORMED BY MEANS OF NUMERICAL
+                //            DIFFERENTIATION. DO NOT USE IT IN PRODUCTION CODE!!!!!!!
+                //
+                //            Other OptGuard checks add moderate overhead, but anyway
+                //            it is better to turn them off when they are not needed.
+                //
+                mincgoptguardsmoothness(state);
+                mincgoptguardgradient(state, 0.001);
+
+                //
+                // Optimize and evaluate results
+                //
+                mincgreport rep;
+                alglib::mincgoptimize(state, function1_grad);
+                mincgresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
+
+                //
+                // Check that OptGuard did not report errors
+                //
+                // NOTE: want to test OptGuard? Try breaking the gradient - say, add
+                //       1.0 to some of its components.
+                //
+                optguardreport ogrep;
+                mincgoptguardresults(state, ogrep);
+                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
+                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
+                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "mincg_d_1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST mincg_d_2
+        //      Nonlinear optimization with additional settings and restarts
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<21; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of f(x,y) = 100*(x+3)^4+(y-3)^4
+                // with nonlinear conjugate gradient method.
+                //
+                // Several advanced techniques are demonstrated:
+                // * upper limit on step size
+                // * restart from new point
+                //
+                real_1d_array x = "[0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                double epsg = 0;
+                if( _spoil_scenario==6 )
+                    epsg = fp_nan;
+                if( _spoil_scenario==7 )
+                    epsg = fp_posinf;
+                if( _spoil_scenario==8 )
+                    epsg = fp_neginf;
+                double epsf = 0;
+                if( _spoil_scenario==9 )
+                    epsf = fp_nan;
+                if( _spoil_scenario==10 )
+                    epsf = fp_posinf;
+                if( _spoil_scenario==11 )
+                    epsf = fp_neginf;
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==12 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==13 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==14 )
+                    epsx = fp_neginf;
+                double stpmax = 0.1;
+                if( _spoil_scenario==15 )
+                    stpmax = fp_nan;
+                if( _spoil_scenario==16 )
+                    stpmax = fp_posinf;
+                if( _spoil_scenario==17 )
+                    stpmax = fp_neginf;
+                ae_int_t maxits = 0;
+                mincgstate state;
+                mincgreport rep;
+
+                // create and tune optimizer
+                mincgcreate(x, state);
+                mincgsetscale(state, s);
+                mincgsetcond(state, epsg, epsf, epsx, maxits);
+                mincgsetstpmax(state, stpmax);
+
+                // Set up OptGuard integrity checker which catches errors
+                // like nonsmooth targets or errors in the analytic gradient.
+                //
+                // OptGuard is essential at the early prototyping stages.
+                //
+                // NOTE: gradient verification needs 3*N additional function
+                //       evaluations; DO NOT USE IT IN THE PRODUCTION CODE
+                //       because it leads to unnecessary slowdown of your app.
+                mincgoptguardsmoothness(state);
+                mincgoptguardgradient(state, 0.001);
+
+                // first run
+                alglib::mincgoptimize(state, function1_grad);
+                mincgresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
+
+                // second run - algorithm is restarted with mincgrestartfrom()
+                x = "[10,10]";
+                if( _spoil_scenario==18 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_neginf(x);
+                mincgrestartfrom(state, x);
+                alglib::mincgoptimize(state, function1_grad);
+                mincgresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
+
+                // check OptGuard integrity report. Why do we need it at all?
+                // Well, try breaking the gradient by adding 1.0 to some
+                // of its components - OptGuard should report it as error.
+                // And it may also catch unintended errors too :)
+                optguardreport ogrep;
+                mincgoptguardresults(state, ogrep);
+                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
+                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
+                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "mincg_d_2");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST mincg_numdiff
+        //      Nonlinear optimization by CG with numerical differentiation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<18; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of
+                //
+                //     f(x,y) = 100*(x+3)^4+(y-3)^4
+                //
+                // using numerical differentiation to calculate gradient.
+                //
+                // We also show how to use OptGuard integrity checker to catch common
+                // problem statement errors like accidentally specifying nonsmooth target
+                // function.
+                //
+                // First, we set up optimizer...
+                //
+                real_1d_array x = "[0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                double epsg = 0;
+                if( _spoil_scenario==6 )
+                    epsg = fp_nan;
+                if( _spoil_scenario==7 )
+                    epsg = fp_posinf;
+                if( _spoil_scenario==8 )
+                    epsg = fp_neginf;
+                double epsf = 0;
+                if( _spoil_scenario==9 )
+                    epsf = fp_nan;
+                if( _spoil_scenario==10 )
+                    epsf = fp_posinf;
+                if( _spoil_scenario==11 )
+                    epsf = fp_neginf;
+                double epsx = 0.0000000001;
+                if( _spoil_scenario==12 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==13 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==14 )
+                    epsx = fp_neginf;
+                double diffstep = 1.0e-6;
+                if( _spoil_scenario==15 )
+                    diffstep = fp_nan;
+                if( _spoil_scenario==16 )
+                    diffstep = fp_posinf;
+                if( _spoil_scenario==17 )
+                    diffstep = fp_neginf;
+                ae_int_t maxits = 0;
+                mincgstate state;
+                mincgcreatef(x, diffstep, state);
+                mincgsetcond(state, epsg, epsf, epsx, maxits);
+                mincgsetscale(state, s);
+
+                //
+                // Then, we activate OptGuard integrity checking.
+                //
+                // Numerical differentiation always produces "correct" gradient
+                // (with some truncation error, but unbiased). Thus, we just have
+                // to check smoothness properties of the target: C0 and C1 continuity.
+                //
+                // Sometimes user accidentally tried to solve nonsmooth problems
+                // with smooth optimizer. OptGuard helps to detect such situations
+                // early, at the prototyping stage.
+                //
+                mincgoptguardsmoothness(state);
+
+                //
+                // Now we are ready to run the optimization
+                //
+                mincgreport rep;
+                alglib::mincgoptimize(state, function1_func);
+                mincgresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
+
+                //
+                // ...and to check OptGuard integrity report.
+                //
+                // Want to challenge OptGuard? Try to make your problem
+                // nonsmooth by replacing 100*(x+3)^4 by 100*|x+3| and
+                // re-run optimizer.
+                //
+                optguardreport ogrep;
+                mincgoptguardresults(state, ogrep);
+                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
+                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "mincg_numdiff");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST mindf_gdemo_auto
+        //      Nonlinearly constrained differential evolution
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<18; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of
+                //
+                //     f(x0,x1) = x0+x1
+                //
+                // subject to nonlinear constraints
+                //
+                //    x0^2 + x1^2 - 1 <= 0
+                //    x2-exp(x0) = 0
+                //
+                real_1d_array x0 = "[0,0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x0);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x0);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x0);
+                real_1d_array s = "[1,1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                mindfstate state;
+                mindfreport rep;
+                real_1d_array x1;
+
+                //
+                // Create optimizer object
+                //
+                mindfcreate(x0, state);
+                mindfsetscale(state, s);
+
+                //
+                // Choose  one  of  nonlinear  programming  solvers  supported  by  MINDF
+                // optimizer.
+                //
+                // This example shows how to use GDEMO (Generalized Differential Evolution,
+                // MultiObjective) solver working in a single-objective mode. This solver
+                // uses an adaptive choice of DE parameters (crossover, weight and strategy),
+                // automatically choosing the most appropriate settings during the optimization.
+                //
+                // Thus, the only tunable parameters are iterations count and population size.
+                // The latter one can be omitted, the solver will use a default size in this
+                // case.
+                //
+                ae_int_t maxits = 200;
+                mindfsetalgogdemo(state, maxits);
+
+                //
+                // Set nonlinear constraints.
+                //
+                // ALGLIB  supports  any  combination  of  box,  linear  and  nonlinear
+                // constraints. This specific example uses only nonlinear ones.
+                //
+                // Since  version  4.01,  ALGLIB  supports  the  most  general  form of
+                // nonlinear constraints: two-sided   constraints  NL<=C(x)<=NU,   with
+                // elements being possibly infinite (means that this specific bound  is
+                // ignored). It includes equality constraints,  upper/lower  inequality
+                // constraints, range constraints. In particular, a pair of constraints
+                //
+                //        x2-exp(x0)       = 0
+                //        x0^2 + x1^2 - 1 <= 0
+                //
+                // can be specified by passing NL=[0,-INF], NU=[0,0] to mindfsetnlc2().
+                // Constraining functions themselves are passed as a part  of a problem
+                // target vector (see below).
+                //
+                //
+                // Unlike smooth optimizers like SQP which naturally include linear and
+                // nonlinear constraints into the  algorithm,  derivative-free  methods
+                // often need special strategies to deal with them, with each  strategy
+                // having its own limitations:
+                //
+                // * an L2 penalty,  which  has  good  global  constraint   enforcement
+                //   properties, but usually allows some moderate constraint violation
+                //
+                // * an L1 penalty, which has potential to enforce constraints exactly,
+                //   but has somewhat weaker ability to move iterations from  far  away
+                //   points closer to the feasible area. It also  has  somewhat  harder
+                //   numerical properties, needing more iterations to converge.
+                //
+                // * a combined L1/L2 penalty, which is a good compromise
+                //
+                // The code below sets constraints bounds and tells the solver  to  use
+                // a mixed L1/L2 penalized strategy.
+                //
+                // NOTE: box constraints require no special handling.
+                //
+                real_1d_array nl = "[0,-inf]";
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_nan(nl);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_adding_element(nl);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_deleting_element(nl);
+                real_1d_array nu = "[0,0]";
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_nan(nu);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(nu);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(nu);
+                double rho1 = 5;
+                if( _spoil_scenario==12 )
+                    rho1 = fp_nan;
+                if( _spoil_scenario==13 )
+                    rho1 = fp_posinf;
+                if( _spoil_scenario==14 )
+                    rho1 = fp_neginf;
+                double rho2 = 5;
+                if( _spoil_scenario==15 )
+                    rho2 = fp_nan;
+                if( _spoil_scenario==16 )
+                    rho2 = fp_posinf;
+                if( _spoil_scenario==17 )
+                    rho2 = fp_neginf;
+                mindfsetnlc2(state, nl, nu);
+                mindfsetgdemopenalty(state, rho1, rho2);
+
+                //
+                // Optimize and test results.
+                //
+                // The optimizer object accepts vector function  with  its  first  component
+                // being a target and subsequent components being nonlinear constraints.
+                //
+                // So, our vector function has the following form
+                //
+                //     {f0,f1,f2} = { x0+x1 , x2-exp(x0) , x0^2+x1^2-1 }
+                //
+                // with f0 being target function, f1 being equality constraint "f1=0",
+                // f2 being inequality constraint "f2<=0".
+                //
+                alglib::mindfoptimize(state, nlcfunc2_fvec);
+                mindfresults(state, x1, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x1, "[-0.70710,-0.70710,0.49306]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "mindf_gdemo_auto");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -3109,11 +5340,163 @@ int main()
 
 
         //
+        // TEST nls_derivative_free
+        //      Nonlinear least squares optimization using derivative-free algorithms
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<13; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
+                //
+                //     f0(x0,x1) = 10*(x0+3)^2
+                //     f1(x0,x1) = (x1-3)^2
+                //
+                // subject to box constraints
+                //
+                //     -1 <= x0 <= +1
+                //     -1 <= x1 <= +1
+                //
+                // using DFO mode of the NLS optimizer.
+                //
+                // IMPORTANT: the  NLS  optimizer   supports   parallel  model  evaluation
+                //            ('callback parallelism'). This feature, which  is present in
+                //            commercial ALGLIB editions, greatly accelerates optimization
+                //            when  using  a  solver  which  issues  batch  requests, i.e.
+                //            multiple requests  for  target values, which can be computed
+                //            independently by different threads.
+                //
+                //            Callback parallelism is usually  beneficial when  processing
+                //            a  batch  request  requires  more than several milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            It  also  requires  the  solver  which  issues  requests  in
+                //            convenient batches, e.g. 2PS solver.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on  nlsoptimize() function for more
+                //            information.
+                //
+                real_1d_array x = "[0,0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                real_1d_array s = "[1,1]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(s);
+                real_1d_array bndl = "[-1,-1]";
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_nan(bndl);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(bndl);
+                real_1d_array bndu = "[+1,+1]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(bndu);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(bndu);
+                double epsx = 0.0000001;
+                if( _spoil_scenario==10 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==11 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==12 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                nlsstate state;
+                nlsreport rep;
+
+                //
+                // Create optimizer, tell it to:
+                // * use derivative-free mode
+                // * use unit scale for all variables (s is a unit vector)
+                // * stop after short enough step (less than epsx)
+                //
+                nlscreatedfo(2, x, state);
+                nlssetcond(state, epsx, maxits);
+                nlssetscale(state, s);
+                nlssetbc(state, bndl, bndu);
+
+                //
+                // Choose a derivative-free nonlinear least squares algorithm. ALGLIB
+                // supports the following solvers:
+                //
+                // * DFO-LSA  - a modified version of DFO-LS (Cartis, Fiala, Marteau,
+                //   Roberts), with "A" standing for ALGLIB in order to distinguish it
+                //   from the original version. This algorithm achieves the smallest
+                //   function evaluations count, but has relatively high iteration
+                //   overhead and no callback parallelism potential (it issues target
+                //   evaluation requests one by one, so they can not be parallelized).
+                //   Recommended for expensive targets with no parallelism support.
+                //
+                // * 2PS (two-point stencil) - an easily parallelized algorithm
+                //   developed by ALGLIB Project. It needs about 3x-4x more target
+                //   evaluations than DFO-LSA (the ratio has no strong dependence on
+                //   the problem size), however it issues target evaluation requests
+                //   in large batches, so they can be computed in parallel. Additionally
+                //   it has low iteration overhead, so it can be better suited for
+                //   problems with cheap targets that DFO-LSA.
+                //
+                // Both solvers demonstrate quadratic convergence similarly to the
+                // Levenberg-Marquardt method.
+                //
+                // The summary is:
+                // * expensive target, no parallelism => DFO-LSA 
+                // * expensive target, parallel callbacks => 2PS
+                // * inexpensive target => most likely 2PS, maybe DFO-LSA
+                //
+                // The code below sets the algorithm to be DFO-LSA, then switches
+                // it to 2PS.
+                //
+                nlssetalgodfolsa(state);
+                nlssetalgo2ps(state);
+
+                //
+                // Solve the problem.
+                //
+                // The code below does not use parallelism. If you want to activate
+                // callback parallelism, use commercial edition of ALGLIB and pass
+                // alglib::parallelcallbacks as an additional parameter to nlsoptimize().
+                //
+                // Callback parallelism is intended for expensive problems where one
+                // batch (~N target evaluations) takes tens and hundreds of milliseconds
+                // to compute.
+                //
+                alglib::nlsoptimize(state, function1_fvec);
+
+                //
+                // Test optimization results
+                //
+                nlsresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-1,+1]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "nls_derivative_free");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
         // TEST minnlc_d_inequality
         //      Nonlinearly constrained optimization (inequality constraints)
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<15; _spoil_scenario++)
         {
             try
             {
@@ -3126,9 +5509,24 @@ int main()
                 //
                 //    x0>=0, x1>=0
                 //
-                // and nonlinear inequality constraint
+                // and a nonlinear inequality constraint
                 //
                 //    x0^2 + x1^2 - 1 <= 0
+                //
+                // IMPORTANT: the   MINNLC   optimizer    supports    parallel   numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is present  in  commercial  ALGLIB  editions, greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on   minlmoptimize()  function  for
+                //            more information.
                 //
                 real_1d_array x0 = "[0,0]";
                 if( _spoil_scenario==0 )
@@ -3152,8 +5550,6 @@ int main()
                 if( _spoil_scenario==8 )
                     epsx = fp_neginf;
                 ae_int_t maxits = 0;
-                real_1d_array bndl = "[0,0]";
-                real_1d_array bndu = "[+inf,+inf]";
                 minnlcstate state;
 
                 //
@@ -3169,83 +5565,76 @@ int main()
                 minnlcsetscale(state, s);
 
                 //
-                // Choose one of the nonlinear programming solvers supported by minnlc
-                // optimizer:
-                // * SQP - sequential quadratic programming NLP solver
-                // * AUL - augmented Lagrangian NLP solver
-                // * SLP - successive linear programming NLP solver
+                // Choose  one  of  nonlinear  programming  solvers  supported  by  MINNLC
+                // optimizer.
                 //
-                // Different solvers have different properties:
-                // * SQP needs less function evaluations than any other solver, but it
-                //   has much higher iteration cost than other solvers (a QP subproblem
-                //   has to be solved during each step)
-                // * AUL solver has cheaper iterations, but needs more target function
-                //   evaluations
-                // * SLP is the most robust solver provided by ALGLIB, but it performs
-                //   order of magnitude more iterations than SQP.
+                // As of ALGLIB 4.01, the default (and recommended)  option  is to  use  a
+                // large-scale filter-based SQP solver, which can utilize sparsity of  the
+                // problem and uses a limited-memory BFGS update in order to  be  able  to
+                // deal with thousands of variables.
                 //
-                // In the code below we set solver to be AUL but then override it with SLP,
-                // and then with SQP, so the effective choice is to use SLP. We recommend
-                // you to use SQP at least for early prototyping stages, and then switch
-                // to AUL if possible.
+                // Other options include:
+                // * SQP-BFGS (the same filter SQP solver relying on a dense BFGS  update,
+                //   not intended for anything beyond 100 variables)
+                // * AUL2 solver (a large-scale augmented  Lagrangian  solver for problems
+                //   with  cheap  target  functions)
+                // * SL1QP and SL1QP-BFGS legacy solvers which are similar to filter-based
+                //   SQP/SQP-BFGS, but use a less  robust  L1  merit  function  to  handle
+                //   constraints
+                // * SLP a legacy  sequential  linear  programming  solver,  scales  badly
+                //   beyond several tens of variables).
                 //
-                double rho = 1000.0;
-                ae_int_t outerits = 5;
-                minnlcsetalgoaul(state, rho, outerits);
-                minnlcsetalgoslp(state);
                 minnlcsetalgosqp(state);
 
                 //
                 // Set constraints:
                 //
-                // 1. boundary constraints are passed with minnlcsetbc() call
+                // 1. box constraints are passed with minnlcsetbc() call. The  solver also
+                //    supports linear constraints with minnlcsetlc().
                 //
-                // 2. nonlinear constraints are more tricky - you can not "pack" general
-                //    nonlinear function into double precision array. That's why
-                //    minnlcsetnlc() does not accept constraints itself - only constraint
-                //    counts are passed: first parameter is number of equality constraints,
-                //    second one is number of inequality constraints.
+                // 2. nonlinear constraints are more tricky - you can not "pack" a general
+                //    nonlinear  function  into  a  double  precision  array.  That's  why
+                //    minnlcsetnlc2() does not accept constraints itself - only constraint
+                //    bounds are passed.
                 //
-                //    As for constraining functions - these functions are passed as part
-                //    of problem Jacobian (see below).
+                //    Since  version  4.01,  ALGLIB  supports  the  most  general  form of
+                //    nonlinear constraints: two-sided   constraints  NL<=C(x)<=NU,   with
+                //    elements being possibly infinite (means that this specific bound  is
+                //    ignored). It includes equality constraints,  upper/lower  inequality
+                //    constraints, range constraints. In particular, the constraint
                 //
-                // NOTE: MinNLC optimizer supports arbitrary combination of boundary, general
-                //       linear and general nonlinear constraints. This example does not
-                //       show how to work with general linear constraints, but you can
-                //       easily find it in documentation on minnlcsetlc() function.
+                //        x0^2 + x1^2 - 1 <= 0
                 //
+                //    can be specified by passing NL=[-INF], NU=[0] to minnlcsetnlc2().
+                //
+                //    Constraining functions themselves are passed as part  of  a  problem
+                //    Jacobian (see below).
+                //
+                real_1d_array bndl = "[0,0]";
+                real_1d_array bndu = "[+inf,+inf]";
+                real_1d_array nl = "[-inf]";
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_nan(nl);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(nl);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(nl);
+                real_1d_array nu = "[0]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(nu);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_adding_element(nu);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_deleting_element(nu);
                 minnlcsetbc(state, bndl, bndu);
-                minnlcsetnlc(state, 0, 1);
-
-                //
-                // Activate OptGuard integrity checking.
-                //
-                // OptGuard monitor helps to catch common coding and problem statement
-                // issues, like:
-                // * discontinuity of the target/constraints (C0 continuity violation)
-                // * nonsmoothness of the target/constraints (C1 continuity violation)
-                // * erroneous analytic Jacobian, i.e. one inconsistent with actual
-                //   change in the target/constraints
-                //
-                // OptGuard is essential for early prototyping stages because such
-                // problems often result in premature termination of the optimizer
-                // which is really hard to distinguish from the correct termination.
-                //
-                // IMPORTANT: GRADIENT VERIFICATION IS PERFORMED BY MEANS OF NUMERICAL
-                //            DIFFERENTIATION, THUS DO NOT USE IT IN PRODUCTION CODE!
-                //
-                //            Other OptGuard checks add moderate overhead, but anyway
-                //            it is better to turn them off when they are not needed.
-                //
-                minnlcoptguardsmoothness(state);
-                minnlcoptguardgradient(state, 0.001);
+                minnlcsetnlc2(state, nl, nu);
 
                 //
                 // Optimize and test results.
                 //
                 // Optimizer object accepts vector function and its Jacobian, with first
                 // component (Jacobian row) being target function, and next components
-                // (Jacobian rows) being nonlinear equality and inequality constraints.
+                // (Jacobian rows) being nonlinear constraints.
                 //
                 // So, our vector function has form
                 //
@@ -3258,26 +5647,13 @@ int main()
                 //         [ 2*x0  2*x1 ]
                 //
                 // with f0 being target function, f1 being constraining function. Number
-                // of equality/inequality constraints is specified by minnlcsetnlc(),
-                // with equality ones always being first, inequality ones being last.
+                // of equality/inequality constraints is specified by minnlcsetnlc2().
                 //
                 minnlcreport rep;
                 real_1d_array x1;
                 alglib::minnlcoptimize(state, nlcfunc1_jac);
                 minnlcresults(state, x1, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x1, "[1.0000,0.0000]", 0.005);
-
-                //
-                // Check that OptGuard did not report errors
-                //
-                // NOTE: want to test OptGuard? Try breaking the Jacobian - say, add
-                //       1.0 to some of its components.
-                //
-                optguardreport ogrep;
-                minnlcoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -3296,7 +5672,7 @@ int main()
         //      Nonlinearly constrained optimization (equality constraints)
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<15; _spoil_scenario++)
         {
             try
             {
@@ -3309,7 +5685,22 @@ int main()
                 //
                 //    x0^2 + x1^2 - 1 = 0
                 //
-                real_1d_array x0 = "[0,0]";
+                // IMPORTANT: the   MINNLC   optimizer    supports    parallel   numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is present  in  commercial  ALGLIB  editions, greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on   minlmoptimize()  function  for
+                //            more information.
+                //
+                real_1d_array x0 = "[1,1]";
                 if( _spoil_scenario==0 )
                     spoil_vector_by_nan(x0);
                 if( _spoil_scenario==1 )
@@ -3343,82 +5734,58 @@ int main()
                 minnlcsetscale(state, s);
 
                 //
-                // Choose one of the nonlinear programming solvers supported by minnlc
-                // optimizer:
-                // * SLP - successive linear programming NLP solver
-                // * AUL - augmented Lagrangian NLP solver
+                // Choose  one  of  nonlinear  programming  solvers  supported  by  MINNLC
+                // optimizer.
                 //
-                // Different solvers have different properties:
-                // * SLP is the most robust solver provided by ALGLIB: it can solve both
-                //   convex and nonconvex optimization problems, it respects box and
-                //   linear constraints (after you find feasible point it won't move away
-                //   from the feasible area) and tries to respect nonlinear constraints
-                //   as much as possible. It also usually needs less function evaluations
-                //   to converge than AUL.
-                //   However, it solves LP subproblems at each iterations which adds
-                //   significant overhead to its running time. Sometimes it can be as much
-                //   as 7x times slower than AUL.
-                // * AUL solver is less robust than SLP - it can violate box and linear
-                //   constraints at any moment, and it is intended for convex optimization
-                //   problems (although in many cases it can deal with nonconvex ones too).
-                //   Also, unlike SLP it needs some tuning (penalty factor and number of
-                //   outer iterations).
-                //   However, it is often much faster than the current version of SLP.
+                // As of ALGLIB 4.01, the default (and recommended)  option  is to  use  a
+                // large-scale filter-based SQP solver, which can utilize sparsity of  the
+                // problem and uses a limited-memory BFGS update in order to  be  able  to
+                // deal with thousands of variables.
                 //
-                // In the code below we set solver to be AUL but then override it with SLP,
-                // so the effective choice is to use SLP. We recommend you to use SLP at
-                // least for early prototyping stages.
+                // Other options include:
+                // * SQP-BFGS (the same filter SQP solver relying on a dense BFGS  update,
+                //   not intended for anything beyond 100 variables)
+                // * AUL2 solver (a large-scale augmented  Lagrangian  solver for problems
+                //   with  cheap  target  functions)
+                // * SL1QP and SL1QP-BFGS legacy solvers which are similar to filter-based
+                //   SQP/SQP-BFGS, but use a less  robust  L1  merit  function  to  handle
+                //   constraints
+                // * SLP a legacy  sequential  linear  programming  solver,  scales  badly
+                //   beyond several tens of variables).
                 //
-                // You can comment out line with SLP if you want to solve your problem with
-                // AUL solver.
-                //
-                double rho = 1000.0;
-                ae_int_t outerits = 5;
-                minnlcsetalgoaul(state, rho, outerits);
-                minnlcsetalgoslp(state);
+                minnlcsetalgosqp(state);
 
                 //
                 // Set constraints:
                 //
-                // Nonlinear constraints are tricky - you can not "pack" general
-                // nonlinear function into double precision array. That's why
-                // minnlcsetnlc() does not accept constraints itself - only constraint
-                // counts are passed: first parameter is number of equality constraints,
-                // second one is number of inequality constraints.
+                // Since  version  4.01,  ALGLIB  supports  the  most  general  form of
+                // nonlinear constraints: two-sided   constraints  NL<=C(x)<=NU,   with
+                // elements being possibly infinite (means that this specific bound  is
+                // ignored). It includes equality constraints,  upper/lower  inequality
+                // constraints, range constraints. In particular, the constraint
                 //
-                // As for constraining functions - these functions are passed as part
-                // of problem Jacobian (see below).
+                //        x0^2 + x1^2 - 1 = 0
                 //
-                // NOTE: MinNLC optimizer supports arbitrary combination of boundary, general
-                //       linear and general nonlinear constraints. This example does not
-                //       show how to work with general linear constraints, but you can
-                //       easily find it in documentation on minnlcsetbc() and
-                //       minnlcsetlc() functions.
+                // can be specified by passing NL=[0], NU=[0] to minnlcsetnlc2().
                 //
-                minnlcsetnlc(state, 1, 0);
-
+                // Constraining functions themselves are passed as part  of  a  problem
+                // Jacobian (see below).
                 //
-                // Activate OptGuard integrity checking.
-                //
-                // OptGuard monitor helps to catch common coding and problem statement
-                // issues, like:
-                // * discontinuity of the target/constraints (C0 continuity violation)
-                // * nonsmoothness of the target/constraints (C1 continuity violation)
-                // * erroneous analytic Jacobian, i.e. one inconsistent with actual
-                //   change in the target/constraints
-                //
-                // OptGuard is essential for early prototyping stages because such
-                // problems often result in premature termination of the optimizer
-                // which is really hard to distinguish from the correct termination.
-                //
-                // IMPORTANT: GRADIENT VERIFICATION IS PERFORMED BY MEANS OF NUMERICAL
-                //            DIFFERENTIATION, THUS DO NOT USE IT IN PRODUCTION CODE!
-                //
-                //            Other OptGuard checks add moderate overhead, but anyway
-                //            it is better to turn them off when they are not needed.
-                //
-                minnlcoptguardsmoothness(state);
-                minnlcoptguardgradient(state, 0.001);
+                real_1d_array nl = "[0]";
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_nan(nl);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(nl);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(nl);
+                real_1d_array nu = "[0]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(nu);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_adding_element(nu);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_deleting_element(nu);
+                minnlcsetnlc2(state, nl, nu);
 
                 //
                 // Optimize and test results.
@@ -3438,26 +5805,13 @@ int main()
                 //         [ 2*x0  2*x1 ]
                 //
                 // with f0 being target function, f1 being constraining function. Number
-                // of equality/inequality constraints is specified by minnlcsetnlc(),
-                // with equality ones always being first, inequality ones being last.
+                // of equality/inequality constraints is specified by minnlcsetnlc2().
                 //
                 minnlcreport rep;
                 real_1d_array x1;
                 alglib::minnlcoptimize(state, nlcfunc1_jac);
                 minnlcresults(state, x1, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x1, "[0.70710,-0.70710]", 0.005);
-
-                //
-                // Check that OptGuard did not report errors
-                //
-                // NOTE: want to test OptGuard? Try breaking the Jacobian - say, add
-                //       1.0 to some of its components.
-                //
-                optguardreport ogrep;
-                minnlcoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -3475,8 +5829,9 @@ int main()
         // TEST minnlc_d_mixed
         //      Nonlinearly constrained optimization with mixed equality/inequality constraints
         //
+        printf("50/162\n");
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<15; _spoil_scenario++)
         {
             try
             {
@@ -3492,6 +5847,21 @@ int main()
                 // and nonlinear equality constraint
                 //
                 //    x2-exp(x0) = 0
+                //
+                // IMPORTANT: the   MINNLC   optimizer    supports    parallel   numerical
+                //            differentiation  ('callback   parallelism').  This  feature,
+                //            which  is present  in  commercial  ALGLIB  editions, greatly
+                //            accelerates optimization with numerical  differentiation  of
+                //            an expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial when computing a
+                //            numerical gradient requires more than several  milliseconds.
+                //            This particular  example,  of  course,  is  not  suited  for
+                //            callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on   minlmoptimize()  function  for
+                //            more information.
                 //
                 real_1d_array x0 = "[0,0,0]";
                 if( _spoil_scenario==0 )
@@ -3531,82 +5901,59 @@ int main()
                 minnlcsetstpmax(state, 10.0);
 
                 //
-                // Choose one of the nonlinear programming solvers supported by minnlc
-                // optimizer:
-                // * SLP - successive linear programming NLP solver
-                // * AUL - augmented Lagrangian NLP solver
+                // Choose  one  of  nonlinear  programming  solvers  supported  by  MINNLC
+                // optimizer.
                 //
-                // Different solvers have different properties:
-                // * SLP is the most robust solver provided by ALGLIB: it can solve both
-                //   convex and nonconvex optimization problems, it respects box and
-                //   linear constraints (after you find feasible point it won't move away
-                //   from the feasible area) and tries to respect nonlinear constraints
-                //   as much as possible. It also usually needs less function evaluations
-                //   to converge than AUL.
-                //   However, it solves LP subproblems at each iterations which adds
-                //   significant overhead to its running time. Sometimes it can be as much
-                //   as 7x times slower than AUL.
-                // * AUL solver is less robust than SLP - it can violate box and linear
-                //   constraints at any moment, and it is intended for convex optimization
-                //   problems (although in many cases it can deal with nonconvex ones too).
-                //   Also, unlike SLP it needs some tuning (penalty factor and number of
-                //   outer iterations).
-                //   However, it is often much faster than the current version of SLP.
+                // As of ALGLIB 4.01, the default (and recommended)  option  is to  use  a
+                // large-scale filter-based SQP solver, which can utilize sparsity of  the
+                // problem and uses a limited-memory BFGS update in order to  be  able  to
+                // deal with thousands of variables.
                 //
-                // In the code below we set solver to be AUL but then override it with SLP,
-                // so the effective choice is to use SLP. We recommend you to use SLP at
-                // least for early prototyping stages.
+                // Other options include:
+                // * SQP-BFGS (the same filter SQP solver relying on a dense BFGS  update,
+                //   not intended for anything beyond 100 variables)
+                // * AUL2 solver (a large-scale augmented  Lagrangian  solver for problems
+                //   with  cheap  target  functions)
+                // * SL1QP and SL1QP-BFGS legacy solvers which are similar to filter-based
+                //   SQP/SQP-BFGS, but use a less  robust  L1  merit  function  to  handle
+                //   constraints
+                // * SLP a legacy  sequential  linear  programming  solver,  scales  badly
+                //   beyond several tens of variables).
                 //
-                // You can comment out line with SLP if you want to solve your problem with
-                // AUL solver.
-                //
-                double rho = 1000.0;
-                ae_int_t outerits = 5;
-                minnlcsetalgoaul(state, rho, outerits);
-                minnlcsetalgoslp(state);
+                minnlcsetalgosqp(state);
 
                 //
                 // Set constraints:
                 //
-                // Nonlinear constraints are tricky - you can not "pack" general
-                // nonlinear function into double precision array. That's why
-                // minnlcsetnlc() does not accept constraints itself - only constraint
-                // counts are passed: first parameter is number of equality constraints,
-                // second one is number of inequality constraints.
+                // Since  version  4.01,  ALGLIB  supports  the  most  general  form of
+                // nonlinear constraints: two-sided   constraints  NL<=C(x)<=NU,   with
+                // elements being possibly infinite (means that this specific bound  is
+                // ignored). It includes equality constraints,  upper/lower  inequality
+                // constraints, range constraints. In particular, a pair of constraints
                 //
-                // As for constraining functions - these functions are passed as part
-                // of problem Jacobian (see below).
+                //        x2-exp(x0)       = 0
+                //        x0^2 + x1^2 - 1 <= 0
                 //
-                // NOTE: MinNLC optimizer supports arbitrary combination of boundary, general
-                //       linear and general nonlinear constraints. This example does not
-                //       show how to work with boundary or general linear constraints, but you
-                //       can easily find it in documentation on minnlcsetbc() and
-                //       minnlcsetlc() functions.
+                // can be specified by passing NL=[0,-INF], NU=[0,0] to minnlcsetnlc2().
                 //
-                minnlcsetnlc(state, 1, 1);
-
+                // Constraining functions themselves are passed as part  of  a  problem
+                // Jacobian (see below).
                 //
-                // Activate OptGuard integrity checking.
-                //
-                // OptGuard monitor helps to catch common coding and problem statement
-                // issues, like:
-                // * discontinuity of the target/constraints (C0 continuity violation)
-                // * nonsmoothness of the target/constraints (C1 continuity violation)
-                // * erroneous analytic Jacobian, i.e. one inconsistent with actual
-                //   change in the target/constraints
-                //
-                // OptGuard is essential for early prototyping stages because such
-                // problems often result in premature termination of the optimizer
-                // which is really hard to distinguish from the correct termination.
-                //
-                // IMPORTANT: GRADIENT VERIFICATION IS PERFORMED BY MEANS OF NUMERICAL
-                //            DIFFERENTIATION, THUS DO NOT USE IT IN PRODUCTION CODE!
-                //
-                //            Other OptGuard checks add moderate overhead, but anyway
-                //            it is better to turn them off when they are not needed.
-                //
-                minnlcoptguardsmoothness(state);
-                minnlcoptguardgradient(state, 0.001);
+                real_1d_array nl = "[0,-inf]";
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_nan(nl);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_adding_element(nl);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(nl);
+                real_1d_array nu = "[0,0]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(nu);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_adding_element(nu);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_deleting_element(nu);
+                minnlcsetnlc2(state, nl, nu);
 
                 //
                 // Optimize and test results.
@@ -3626,25 +5973,11 @@ int main()
                 //         [ 2*x0    2*x1      0 ]
                 //
                 // with f0 being target function, f1 being equality constraint "f1=0",
-                // f2 being inequality constraint "f2<=0". Number of equality/inequality
-                // constraints is specified by minnlcsetnlc(), with equality ones always
-                // being first, inequality ones being last.
+                // f2 being inequality constraint "f2<=0".
                 //
                 alglib::minnlcoptimize(state, nlcfunc2_jac);
                 minnlcresults(state, x1, rep);
                 _TestResult = _TestResult && doc_test_real_vector(x1, "[-0.70710,-0.70710,0.49306]", 0.005);
-
-                //
-                // Check that OptGuard did not report errors
-                //
-                // NOTE: want to test OptGuard? Try breaking the Jacobian - say, add
-                //       1.0 to some of its components.
-                //
-                optguardreport ogrep;
-                minnlcoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -3659,131 +5992,63 @@ int main()
 
 
         //
-        // TEST minbc_d_1
-        //      Nonlinear optimization with box constraints
+        // TEST minmo_biobjective
+        //      Unconstrained biobjective optimization
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<20; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
         {
             try
             {
                 //
-                // This example demonstrates minimization of
+                // This example demonstrates minimization of two targets
                 //
-                //     f(x,y) = 100*(x+3)^4+(y-3)^4
+                //     f0(x0,x1) = x0^2 + (x1-1)^2
+                //     f1(x0,x1) = (x0-1(^2 + x1^2
                 //
-                // subject to box constraints
+                // These targets are Euclidean distances to (0,1) and (1,0) respectively, thus solutions
+                // to this problem occupy the straight line segment connecting these points. (Points
+                // outside of the line are Pareto non-optimal because one can always decrease both distances
+                // by moving closer to the line).
                 //
-                //     -1<=x<=+1, -1<=y<=+1
-                //
-                // using MinBC optimizer with:
-                // * initial point x=[0,0]
-                // * unit scale being set for all variables (see minbcsetscale for more info)
-                // * stopping criteria set to "terminate after short enough step"
-                // * OptGuard integrity check being used to check problem statement
-                //   for some common errors like nonsmoothness or bad analytic gradient
-                //
-                // First, we create optimizer object and tune its properties:
-                // * set box constraints
-                // * set variable scales
-                // * set stopping criteria
-                //
-                real_1d_array x = "[0,0]";
+                ae_int_t nvars = 2;
+                ae_int_t nobjectives = 2;
+                real_1d_array x0 = "[0,0]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_vector_by_nan(x0);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_vector_by_posinf(x0);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                real_1d_array s = "[1,1]";
+                    spoil_vector_by_neginf(x0);
                 if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(s);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(s);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(s);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_deleting_element(s);
-                real_1d_array bndl = "[-1,-1]";
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_nan(bndl);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_deleting_element(bndl);
-                real_1d_array bndu = "[+1,+1]";
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_nan(bndu);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_deleting_element(bndu);
-                minbcstate state;
-                double epsg = 0;
-                if( _spoil_scenario==11 )
-                    epsg = fp_nan;
-                if( _spoil_scenario==12 )
-                    epsg = fp_posinf;
-                if( _spoil_scenario==13 )
-                    epsg = fp_neginf;
-                double epsf = 0;
-                if( _spoil_scenario==14 )
-                    epsf = fp_nan;
-                if( _spoil_scenario==15 )
-                    epsf = fp_posinf;
-                if( _spoil_scenario==16 )
-                    epsf = fp_neginf;
-                double epsx = 0.000001;
-                if( _spoil_scenario==17 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==18 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==19 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minbccreate(x, state);
-                minbcsetbc(state, bndl, bndu);
-                minbcsetscale(state, s);
-                minbcsetcond(state, epsg, epsf, epsx, maxits);
+                    spoil_vector_by_deleting_element(x0);
+                ae_int_t frontsize = 10;
+                bool polishsolutions = true;
+                minmostate state;
+                minmocreate(nvars, nobjectives, x0, state);
 
                 //
-                // Then we activate OptGuard integrity checking.
+                // The solver is configured to compute 10 points approximating the Pareto front,
+                // and to polish solutions (i.e. use an additional optimization phase that improves
+                // accuracy on degenerate problems; not actually necessary for this simple example).
                 //
-                // OptGuard monitor helps to catch common coding and problem statement
-                // issues, like:
-                // * discontinuity of the target function (C0 continuity violation)
-                // * nonsmoothness of the target function (C1 continuity violation)
-                // * erroneous analytic gradient, i.e. one inconsistent with actual
-                //   change in the target/constraints
-                //
-                // OptGuard is essential for early prototyping stages because such
-                // problems often result in premature termination of the optimizer
-                // which is really hard to distinguish from the correct termination.
-                //
-                // IMPORTANT: GRADIENT VERIFICATION IS PERFORMED BY MEANS OF NUMERICAL
-                //            DIFFERENTIATION. DO NOT USE IT IN PRODUCTION CODE!!!!!!!
-                //
-                //            Other OptGuard checks add moderate overhead, but anyway
-                //            it is better to turn them off when they are not needed.
-                //
-                minbcoptguardsmoothness(state);
-                minbcoptguardgradient(state, 0.001);
+                minmosetalgonbi(state, frontsize, polishsolutions);
 
                 //
-                // Optimize and evaluate results
+                // Optimize and test results.
                 //
-                minbcreport rep;
-                alglib::minbcoptimize(state, function1_grad);
-                minbcresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-1,1]", 0.005);
-
+                // The optimization is performed using analytic (user-provided) Jacobian matrix.
+                // Use minmocreatef(), if you do not know analytic form of the Jacobian and want
+                // ALGLIB to perform numerical differentiation.
                 //
-                // Check that OptGuard did not report errors
+                // We requested 10 Pareto-optimal points and we expect solver to compute all points
+                // (it is possible to return less if the solver was terminated)
                 //
-                // NOTE: want to test OptGuard? Try breaking the gradient - say, add
-                //       1.0 to some of its components.
-                //
-                optguardreport ogrep;
-                minbcoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
+                minmoreport rep;
+                real_2d_array paretofront;
+                alglib::minmooptimize(state, multiobjective2_jac);
+                minmoresults(state, paretofront, frontsize, rep);
+                _TestResult = _TestResult && doc_test_int(frontsize, 10);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -3791,139 +6056,84 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minbc_d_1");
+            printf("%-32s FAILED\n", "minmo_biobjective");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minbc_numdiff
-        //      Nonlinear optimization with bound constraints and numerical differentiation
+        // TEST minmo_biobjective_constr
+        //      Nonlinearly constrained biobjective optimization
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<23; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<8; _spoil_scenario++)
         {
             try
             {
                 //
-                // This example demonstrates minimization of
+                // This example demonstrates minimization of two targets
                 //
-                //     f(x,y) = 100*(x+3)^4+(y-3)^4
+                //     f0(x0,x1) = x0^2 + (x1-1)^2
+                //     f1(x0,x1) = (x0-1(^2 + x1^2
                 //
-                // subject to box constraints
+                // subject to a nonlinear constraint
                 //
-                //    -1<=x<=+1, -1<=y<=+1
+                //     f2(x0,x1) = x0^2 + x1^2 >= 1
                 //
-                // using MinBC optimizer with:
-                // * numerical differentiation being used
-                // * initial point x=[0,0]
-                // * unit scale being set for all variables (see minbcsetscale for more info)
-                // * stopping criteria set to "terminate after short enough step"
-                // * OptGuard integrity check being used to check problem statement
-                //   for some common errors like nonsmoothness or bad analytic gradient
+                // These targets are Euclidean distances to (0,1) and (1,0) respectively, thus solutions to this
+                // problem should occupy the straight line segment connecting these points. However, due to the
+                // nonlinear constraint being present, Pareto front has another shape.
                 //
-                real_1d_array x = "[0,0]";
+                ae_int_t nvars = 2;
+                ae_int_t nobjectives = 2;
+                real_1d_array x0 = "[0,0]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_vector_by_nan(x0);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_vector_by_posinf(x0);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                real_1d_array s = "[1,1]";
+                    spoil_vector_by_neginf(x0);
                 if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(s);
+                    spoil_vector_by_deleting_element(x0);
+                ae_int_t frontsize = 10;
+                bool polishsolutions = true;
+                real_1d_array lowerbnd = "[1]";
                 if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(s);
+                    spoil_vector_by_nan(lowerbnd);
                 if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(s);
+                    spoil_vector_by_deleting_element(lowerbnd);
+                real_1d_array upperbnd = "[+inf]";
                 if( _spoil_scenario==6 )
-                    spoil_vector_by_deleting_element(s);
-                real_1d_array bndl = "[-1,-1]";
+                    spoil_vector_by_nan(upperbnd);
                 if( _spoil_scenario==7 )
-                    spoil_vector_by_nan(bndl);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_deleting_element(bndl);
-                real_1d_array bndu = "[+1,+1]";
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_nan(bndu);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_deleting_element(bndu);
-                minbcstate state;
-                double epsg = 0;
-                if( _spoil_scenario==11 )
-                    epsg = fp_nan;
-                if( _spoil_scenario==12 )
-                    epsg = fp_posinf;
-                if( _spoil_scenario==13 )
-                    epsg = fp_neginf;
-                double epsf = 0;
-                if( _spoil_scenario==14 )
-                    epsf = fp_nan;
-                if( _spoil_scenario==15 )
-                    epsf = fp_posinf;
-                if( _spoil_scenario==16 )
-                    epsf = fp_neginf;
-                double epsx = 0.000001;
-                if( _spoil_scenario==17 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==18 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==19 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                double diffstep = 1.0e-6;
-                if( _spoil_scenario==20 )
-                    diffstep = fp_nan;
-                if( _spoil_scenario==21 )
-                    diffstep = fp_posinf;
-                if( _spoil_scenario==22 )
-                    diffstep = fp_neginf;
+                    spoil_vector_by_deleting_element(upperbnd);
+                minmostate state;
+                minmocreate(nvars, nobjectives, x0, state);
+                minmosetnlc2(state, lowerbnd, upperbnd, 1);
 
                 //
-                // Now we are ready to actually optimize something:
-                // * first we create optimizer
-                // * we add boundary constraints
-                // * we tune stopping conditions
-                // * and, finally, optimize and obtain results...
+                // The solver is configured to compute 10 points approximating the Pareto front,
+                // and to polish solutions (i.e. use an additional optimization phase that improves
+                // accuracy on degenerate problems; not actually necessary for this simple example).
                 //
-                minbccreatef(x, diffstep, state);
-                minbcsetbc(state, bndl, bndu);
-                minbcsetscale(state, s);
-                minbcsetcond(state, epsg, epsf, epsx, maxits);
+                minmosetalgonbi(state, frontsize, polishsolutions);
 
                 //
-                // Then we activate OptGuard integrity checking.
+                // Optimize and test results.
                 //
-                // Numerical differentiation always produces "correct" gradient
-                // (with some truncation error, but unbiased). Thus, we just have
-                // to check smoothness properties of the target: C0 and C1 continuity.
+                // The optimization is performed using analytic (user-provided) Jacobian matrix.
+                // Use minmocreatef(), if you do not know analytic form of the Jacobian and want
+                // ALGLIB to perform numerical differentiation.
                 //
-                // Sometimes user accidentally tries to solve nonsmooth problems
-                // with smooth optimizer. OptGuard helps to detect such situations
-                // early, at the prototyping stage.
+                // We requested 10 Pareto-optimal points and we expect solver to compute all points
+                // (it is possible to return less if the solver was terminated)
                 //
-                minbcoptguardsmoothness(state);
-
-                //
-                // Optimize and evaluate results
-                //
-                minbcreport rep;
-                alglib::minbcoptimize(state, function1_func);
-                minbcresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-1,1]", 0.005);
-
-                //
-                // Check that OptGuard did not report errors
-                //
-                // Want to challenge OptGuard? Try to make your problem
-                // nonsmooth by replacing 100*(x+3)^4 by 100*|x+3| and
-                // re-run optimizer.
-                //
-                optguardreport ogrep;
-                minbcoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
+                minmoreport rep;
+                real_2d_array paretofront;
+                alglib::minmooptimize(state, multiobjective2constr_jac);
+                minmoresults(state, paretofront, frontsize, rep);
+                _TestResult = _TestResult && doc_test_int(frontsize, 10);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -3931,7 +6141,7 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minbc_numdiff");
+            printf("%-32s FAILED\n", "minmo_biobjective_constr");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -4527,11 +6737,11 @@ int main()
 
 
         //
-        // TEST mincg_d_1
-        //      Nonlinear optimization by CG
+        // TEST minbc_d_1
+        //      Nonlinear optimization with box constraints
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<15; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<20; _spoil_scenario++)
         {
             try
             {
@@ -4540,14 +6750,21 @@ int main()
                 //
                 //     f(x,y) = 100*(x+3)^4+(y-3)^4
                 //
-                // using nonlinear conjugate gradient method with:
+                // subject to box constraints
+                //
+                //     -1<=x<=+1, -1<=y<=+1
+                //
+                // using MinBC optimizer with:
                 // * initial point x=[0,0]
-                // * unit scale being set for all variables (see mincgsetscale for more info)
+                // * unit scale being set for all variables (see minbcsetscale for more info)
                 // * stopping criteria set to "terminate after short enough step"
                 // * OptGuard integrity check being used to check problem statement
                 //   for some common errors like nonsmoothness or bad analytic gradient
                 //
-                // First, we create optimizer object and tune its properties
+                // First, we create optimizer object and tune its properties:
+                // * set box constraints
+                // * set variable scales
+                // * set stopping criteria
                 //
                 real_1d_array x = "[0,0]";
                 if( _spoil_scenario==0 )
@@ -4563,35 +6780,48 @@ int main()
                     spoil_vector_by_posinf(s);
                 if( _spoil_scenario==5 )
                     spoil_vector_by_neginf(s);
-                double epsg = 0;
                 if( _spoil_scenario==6 )
-                    epsg = fp_nan;
+                    spoil_vector_by_deleting_element(s);
+                real_1d_array bndl = "[-1,-1]";
                 if( _spoil_scenario==7 )
-                    epsg = fp_posinf;
+                    spoil_vector_by_nan(bndl);
                 if( _spoil_scenario==8 )
+                    spoil_vector_by_deleting_element(bndl);
+                real_1d_array bndu = "[+1,+1]";
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_nan(bndu);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_deleting_element(bndu);
+                minbcstate state;
+                double epsg = 0;
+                if( _spoil_scenario==11 )
+                    epsg = fp_nan;
+                if( _spoil_scenario==12 )
+                    epsg = fp_posinf;
+                if( _spoil_scenario==13 )
                     epsg = fp_neginf;
                 double epsf = 0;
-                if( _spoil_scenario==9 )
-                    epsf = fp_nan;
-                if( _spoil_scenario==10 )
-                    epsf = fp_posinf;
-                if( _spoil_scenario==11 )
-                    epsf = fp_neginf;
-                double epsx = 0.0000000001;
-                if( _spoil_scenario==12 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==13 )
-                    epsx = fp_posinf;
                 if( _spoil_scenario==14 )
+                    epsf = fp_nan;
+                if( _spoil_scenario==15 )
+                    epsf = fp_posinf;
+                if( _spoil_scenario==16 )
+                    epsf = fp_neginf;
+                double epsx = 0.000001;
+                if( _spoil_scenario==17 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==18 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==19 )
                     epsx = fp_neginf;
                 ae_int_t maxits = 0;
-                mincgstate state;
-                mincgcreate(x, state);
-                mincgsetcond(state, epsg, epsf, epsx, maxits);
-                mincgsetscale(state, s);
+                minbccreate(x, state);
+                minbcsetbc(state, bndl, bndu);
+                minbcsetscale(state, s);
+                minbcsetcond(state, epsg, epsf, epsx, maxits);
 
                 //
-                // Activate OptGuard integrity checking.
+                // Then we activate OptGuard integrity checking.
                 //
                 // OptGuard monitor helps to catch common coding and problem statement
                 // issues, like:
@@ -4610,16 +6840,16 @@ int main()
                 //            Other OptGuard checks add moderate overhead, but anyway
                 //            it is better to turn them off when they are not needed.
                 //
-                mincgoptguardsmoothness(state);
-                mincgoptguardgradient(state, 0.001);
+                minbcoptguardsmoothness(state);
+                minbcoptguardgradient(state, 0.001);
 
                 //
                 // Optimize and evaluate results
                 //
-                mincgreport rep;
-                alglib::mincgoptimize(state, function1_grad);
-                mincgresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
+                minbcreport rep;
+                alglib::minbcoptimize(state, function1_grad);
+                minbcresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-1,1]", 0.005);
 
                 //
                 // Check that OptGuard did not report errors
@@ -4628,7 +6858,7 @@ int main()
                 //       1.0 to some of its components.
                 //
                 optguardreport ogrep;
-                mincgoptguardresults(state, ogrep);
+                minbcoptguardresults(state, ogrep);
                 _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
                 _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
                 _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
@@ -4639,138 +6869,18 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "mincg_d_1");
+            printf("%-32s FAILED\n", "minbc_d_1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST mincg_d_2
-        //      Nonlinear optimization with additional settings and restarts
+        // TEST minbc_numdiff
+        //      Nonlinear optimization with bound constraints and numerical differentiation
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<21; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example demonstrates minimization of f(x,y) = 100*(x+3)^4+(y-3)^4
-                // with nonlinear conjugate gradient method.
-                //
-                // Several advanced techniques are demonstrated:
-                // * upper limit on step size
-                // * restart from new point
-                //
-                real_1d_array x = "[0,0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                real_1d_array s = "[1,1]";
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(s);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(s);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(s);
-                double epsg = 0;
-                if( _spoil_scenario==6 )
-                    epsg = fp_nan;
-                if( _spoil_scenario==7 )
-                    epsg = fp_posinf;
-                if( _spoil_scenario==8 )
-                    epsg = fp_neginf;
-                double epsf = 0;
-                if( _spoil_scenario==9 )
-                    epsf = fp_nan;
-                if( _spoil_scenario==10 )
-                    epsf = fp_posinf;
-                if( _spoil_scenario==11 )
-                    epsf = fp_neginf;
-                double epsx = 0.0000000001;
-                if( _spoil_scenario==12 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==13 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==14 )
-                    epsx = fp_neginf;
-                double stpmax = 0.1;
-                if( _spoil_scenario==15 )
-                    stpmax = fp_nan;
-                if( _spoil_scenario==16 )
-                    stpmax = fp_posinf;
-                if( _spoil_scenario==17 )
-                    stpmax = fp_neginf;
-                ae_int_t maxits = 0;
-                mincgstate state;
-                mincgreport rep;
-
-                // create and tune optimizer
-                mincgcreate(x, state);
-                mincgsetscale(state, s);
-                mincgsetcond(state, epsg, epsf, epsx, maxits);
-                mincgsetstpmax(state, stpmax);
-
-                // Set up OptGuard integrity checker which catches errors
-                // like nonsmooth targets or errors in the analytic gradient.
-                //
-                // OptGuard is essential at the early prototyping stages.
-                //
-                // NOTE: gradient verification needs 3*N additional function
-                //       evaluations; DO NOT USE IT IN THE PRODUCTION CODE
-                //       because it leads to unnecessary slowdown of your app.
-                mincgoptguardsmoothness(state);
-                mincgoptguardgradient(state, 0.001);
-
-                // first run
-                alglib::mincgoptimize(state, function1_grad);
-                mincgresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
-
-                // second run - algorithm is restarted with mincgrestartfrom()
-                x = "[10,10]";
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==20 )
-                    spoil_vector_by_neginf(x);
-                mincgrestartfrom(state, x);
-                alglib::mincgoptimize(state, function1_grad);
-                mincgresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
-
-                // check OptGuard integrity report. Why do we need it at all?
-                // Well, try breaking the gradient by adding 1.0 to some
-                // of its components - OptGuard should report it as error.
-                // And it may also catch unintended errors too :)
-                optguardreport ogrep;
-                mincgoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
-                _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "mincg_d_2");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST mincg_numdiff
-        //      Nonlinear optimization by CG with numerical differentiation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<18; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<23; _spoil_scenario++)
         {
             try
             {
@@ -4779,13 +6889,17 @@ int main()
                 //
                 //     f(x,y) = 100*(x+3)^4+(y-3)^4
                 //
-                // using numerical differentiation to calculate gradient.
+                // subject to box constraints
                 //
-                // We also show how to use OptGuard integrity checker to catch common
-                // problem statement errors like accidentally specifying nonsmooth target
-                // function.
+                //    -1<=x<=+1, -1<=y<=+1
                 //
-                // First, we set up optimizer...
+                // using MinBC optimizer with:
+                // * numerical differentiation being used
+                // * initial point x=[0,0]
+                // * unit scale being set for all variables (see minbcsetscale for more info)
+                // * stopping criteria set to "terminate after short enough step"
+                // * OptGuard integrity check being used to check problem statement
+                //   for some common errors like nonsmoothness or bad analytic gradient
                 //
                 real_1d_array x = "[0,0]";
                 if( _spoil_scenario==0 )
@@ -4801,70 +6915,91 @@ int main()
                     spoil_vector_by_posinf(s);
                 if( _spoil_scenario==5 )
                     spoil_vector_by_neginf(s);
-                double epsg = 0;
                 if( _spoil_scenario==6 )
-                    epsg = fp_nan;
+                    spoil_vector_by_deleting_element(s);
+                real_1d_array bndl = "[-1,-1]";
                 if( _spoil_scenario==7 )
-                    epsg = fp_posinf;
+                    spoil_vector_by_nan(bndl);
                 if( _spoil_scenario==8 )
+                    spoil_vector_by_deleting_element(bndl);
+                real_1d_array bndu = "[+1,+1]";
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_nan(bndu);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_deleting_element(bndu);
+                minbcstate state;
+                double epsg = 0;
+                if( _spoil_scenario==11 )
+                    epsg = fp_nan;
+                if( _spoil_scenario==12 )
+                    epsg = fp_posinf;
+                if( _spoil_scenario==13 )
                     epsg = fp_neginf;
                 double epsf = 0;
-                if( _spoil_scenario==9 )
-                    epsf = fp_nan;
-                if( _spoil_scenario==10 )
-                    epsf = fp_posinf;
-                if( _spoil_scenario==11 )
-                    epsf = fp_neginf;
-                double epsx = 0.0000000001;
-                if( _spoil_scenario==12 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==13 )
-                    epsx = fp_posinf;
                 if( _spoil_scenario==14 )
-                    epsx = fp_neginf;
-                double diffstep = 1.0e-6;
+                    epsf = fp_nan;
                 if( _spoil_scenario==15 )
-                    diffstep = fp_nan;
+                    epsf = fp_posinf;
                 if( _spoil_scenario==16 )
-                    diffstep = fp_posinf;
+                    epsf = fp_neginf;
+                double epsx = 0.000001;
                 if( _spoil_scenario==17 )
-                    diffstep = fp_neginf;
+                    epsx = fp_nan;
+                if( _spoil_scenario==18 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==19 )
+                    epsx = fp_neginf;
                 ae_int_t maxits = 0;
-                mincgstate state;
-                mincgcreatef(x, diffstep, state);
-                mincgsetcond(state, epsg, epsf, epsx, maxits);
-                mincgsetscale(state, s);
+                double diffstep = 1.0e-6;
+                if( _spoil_scenario==20 )
+                    diffstep = fp_nan;
+                if( _spoil_scenario==21 )
+                    diffstep = fp_posinf;
+                if( _spoil_scenario==22 )
+                    diffstep = fp_neginf;
 
                 //
-                // Then, we activate OptGuard integrity checking.
+                // Now we are ready to actually optimize something:
+                // * first we create optimizer
+                // * we add boundary constraints
+                // * we tune stopping conditions
+                // * and, finally, optimize and obtain results...
+                //
+                minbccreatef(x, diffstep, state);
+                minbcsetbc(state, bndl, bndu);
+                minbcsetscale(state, s);
+                minbcsetcond(state, epsg, epsf, epsx, maxits);
+
+                //
+                // Then we activate OptGuard integrity checking.
                 //
                 // Numerical differentiation always produces "correct" gradient
                 // (with some truncation error, but unbiased). Thus, we just have
                 // to check smoothness properties of the target: C0 and C1 continuity.
                 //
-                // Sometimes user accidentally tried to solve nonsmooth problems
+                // Sometimes user accidentally tries to solve nonsmooth problems
                 // with smooth optimizer. OptGuard helps to detect such situations
                 // early, at the prototyping stage.
                 //
-                mincgoptguardsmoothness(state);
+                minbcoptguardsmoothness(state);
 
                 //
-                // Now we are ready to run the optimization
+                // Optimize and evaluate results
                 //
-                mincgreport rep;
-                alglib::mincgoptimize(state, function1_func);
-                mincgresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,3]", 0.005);
+                minbcreport rep;
+                alglib::minbcoptimize(state, function1_func);
+                minbcresults(state, x, rep);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[-1,1]", 0.005);
 
                 //
-                // ...and to check OptGuard integrity report.
+                // Check that OptGuard did not report errors
                 //
                 // Want to challenge OptGuard? Try to make your problem
                 // nonsmooth by replacing 100*(x+3)^4 by 100*|x+3| and
                 // re-run optimizer.
                 //
                 optguardreport ogrep;
-                mincgoptguardresults(state, ogrep);
+                minbcoptguardresults(state, ogrep);
                 _TestResult = _TestResult && doc_test_bool(ogrep.nonc0suspected, false);
                 _TestResult = _TestResult && doc_test_bool(ogrep.nonc1suspected, false);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
@@ -4874,84 +7009,50 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "mincg_numdiff");
+            printf("%-32s FAILED\n", "minbc_numdiff");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minlm_d_v
-        //      Nonlinear least squares optimization using function vector only
+        // TEST nneighbor_d_1
+        //      Nearest neighbor search, KNN queries
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
         {
             try
             {
-                //
-                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
-                //
-                //     f0(x0,x1) = 10*(x0+3)^2
-                //     f1(x0,x1) = (x1-3)^2
-                //
-                // using "V" mode of the Levenberg-Marquardt optimizer.
-                //
-                // Optimization algorithm uses:
-                // * function vector f[] = {f1,f2}
-                //
-                // No other information (Jacobian, gradient, etc.) is needed.
-                //
-                real_1d_array x = "[0,0]";
+                real_2d_array a = "[[0,0],[0,1],[1,0],[1,1]]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_matrix_by_nan(a);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_matrix_by_posinf(a);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                real_1d_array s = "[1,1]";
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(s);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(s);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(s);
-                double epsx = 0.0000000001;
-                if( _spoil_scenario==6 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==7 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==8 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minlmstate state;
-                minlmreport rep;
+                    spoil_matrix_by_neginf(a);
+                ae_int_t nx = 2;
+                ae_int_t ny = 0;
+                ae_int_t normtype = 2;
+                kdtree kdt;
+                real_1d_array x;
+                real_1d_array x1;
+                real_2d_array r = "[[]]";
+                ae_int_t k;
 
-                //
-                // Create optimizer, tell it to:
-                // * use numerical differentiation with step equal to 0.0001
-                // * use unit scale for all variables (s is a unit vector)
-                // * stop after short enough step (less than epsx)
-                //
-                minlmcreatev(2, x, 0.0001, state);
-                minlmsetcond(state, epsx, maxits);
-                minlmsetscale(state, s);
+                kdtreebuild(a, nx, ny, normtype, kdt);
 
-                //
-                // Optimize
-                //
-                alglib::minlmoptimize(state, function1_fvec);
+                x = "[-1,0]";
+                k = kdtreequeryknn(kdt, x, 1);
+                _TestResult = _TestResult && doc_test_int(k, 1);
+                kdtreequeryresultsx(kdt, r);
+                _TestResult = _TestResult && doc_test_real_matrix(r, "[[0,0]]", 0.05);
 
-                //
-                // Test optimization results
-                //
-                // NOTE: because we use numerical differentiation, we do not
-                //       verify Jacobian correctness - it is always "correct".
-                //       However, if you switch to analytic gradient, consider
-                //       checking it with OptGuard (see other examples).
-                //
-                minlmresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
+                x1 = "[+0.9,0.1]";
+                k = kdtreequeryknn(kdt, x1, 1);
+                _TestResult = _TestResult && doc_test_int(k, 1);
+                kdtreequeryresultsx(kdt, r);
+                _TestResult = _TestResult && doc_test_real_matrix(r, "[[1,0]]", 0.05);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -4959,107 +7060,46 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minlm_d_v");
+            printf("%-32s FAILED\n", "nneighbor_d_1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minlm_d_vj
-        //      Nonlinear least squares optimization using function vector and Jacobian
+        // TEST nneighbor_t_2
+        //      Subsequent queries; buffered functions must use previously allocated storage (if large enough), so buffer may contain some info from previous call
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
         {
             try
             {
-                //
-                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
-                //
-                //     f0(x0,x1) = 10*(x0+3)^2
-                //     f1(x0,x1) = (x1-3)^2
-                //
-                // using "VJ" mode of the Levenberg-Marquardt optimizer.
-                //
-                // Optimization algorithm uses:
-                // * function vector f[] = {f1,f2}
-                // * Jacobian matrix J = {dfi/dxj}.
-                //
-                real_1d_array x = "[0,0]";
+                real_2d_array a = "[[0,0],[0,1],[1,0],[1,1]]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_matrix_by_nan(a);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_matrix_by_posinf(a);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                real_1d_array s = "[1,1]";
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(s);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(s);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(s);
-                double epsx = 0.0000000001;
-                if( _spoil_scenario==6 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==7 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==8 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minlmstate state;
-
-                //
-                // Create optimizer, tell it to:
-                // * use analytic gradient provided by user
-                // * use unit scale for all variables (s is a unit vector)
-                // * stop after short enough step (less than epsx)
-                //
-                minlmcreatevj(2, x, state);
-                minlmsetcond(state, epsx, maxits);
-                minlmsetscale(state, s);
-
-                //
-                // Activate OptGuard integrity checking.
-                //
-                // OptGuard monitor helps to detect erroneous analytic Jacobian,
-                // i.e. one inconsistent with actual change in the target function.
-                //
-                // OptGuard is essential for early prototyping stages because such
-                // problems often result in premature termination of the optimizer
-                // which is really hard to distinguish from the correct termination.
-                //
-                // IMPORTANT: JACOBIAN VERIFICATION IS PERFORMED BY MEANS OF NUMERICAL
-                //            DIFFERENTIATION, THUS DO NOT USE IT IN PRODUCTION CODE!
-                //
-                minlmoptguardgradient(state, 0.001);
-
-                //
-                // Optimize
-                //
-                alglib::minlmoptimize(state, function1_fvec, function1_jac);
-
-                //
-                // Test optimization results
-                //
-                minlmreport rep;
-                minlmresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
-
-                //
-                // Check that OptGuard did not report errors
-                //
-                // NOTE: want to test OptGuard? Try breaking the Jacobian - say, add
-                //       1.0 to some of its components.
-                //
-                // NOTE: unfortunately, specifics of LM optimization do not allow us
-                //       to detect errors like nonsmoothness (like we do with other
-                //       optimizers). So, only Jacobian correctness is verified.
-                //
-                optguardreport ogrep;
-                minlmoptguardresults(state, ogrep);
-                _TestResult = _TestResult && doc_test_bool(ogrep.badgradsuspected, false);
+                    spoil_matrix_by_neginf(a);
+                ae_int_t nx = 2;
+                ae_int_t ny = 0;
+                ae_int_t normtype = 2;
+                kdtree kdt;
+                real_1d_array x;
+                real_2d_array rx = "[[]]";
+                ae_int_t k;
+                kdtreebuild(a, nx, ny, normtype, kdt);
+                x = "[+2,0]";
+                k = kdtreequeryknn(kdt, x, 2, true);
+                _TestResult = _TestResult && doc_test_int(k, 2);
+                kdtreequeryresultsx(kdt, rx);
+                _TestResult = _TestResult && doc_test_real_matrix(rx, "[[1,0],[1,1]]", 0.05);
+                x = "[-2,0]";
+                k = kdtreequeryknn(kdt, x, 1, true);
+                _TestResult = _TestResult && doc_test_int(k, 1);
+                kdtreequeryresultsx(kdt, rx);
+                _TestResult = _TestResult && doc_test_real_matrix(rx, "[[0,0],[1,1]]", 0.05);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -5067,57 +7107,55 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minlm_d_vj");
+            printf("%-32s FAILED\n", "nneighbor_t_2");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minlm_d_fgh
-        //      Nonlinear Hessian-based optimization for general functions
+        // TEST nneighbor_d_2
+        //      Serialization of KD-trees
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
         {
             try
             {
-                //
-                // This example demonstrates minimization of F(x0,x1) = 100*(x0+3)^4+(x1-3)^4
-                // using "FGH" mode of the Levenberg-Marquardt optimizer.
-                //
-                // F is treated like a monolitic function without internal structure,
-                // i.e. we do NOT represent it as a sum of squares.
-                //
-                // Optimization algorithm uses:
-                // * function value F(x0,x1)
-                // * gradient G={dF/dxi}
-                // * Hessian H={d2F/(dxi*dxj)}
-                //
-                real_1d_array x = "[0,0]";
+                real_2d_array a = "[[0,0],[0,1],[1,0],[1,1]]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_matrix_by_nan(a);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_matrix_by_posinf(a);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                double epsx = 0.0000000001;
-                if( _spoil_scenario==3 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==4 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==5 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minlmstate state;
-                minlmreport rep;
+                    spoil_matrix_by_neginf(a);
+                ae_int_t nx = 2;
+                ae_int_t ny = 0;
+                ae_int_t normtype = 2;
+                kdtree kdt0;
+                kdtree kdt1;
+                std::string s;
+                real_1d_array x;
+                real_2d_array r0 = "[[]]";
+                real_2d_array r1 = "[[]]";
 
-                minlmcreatefgh(x, state);
-                minlmsetcond(state, epsx, maxits);
-                alglib::minlmoptimize(state, function1_func, function1_grad, function1_hess);
-                minlmresults(state, x, rep);
+                //
+                // Build tree and serialize it
+                //
+                kdtreebuild(a, nx, ny, normtype, kdt0);
+                alglib::kdtreeserialize(kdt0, s);
+                alglib::kdtreeunserialize(s, kdt1);
 
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
+                //
+                // Compare results from KNN queries
+                //
+                x = "[-1,0]";
+                kdtreequeryknn(kdt0, x, 1);
+                kdtreequeryresultsx(kdt0, r0);
+                kdtreequeryknn(kdt1, x, 1);
+                kdtreequeryresultsx(kdt1, r1);
+                _TestResult = _TestResult && doc_test_real_matrix(r0, "[[0,0]]", 0.05);
+                _TestResult = _TestResult && doc_test_real_matrix(r1, "[[0,0]]", 0.05);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -5125,101 +7163,62 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minlm_d_fgh");
+            printf("%-32s FAILED\n", "nneighbor_d_2");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minlm_d_vb
-        //      Bound constrained nonlinear least squares optimization
+        // TEST odesolver_d1
+        //      Solving y'=-y with ODE solver
         //
         _TestResult = true;
         for(_spoil_scenario=-1; _spoil_scenario<13; _spoil_scenario++)
         {
             try
             {
-                //
-                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
-                //
-                //     f0(x0,x1) = 10*(x0+3)^2
-                //     f1(x0,x1) = (x1-3)^2
-                //
-                // with boundary constraints
-                //
-                //     -1 <= x0 <= +1
-                //     -1 <= x1 <= +1
-                //
-                // using "V" mode of the Levenberg-Marquardt optimizer.
-                //
-                // Optimization algorithm uses:
-                // * function vector f[] = {f1,f2}
-                //
-                // No other information (Jacobian, gradient, etc.) is needed.
-                //
-                real_1d_array x = "[0,0]";
+                real_1d_array y = "[1]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_vector_by_nan(y);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_vector_by_posinf(y);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                real_1d_array s = "[1,1]";
+                    spoil_vector_by_neginf(y);
                 if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(s);
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array x = "[0, 1, 2, 3]";
                 if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(s);
+                    spoil_vector_by_nan(x);
                 if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(s);
-                real_1d_array bndl = "[-1,-1]";
+                    spoil_vector_by_posinf(x);
                 if( _spoil_scenario==6 )
-                    spoil_vector_by_nan(bndl);
+                    spoil_vector_by_neginf(x);
+                double eps = 0.00001;
                 if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(bndl);
-                real_1d_array bndu = "[+1,+1]";
+                    eps = fp_nan;
                 if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(bndu);
+                    eps = fp_posinf;
                 if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(bndu);
-                double epsx = 0.0000000001;
+                    eps = fp_neginf;
+                double h = 0;
                 if( _spoil_scenario==10 )
-                    epsx = fp_nan;
+                    h = fp_nan;
                 if( _spoil_scenario==11 )
-                    epsx = fp_posinf;
+                    h = fp_posinf;
                 if( _spoil_scenario==12 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minlmstate state;
-
-                //
-                // Create optimizer, tell it to:
-                // * use numerical differentiation with step equal to 1.0
-                // * use unit scale for all variables (s is a unit vector)
-                // * stop after short enough step (less than epsx)
-                // * set box constraints
-                //
-                minlmcreatev(2, x, 0.0001, state);
-                minlmsetbc(state, bndl, bndu);
-                minlmsetcond(state, epsx, maxits);
-                minlmsetscale(state, s);
-
-                //
-                // Optimize
-                //
-                alglib::minlmoptimize(state, function1_fvec);
-
-                //
-                // Test optimization results
-                //
-                // NOTE: because we use numerical differentiation, we do not
-                //       verify Jacobian correctness - it is always "correct".
-                //       However, if you switch to analytic gradient, consider
-                //       checking it with OptGuard (see other examples).
-                //
-                minlmreport rep;
-                minlmresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-1,+1]", 0.005);
+                    h = fp_neginf;
+                odesolverstate s;
+                ae_int_t m;
+                real_1d_array xtbl;
+                real_2d_array ytbl;
+                odesolverreport rep;
+                odesolverrkck(y, x, eps, h, s);
+                alglib::odesolversolve(s, ode_function_1_diff);
+                odesolverresults(s, m, xtbl, ytbl, rep);
+                _TestResult = _TestResult && doc_test_int(m, 4);
+                _TestResult = _TestResult && doc_test_real_vector(xtbl, "[0, 1, 2, 3]", 0.005);
+                _TestResult = _TestResult && doc_test_real_matrix(ytbl, "[[1], [0.367], [0.135], [0.050]]", 0.005);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -5227,75 +7226,272 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minlm_d_vb");
+            printf("%-32s FAILED\n", "odesolver_d1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minlm_d_restarts
-        //      Efficient restarts of LM optimizer
+        // TEST matdet_d_1
+        //      Determinant calculation, real matrix, short form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
+        {
+            try
+            {
+                real_2d_array b = "[[1,2],[2,1]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(b);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(b);
+                double a;
+                a = rmatrixdet(b);
+                _TestResult = _TestResult && doc_test_real(a, -3, 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_d_1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_d_2
+        //      Determinant calculation, real matrix, full form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
+        {
+            try
+            {
+                real_2d_array b = "[[5,4],[4,5]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(b);
+                double a;
+                a = rmatrixdet(b, 2);
+                _TestResult = _TestResult && doc_test_real(a, 9, 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_d_2");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_d_3
+        //      Determinant calculation, complex matrix, short form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
+        {
+            try
+            {
+                complex_2d_array b = "[[1+1i,2],[2,1-1i]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(b);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(b);
+                alglib::complex a;
+                a = cmatrixdet(b);
+                _TestResult = _TestResult && doc_test_complex(a, -2, 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_d_3");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_d_4
+        //      Determinant calculation, complex matrix, full form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
+        {
+            try
+            {
+                alglib::complex a;
+                complex_2d_array b = "[[5i,4],[4i,5]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(b);
+                a = cmatrixdet(b, 2);
+                _TestResult = _TestResult && doc_test_complex(a, alglib::complex(0,9), 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_d_4");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_d_5
+        //      Determinant calculation, complex matrix with zero imaginary part, short form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
+        {
+            try
+            {
+                alglib::complex a;
+                complex_2d_array b = "[[9,1],[2,1]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(b);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(b);
+                a = cmatrixdet(b);
+                _TestResult = _TestResult && doc_test_complex(a, 7, 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_d_5");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_t_0
+        //      Determinant calculation, real matrix, full form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
+        {
+            try
+            {
+                double a;
+                real_2d_array b = "[[3,4],[-4,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(b);
+                a = rmatrixdet(b, 2);
+                _TestResult = _TestResult && doc_test_real(a, 25, 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_t_0");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_t_1
+        //      Determinant calculation, real matrix, LU, short form
         //
         _TestResult = true;
         for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
         {
             try
             {
-                //
-                // This example demonstrates minimization of F(x0,x1) = f0^2+f1^2, where 
-                //
-                //     f0(x0,x1) = 10*(x0+3)^2
-                //     f1(x0,x1) = (x1-3)^2
-                //
-                // using several starting points and efficient restarts.
-                //
-                real_1d_array x;
-                double epsx = 0.0000000001;
+                double a;
+                real_2d_array b = "[[1,2],[2,5]]";
                 if( _spoil_scenario==0 )
-                    epsx = fp_nan;
+                    spoil_matrix_by_nan(b);
                 if( _spoil_scenario==1 )
-                    epsx = fp_posinf;
+                    spoil_matrix_by_posinf(b);
                 if( _spoil_scenario==2 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minlmstate state;
-                minlmreport rep;
-
-                //
-                // create optimizer using minlmcreatev()
-                //
-                x = "[10,10]";
+                    spoil_matrix_by_neginf(b);
                 if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(x);
+                    spoil_matrix_by_adding_row(b);
                 if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(x);
+                    spoil_matrix_by_adding_col(b);
                 if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(x);
-                minlmcreatev(2, x, 0.0001, state);
-                minlmsetcond(state, epsx, maxits);
-                alglib::minlmoptimize(state, function1_fvec);
-                minlmresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
-
-                //
-                // restart optimizer using minlmrestartfrom()
-                //
-                // we can use different starting point, different function,
-                // different stopping conditions, but problem size
-                // must remain unchanged.
-                //
-                x = "[4,4]";
+                    spoil_matrix_by_deleting_row(b);
                 if( _spoil_scenario==6 )
-                    spoil_vector_by_nan(x);
+                    spoil_matrix_by_deleting_col(b);
+                integer_1d_array p = "[1,1]";
                 if( _spoil_scenario==7 )
-                    spoil_vector_by_posinf(x);
+                    spoil_vector_by_adding_element(p);
                 if( _spoil_scenario==8 )
-                    spoil_vector_by_neginf(x);
-                minlmrestartfrom(state, x);
-                alglib::minlmoptimize(state, function2_fvec);
-                minlmresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[0,1]", 0.005);
+                    spoil_vector_by_deleting_element(p);
+                a = rmatrixludet(b, p);
+                _TestResult = _TestResult && doc_test_real(a, -5, 0.0001);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -5303,43 +7499,38 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minlm_d_restarts");
+            printf("%-32s FAILED\n", "matdet_t_1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minlm_t_1
-        //      Nonlinear least squares optimization, FJ scheme (obsolete, but supported)
+        // TEST matdet_t_2
+        //      Determinant calculation, real matrix, LU, full form
         //
         _TestResult = true;
         for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
         {
             try
             {
-                real_1d_array x = "[0,0]";
+                double a;
+                real_2d_array b = "[[5,4],[4,5]]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_matrix_by_nan(b);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_matrix_by_posinf(b);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                double epsx = 0.0000000001;
+                    spoil_matrix_by_neginf(b);
                 if( _spoil_scenario==3 )
-                    epsx = fp_nan;
+                    spoil_matrix_by_deleting_row(b);
                 if( _spoil_scenario==4 )
-                    epsx = fp_posinf;
+                    spoil_matrix_by_deleting_col(b);
+                integer_1d_array p = "[0,1]";
                 if( _spoil_scenario==5 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minlmstate state;
-                minlmreport rep;
-                minlmcreatefj(2, x, state);
-                minlmsetcond(state, epsx, maxits);
-                alglib::minlmoptimize(state, function1_func, function1_jac);
-                minlmresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
+                    spoil_vector_by_deleting_element(p);
+                a = rmatrixludet(b, p, 2);
+                _TestResult = _TestResult && doc_test_real(a, 25, 0.0001);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -5347,43 +7538,35 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minlm_t_1");
+            printf("%-32s FAILED\n", "matdet_t_2");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
 
 
         //
-        // TEST minlm_t_2
-        //      Nonlinear least squares optimization, FGJ scheme (obsolete, but supported)
+        // TEST matdet_t_3
+        //      Determinant calculation, complex matrix, full form
         //
         _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
         {
             try
             {
-                real_1d_array x = "[0,0]";
+                alglib::complex a;
+                complex_2d_array b = "[[5i,4],[-4,5i]]";
                 if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
+                    spoil_matrix_by_nan(b);
                 if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
+                    spoil_matrix_by_posinf(b);
                 if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                double epsx = 0.0000000001;
+                    spoil_matrix_by_neginf(b);
                 if( _spoil_scenario==3 )
-                    epsx = fp_nan;
+                    spoil_matrix_by_deleting_row(b);
                 if( _spoil_scenario==4 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==5 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                minlmstate state;
-                minlmreport rep;
-                minlmcreatefgj(2, x, state);
-                minlmsetcond(state, epsx, maxits);
-                alglib::minlmoptimize(state, function1_func, function1_grad, function1_jac);
-                minlmresults(state, x, rep);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[-3,+3]", 0.005);
+                    spoil_matrix_by_deleting_col(b);
+                a = cmatrixdet(b, 2);
+                _TestResult = _TestResult && doc_test_complex(a, -9, 0.0001);
                 _TestResult = _TestResult && (_spoil_scenario==-1);
             }
             catch(ap_error)
@@ -5391,7 +7574,142 @@ int main()
         }
         if( !_TestResult)
         {
-            printf("%-32s FAILED\n", "minlm_t_2");
+            printf("%-32s FAILED\n", "matdet_t_3");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_t_4
+        //      Determinant calculation, complex matrix, LU, short form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
+        {
+            try
+            {
+                alglib::complex a;
+                complex_2d_array b = "[[1,2],[2,5i]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_adding_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_adding_col(b);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_deleting_col(b);
+                integer_1d_array p = "[1,1]";
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_adding_element(p);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_deleting_element(p);
+                a = cmatrixludet(b, p);
+                _TestResult = _TestResult && doc_test_complex(a, alglib::complex(0,-5), 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_t_4");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST matdet_t_5
+        //      Determinant calculation, complex matrix, LU, full form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        {
+            try
+            {
+                alglib::complex a;
+                complex_2d_array b = "[[5,4i],[4,5]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(b);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(b);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(b);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(b);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(b);
+                integer_1d_array p = "[0,1]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_deleting_element(p);
+                a = cmatrixludet(b, p, 2);
+                _TestResult = _TestResult && doc_test_complex(a, 25, 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "matdet_t_5");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST autogk_d1
+        //      Integrating f=exp(x) by adaptive integrator
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates integration of f=exp(x) on [0,1]:
+                // * first, autogkstate is initialized
+                // * then we call integration function
+                // * and finally we obtain results with autogkresults() call
+                //
+                double a = 0;
+                if( _spoil_scenario==0 )
+                    a = fp_nan;
+                if( _spoil_scenario==1 )
+                    a = fp_posinf;
+                if( _spoil_scenario==2 )
+                    a = fp_neginf;
+                double b = 1;
+                if( _spoil_scenario==3 )
+                    b = fp_nan;
+                if( _spoil_scenario==4 )
+                    b = fp_posinf;
+                if( _spoil_scenario==5 )
+                    b = fp_neginf;
+                autogkstate s;
+                double v;
+                autogkreport rep;
+
+                autogksmooth(a, b, s);
+                alglib::autogkintegrate(s, int_function_1_func);
+                autogkresults(s, v, rep);
+
+                _TestResult = _TestResult && doc_test_real(v, 1.7182, 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "autogk_d1");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -5468,7 +7786,6 @@ int main()
         // TEST basestat_d_c2
         //      Correlation (covariance) between two random variables
         //
-        printf("50/151\n");
         _TestResult = true;
         for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
         {
@@ -6107,6 +8424,4847 @@ int main()
 
 
         //
+        // TEST idw_d_mstab
+        //      Simple model built with IDW-MSTAB algorithm
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example illustrates basic concepts of the IDW models:
+                // creation and evaluation.
+                // 
+                // Suppose that we have set of 2-dimensional points with associated
+                // scalar function values, and we want to build an IDW model using
+                // our data.
+                // 
+                // NOTE: we can work with N-dimensional models and vector-valued functions too :)
+                // 
+                // Typical sequence of steps is given below:
+                // 1. we create IDW builder object
+                // 2. we attach our dataset to the IDW builder and tune algorithm settings
+                // 3. we generate IDW model
+                // 4. we use IDW model instance (evaluate, serialize, etc.)
+                //
+                double v;
+
+                //
+                // Step 1: IDW builder creation.
+                //
+                // We have to specify dimensionality of the space (2 or 3) and
+                // dimensionality of the function (scalar or vector).
+                //
+                // New builder object is empty - it has not dataset and uses
+                // default model construction settings
+                //
+                idwbuilder builder;
+                idwbuildercreate(2, 1, builder);
+
+                //
+                // Step 2: dataset addition
+                //
+                // XY contains two points - x0=(-1,0) and x1=(+1,0) -
+                // and two function values f(x0)=2, f(x1)=3.
+                //
+                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                idwbuildersetpoints(builder, xy);
+
+                //
+                // Step 3: choose IDW algorithm and generate model
+                //
+                // We use modified stabilized IDW algorithm with following parameters:
+                // * SRad - set to 5.0 (search radius must be large enough)
+                //
+                // IDW-MSTAB algorithm is a state-of-the-art implementation of IDW which
+                // is competitive with RBFs and bicubic splines. See comments on the
+                // idwbuildersetalgomstab() function for more information.
+                //
+                idwmodel model;
+                idwreport rep;
+                idwbuildersetalgomstab(builder, 5.0);
+                idwfit(builder, model, rep);
+
+                //
+                // Step 4: model was built, evaluate its value
+                //
+                v = idwcalc2(model, 1.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 3.000, 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "idw_d_mstab");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST idw_d_serialize
+        //      IDW model serialization/unserialization
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example shows how to serialize and unserialize IDW model.
+                // 
+                // Suppose that we have set of 2-dimensional points with associated
+                // scalar function values, and we have built an IDW model using
+                // our data.
+                //
+                // This model can be serialized to string or stream. ALGLIB supports
+                // flexible (un)serialization, i.e. you can move serialized model
+                // representation between different machines (32-bit or 64-bit),
+                // different CPU architectures (x86/64, ARM) or even different
+                // programming languages supported by ALGLIB (C#, C++, ...).
+                //
+                // Our first step is to build model, evaluate it at point (1,0),
+                // and serialize it to string.
+                //
+                std::string s;
+                double v;
+                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                idwbuilder builder;
+                idwmodel model;
+                idwmodel model2;
+                idwreport rep;
+                idwbuildercreate(2, 1, builder);
+                idwbuildersetpoints(builder, xy);
+                idwbuildersetalgomstab(builder, 5.0);
+                idwfit(builder, model, rep);
+                v = idwcalc2(model, 1.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 3.000, 0.005);
+
+                //
+                // Serialization + unserialization to a different instance
+                // of the model class.
+                //
+                alglib::idwserialize(model, s);
+                alglib::idwunserialize(s, model2);
+
+                //
+                // Evaluate unserialized model at the same point
+                //
+                v = idwcalc2(model2, 1.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 3.000, 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "idw_d_serialize");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_d_calcdiff
+        //      Interpolation and differentiation using barycentric representation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Here we demonstrate polynomial interpolation and differentiation
+                // of y=x^2-x sampled at [0,1,2]. Barycentric representation of polynomial is used.
+                //
+                real_1d_array x = "[0,1,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -1;
+                if( _spoil_scenario==10 )
+                    t = fp_posinf;
+                if( _spoil_scenario==11 )
+                    t = fp_neginf;
+                double v;
+                double dv;
+                double d2v;
+                barycentricinterpolant p;
+
+                // barycentric model is created
+                polynomialbuild(x, y, p);
+
+                // barycentric interpolation is demonstrated
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+
+                // barycentric differentation is demonstrated
+                barycentricdiff1(p, t, v, dv);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && doc_test_real(dv, -3.0, 0.00005);
+
+                // second derivatives with barycentric representation
+                barycentricdiff1(p, t, v, dv);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && doc_test_real(dv, -3.0, 0.00005);
+                barycentricdiff2(p, t, v, dv, d2v);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && doc_test_real(dv, -3.0, 0.00005);
+                _TestResult = _TestResult && doc_test_real(d2v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_d_calcdiff");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_d_conv
+        //      Conversion between power basis and barycentric representation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Here we demonstrate conversion of y=x^2-x
+                // between power basis and barycentric representation.
+                //
+                real_1d_array a = "[0,-1,+1]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(a);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(a);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(a);
+                double t = 2;
+                if( _spoil_scenario==3 )
+                    t = fp_posinf;
+                if( _spoil_scenario==4 )
+                    t = fp_neginf;
+                real_1d_array a2;
+                double v;
+                barycentricinterpolant p;
+
+                //
+                // a=[0,-1,+1] is decomposition of y=x^2-x in the power basis:
+                //
+                //     y = 0 - 1*x + 1*x^2
+                //
+                // We convert it to the barycentric form.
+                //
+                polynomialpow2bar(a, p);
+
+                // now we have barycentric interpolation; we can use it for interpolation
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.005);
+
+                // we can also convert back from barycentric representation to power basis
+                polynomialbar2pow(p, a2);
+                _TestResult = _TestResult && doc_test_real_vector(a2, "[0,-1,+1]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_d_conv");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_d_spec
+        //      Polynomial interpolation on special grids (equidistant, Chebyshev I/II)
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Temporaries:
+                // * values of y=x^2-x sampled at three special grids:
+                //   * equdistant grid spanning [0,2],     x[i] = 2*i/(N-1), i=0..N-1
+                //   * Chebyshev-I grid spanning [-1,+1],  x[i] = 1 + Cos(PI*(2*i+1)/(2*n)), i=0..N-1
+                //   * Chebyshev-II grid spanning [-1,+1], x[i] = 1 + Cos(PI*i/(n-1)), i=0..N-1
+                // * barycentric interpolants for these three grids
+                // * vectors to store coefficients of quadratic representation
+                //
+                real_1d_array y_eqdist = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y_eqdist);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y_eqdist);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y_eqdist);
+                real_1d_array y_cheb1 = "[-0.116025,0.000000,1.616025]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(y_cheb1);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(y_cheb1);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(y_cheb1);
+                real_1d_array y_cheb2 = "[0,0,2]";
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_nan(y_cheb2);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_posinf(y_cheb2);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_neginf(y_cheb2);
+                barycentricinterpolant p_eqdist;
+                barycentricinterpolant p_cheb1;
+                barycentricinterpolant p_cheb2;
+                real_1d_array a_eqdist;
+                real_1d_array a_cheb1;
+                real_1d_array a_cheb2;
+
+                //
+                // First, we demonstrate construction of barycentric interpolants on
+                // special grids. We unpack power representation to ensure that
+                // interpolant was built correctly.
+                //
+                // In all three cases we should get same quadratic function.
+                //
+                polynomialbuildeqdist(0.0, 2.0, y_eqdist, p_eqdist);
+                polynomialbar2pow(p_eqdist, a_eqdist);
+                _TestResult = _TestResult && doc_test_real_vector(a_eqdist, "[0,-1,+1]", 0.00005);
+
+                polynomialbuildcheb1(-1, +1, y_cheb1, p_cheb1);
+                polynomialbar2pow(p_cheb1, a_cheb1);
+                _TestResult = _TestResult && doc_test_real_vector(a_cheb1, "[0,-1,+1]", 0.00005);
+
+                polynomialbuildcheb2(-1, +1, y_cheb2, p_cheb2);
+                polynomialbar2pow(p_cheb2, a_cheb2);
+                _TestResult = _TestResult && doc_test_real_vector(a_cheb2, "[0,-1,+1]", 0.00005);
+
+                //
+                // Now we demonstrate polynomial interpolation without construction 
+                // of the barycentricinterpolant structure.
+                //
+                // We calculate interpolant value at x=-2.
+                // In all three cases we should get same f=6
+                //
+                double t = -2;
+                if( _spoil_scenario==9 )
+                    t = fp_posinf;
+                if( _spoil_scenario==10 )
+                    t = fp_neginf;
+                double v;
+                v = polynomialcalceqdist(0.0, 2.0, y_eqdist, t);
+                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
+
+                v = polynomialcalccheb1(-1, +1, y_cheb1, t);
+                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
+
+                v = polynomialcalccheb2(-1, +1, y_cheb2, t);
+                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_d_spec");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_1
+        //      Polynomial interpolation, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array x = "[0,1,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -1;
+                if( _spoil_scenario==8 )
+                    t = fp_posinf;
+                if( _spoil_scenario==9 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                double v;
+                polynomialbuild(x, y, 3, p);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_2
+        //      Polynomial interpolation, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -1;
+                if( _spoil_scenario==4 )
+                    t = fp_posinf;
+                if( _spoil_scenario==5 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                double v;
+                polynomialbuildeqdist(0.0, 2.0, y, 3, p);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_2");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_3
+        //      Polynomial interpolation, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[-0.116025,0.000000,1.616025]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -1;
+                if( _spoil_scenario==4 )
+                    t = fp_posinf;
+                if( _spoil_scenario==5 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                double v;
+                polynomialbuildcheb1(-1.0, +1.0, y, 3, p);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_3");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_4
+        //      Polynomial interpolation, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -2;
+                if( _spoil_scenario==4 )
+                    t = fp_posinf;
+                if( _spoil_scenario==5 )
+                    t = fp_neginf;
+                double a = -1;
+                if( _spoil_scenario==6 )
+                    a = fp_nan;
+                if( _spoil_scenario==7 )
+                    a = fp_posinf;
+                if( _spoil_scenario==8 )
+                    a = fp_neginf;
+                double b = +1;
+                if( _spoil_scenario==9 )
+                    b = fp_nan;
+                if( _spoil_scenario==10 )
+                    b = fp_posinf;
+                if( _spoil_scenario==11 )
+                    b = fp_neginf;
+                barycentricinterpolant p;
+                double v;
+                polynomialbuildcheb2(a, b, y, 3, p);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_4");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_5
+        //      Polynomial interpolation, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -1;
+                if( _spoil_scenario==4 )
+                    t = fp_posinf;
+                if( _spoil_scenario==5 )
+                    t = fp_neginf;
+                double v;
+                v = polynomialcalceqdist(0.0, 2.0, y, 3, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_5");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_6
+        //      Polynomial interpolation, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[-0.116025,0.000000,1.616025]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -1;
+                if( _spoil_scenario==4 )
+                    t = fp_posinf;
+                if( _spoil_scenario==5 )
+                    t = fp_neginf;
+                double a = -1;
+                if( _spoil_scenario==6 )
+                    a = fp_nan;
+                if( _spoil_scenario==7 )
+                    a = fp_posinf;
+                if( _spoil_scenario==8 )
+                    a = fp_neginf;
+                double b = +1;
+                if( _spoil_scenario==9 )
+                    b = fp_nan;
+                if( _spoil_scenario==10 )
+                    b = fp_posinf;
+                if( _spoil_scenario==11 )
+                    b = fp_neginf;
+                double v;
+                v = polynomialcalccheb1(a, b, y, 3, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_6");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_7
+        //      Polynomial interpolation, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(y);
+                double t = -2;
+                if( _spoil_scenario==4 )
+                    t = fp_posinf;
+                if( _spoil_scenario==5 )
+                    t = fp_neginf;
+                double a = -1;
+                if( _spoil_scenario==6 )
+                    a = fp_nan;
+                if( _spoil_scenario==7 )
+                    a = fp_posinf;
+                if( _spoil_scenario==8 )
+                    a = fp_neginf;
+                double b = +1;
+                if( _spoil_scenario==9 )
+                    b = fp_nan;
+                if( _spoil_scenario==10 )
+                    b = fp_posinf;
+                if( _spoil_scenario==11 )
+                    b = fp_neginf;
+                double v;
+                v = polynomialcalccheb2(a, b, y, 3, t);
+                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_7");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_8
+        //      Polynomial interpolation: y=x^2-x, equidistant grid, barycentric form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                double t = -1;
+                if( _spoil_scenario==3 )
+                    t = fp_posinf;
+                if( _spoil_scenario==4 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                double v;
+                polynomialbuildeqdist(0.0, 2.0, y, p);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_8");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_9
+        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (first kind), barycentric form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[-0.116025,0.000000,1.616025]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                double t = -1;
+                if( _spoil_scenario==3 )
+                    t = fp_posinf;
+                if( _spoil_scenario==4 )
+                    t = fp_neginf;
+                double a = -1;
+                if( _spoil_scenario==5 )
+                    a = fp_nan;
+                if( _spoil_scenario==6 )
+                    a = fp_posinf;
+                if( _spoil_scenario==7 )
+                    a = fp_neginf;
+                double b = +1;
+                if( _spoil_scenario==8 )
+                    b = fp_nan;
+                if( _spoil_scenario==9 )
+                    b = fp_posinf;
+                if( _spoil_scenario==10 )
+                    b = fp_neginf;
+                barycentricinterpolant p;
+                double v;
+                polynomialbuildcheb1(a, b, y, p);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_9");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_10
+        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (second kind), barycentric form
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                double t = -2;
+                if( _spoil_scenario==3 )
+                    t = fp_posinf;
+                if( _spoil_scenario==4 )
+                    t = fp_neginf;
+                double a = -1;
+                if( _spoil_scenario==5 )
+                    a = fp_nan;
+                if( _spoil_scenario==6 )
+                    a = fp_posinf;
+                if( _spoil_scenario==7 )
+                    a = fp_neginf;
+                double b = +1;
+                if( _spoil_scenario==8 )
+                    b = fp_nan;
+                if( _spoil_scenario==9 )
+                    b = fp_posinf;
+                if( _spoil_scenario==10 )
+                    b = fp_neginf;
+                barycentricinterpolant p;
+                double v;
+                polynomialbuildcheb2(a, b, y, p);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_10");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_11
+        //      Polynomial interpolation: y=x^2-x, equidistant grid
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                double t = -1;
+                if( _spoil_scenario==3 )
+                    t = fp_posinf;
+                if( _spoil_scenario==4 )
+                    t = fp_neginf;
+                double v;
+                v = polynomialcalceqdist(0.0, 2.0, y, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_11");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_12
+        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (first kind)
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[-0.116025,0.000000,1.616025]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                double t = -1;
+                if( _spoil_scenario==3 )
+                    t = fp_posinf;
+                if( _spoil_scenario==4 )
+                    t = fp_neginf;
+                double a = -1;
+                if( _spoil_scenario==5 )
+                    a = fp_nan;
+                if( _spoil_scenario==6 )
+                    a = fp_posinf;
+                if( _spoil_scenario==7 )
+                    a = fp_neginf;
+                double b = +1;
+                if( _spoil_scenario==8 )
+                    b = fp_nan;
+                if( _spoil_scenario==9 )
+                    b = fp_posinf;
+                if( _spoil_scenario==10 )
+                    b = fp_neginf;
+                double v;
+                v = polynomialcalccheb1(a, b, y, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_12");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST polint_t_13
+        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (second kind)
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array y = "[0,0,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                double t = -2;
+                if( _spoil_scenario==3 )
+                    t = fp_posinf;
+                if( _spoil_scenario==4 )
+                    t = fp_neginf;
+                double a = -1;
+                if( _spoil_scenario==5 )
+                    a = fp_nan;
+                if( _spoil_scenario==6 )
+                    a = fp_posinf;
+                if( _spoil_scenario==7 )
+                    a = fp_neginf;
+                double b = +1;
+                if( _spoil_scenario==8 )
+                    b = fp_nan;
+                if( _spoil_scenario==9 )
+                    b = fp_posinf;
+                if( _spoil_scenario==10 )
+                    b = fp_neginf;
+                double v;
+                v = polynomialcalccheb2(a, b, y, t);
+                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "polint_t_13");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline1d_d_linear
+        //      Piecewise linear spline interpolation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use piecewise linear spline to interpolate f(x)=x^2 sampled 
+                // at 5 equidistant nodes on [-1,+1].
+                //
+                real_1d_array x = "[-1.0,-0.5,0.0,+0.5,+1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[+1.0,0.25,0.0,0.25,+1.0]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                double t = 0.25;
+                if( _spoil_scenario==10 )
+                    t = fp_posinf;
+                if( _spoil_scenario==11 )
+                    t = fp_neginf;
+                double v;
+                spline1dinterpolant s;
+
+                // build spline
+                spline1dbuildlinear(x, y, s);
+
+                // calculate S(0.25) - it is quite different from 0.25^2=0.0625
+                v = spline1dcalc(s, t);
+                _TestResult = _TestResult && doc_test_real(v, 0.125, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline1d_d_linear");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline1d_d_cubic
+        //      Cubic spline interpolation
+        //
+        printf("100/162\n");
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use cubic spline to interpolate f(x)=x^2 sampled 
+                // at 5 equidistant nodes on [-1,+1].
+                //
+                // First, we use default boundary conditions ("parabolically terminated
+                // spline") because cubic spline built with such boundary conditions 
+                // will exactly reproduce any quadratic f(x).
+                //
+                // Then we try to use natural boundary conditions
+                //     d2S(-1)/dx^2 = 0.0
+                //     d2S(+1)/dx^2 = 0.0
+                // and see that such spline interpolated f(x) with small error.
+                //
+                real_1d_array x = "[-1.0,-0.5,0.0,+0.5,+1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[+1.0,0.25,0.0,0.25,+1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                double t = 0.25;
+                if( _spoil_scenario==8 )
+                    t = fp_posinf;
+                if( _spoil_scenario==9 )
+                    t = fp_neginf;
+                double v;
+                spline1dinterpolant s;
+                ae_int_t natural_bound_type = 2;
+                //
+                // Test exact boundary conditions: build S(x), calculare S(0.25)
+                // (almost same as original function)
+                //
+                spline1dbuildcubic(x, y, s);
+                v = spline1dcalc(s, t);
+                _TestResult = _TestResult && doc_test_real(v, 0.0625, 0.00001);
+
+                //
+                // Test natural boundary conditions: build S(x), calculare S(0.25)
+                // (small interpolation error)
+                //
+                spline1dbuildcubic(x, y, 5, natural_bound_type, 0.0, natural_bound_type, 0.0, s);
+                v = spline1dcalc(s, t);
+                _TestResult = _TestResult && doc_test_real(v, 0.0580, 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline1d_d_cubic");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline1d_d_monotone
+        //      Monotone interpolation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Spline built witn spline1dbuildcubic() can be non-monotone even when
+                // Y-values form monotone sequence. Say, for x=[0,1,2] and y=[0,1,1]
+                // cubic spline will monotonically grow until x=1.5 and then start
+                // decreasing.
+                //
+                // That's why ALGLIB provides special spline construction function
+                // which builds spline which preserves monotonicity of the original
+                // dataset.
+                //
+                // NOTE: in case original dataset is non-monotonic, ALGLIB splits it
+                // into monotone subsequences and builds piecewise monotonic spline.
+                //
+                real_1d_array x = "[0,1,2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0,1,1]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                spline1dinterpolant s;
+
+                // build spline
+                spline1dbuildmonotone(x, y, s);
+
+                // calculate S at x = [-0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
+                // you may see that spline is really monotonic
+                double v;
+                v = spline1dcalc(s, -0.5);
+                _TestResult = _TestResult && doc_test_real(v, 0.0000, 0.00005);
+                v = spline1dcalc(s, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 0.0000, 0.00005);
+                v = spline1dcalc(s, +0.5);
+                _TestResult = _TestResult && doc_test_real(v, 0.5000, 0.00005);
+                v = spline1dcalc(s, 1.0);
+                _TestResult = _TestResult && doc_test_real(v, 1.0000, 0.00005);
+                v = spline1dcalc(s, 1.5);
+                _TestResult = _TestResult && doc_test_real(v, 1.0000, 0.00005);
+                v = spline1dcalc(s, 2.0);
+                _TestResult = _TestResult && doc_test_real(v, 1.0000, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline1d_d_monotone");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline1d_d_griddiff
+        //      Differentiation on the grid using cubic splines
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use cubic spline to do grid differentiation, i.e. having
+                // values of f(x)=x^2 sampled at 5 equidistant nodes on [-1,+1]
+                // we calculate derivatives of cubic spline at nodes WITHOUT
+                // CONSTRUCTION OF SPLINE OBJECT.
+                //
+                // There are efficient functions spline1dgriddiffcubic() and
+                // spline1dgriddiff2cubic() for such calculations.
+                //
+                // We use default boundary conditions ("parabolically terminated
+                // spline") because cubic spline built with such boundary conditions 
+                // will exactly reproduce any quadratic f(x).
+                //
+                // Actually, we could use natural conditions, but we feel that 
+                // spline which exactly reproduces f() will show us more 
+                // understandable results.
+                //
+                real_1d_array x = "[-1.0,-0.5,0.0,+0.5,+1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[+1.0,0.25,0.0,0.25,+1.0]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array d1;
+                real_1d_array d2;
+
+                //
+                // We calculate first derivatives: they must be equal to 2*x
+                //
+                spline1dgriddiffcubic(x, y, d1);
+                _TestResult = _TestResult && doc_test_real_vector(d1, "[-2.0, -1.0, 0.0, +1.0, +2.0]", 0.0001);
+
+                //
+                // Now test griddiff2, which returns first AND second derivatives.
+                // First derivative is 2*x, second is equal to 2.0
+                //
+                spline1dgriddiff2cubic(x, y, d1, d2);
+                _TestResult = _TestResult && doc_test_real_vector(d1, "[-2.0, -1.0, 0.0, +1.0, +2.0]", 0.0001);
+                _TestResult = _TestResult && doc_test_real_vector(d2, "[ 2.0,  2.0, 2.0,  2.0,  2.0]", 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline1d_d_griddiff");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline1d_d_convdiff
+        //      Resampling using cubic splines
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use cubic spline to do resampling, i.e. having
+                // values of f(x)=x^2 sampled at 5 equidistant nodes on [-1,+1]
+                // we calculate values/derivatives of cubic spline on 
+                // another grid (equidistant with 9 nodes on [-1,+1])
+                // WITHOUT CONSTRUCTION OF SPLINE OBJECT.
+                //
+                // There are efficient functions spline1dconvcubic(),
+                // spline1dconvdiffcubic() and spline1dconvdiff2cubic() 
+                // for such calculations.
+                //
+                // We use default boundary conditions ("parabolically terminated
+                // spline") because cubic spline built with such boundary conditions 
+                // will exactly reproduce any quadratic f(x).
+                //
+                // Actually, we could use natural conditions, but we feel that 
+                // spline which exactly reproduces f() will show us more 
+                // understandable results.
+                //
+                real_1d_array x_old = "[-1.0,-0.5,0.0,+0.5,+1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x_old);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x_old);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x_old);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x_old);
+                real_1d_array y_old = "[+1.0,0.25,0.0,0.25,+1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y_old);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y_old);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y_old);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y_old);
+                real_1d_array x_new = "[-1.00,-0.75,-0.50,-0.25,0.00,+0.25,+0.50,+0.75,+1.00]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(x_new);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(x_new);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(x_new);
+                real_1d_array y_new;
+                real_1d_array d1_new;
+                real_1d_array d2_new;
+
+                //
+                // First, conversion without differentiation.
+                //
+                //
+                spline1dconvcubic(x_old, y_old, x_new, y_new);
+                _TestResult = _TestResult && doc_test_real_vector(y_new, "[1.0000, 0.5625, 0.2500, 0.0625, 0.0000, 0.0625, 0.2500, 0.5625, 1.0000]", 0.0001);
+
+                //
+                // Then, conversion with differentiation (first derivatives only)
+                //
+                //
+                spline1dconvdiffcubic(x_old, y_old, x_new, y_new, d1_new);
+                _TestResult = _TestResult && doc_test_real_vector(y_new, "[1.0000, 0.5625, 0.2500, 0.0625, 0.0000, 0.0625, 0.2500, 0.5625, 1.0000]", 0.0001);
+                _TestResult = _TestResult && doc_test_real_vector(d1_new, "[-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]", 0.0001);
+
+                //
+                // Finally, conversion with first and second derivatives
+                //
+                //
+                spline1dconvdiff2cubic(x_old, y_old, x_new, y_new, d1_new, d2_new);
+                _TestResult = _TestResult && doc_test_real_vector(y_new, "[1.0000, 0.5625, 0.2500, 0.0625, 0.0000, 0.0625, 0.2500, 0.5625, 1.0000]", 0.0001);
+                _TestResult = _TestResult && doc_test_real_vector(d1_new, "[-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]", 0.0001);
+                _TestResult = _TestResult && doc_test_real_vector(d2_new, "[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]", 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline1d_d_convdiff");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_nlf
+        //      Nonlinear fitting using function value only
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<24; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // In this example we demonstrate exponential fitting by
+                //
+                //     f(x) = exp(-c*x^2)
+                //
+                // using numerical differentiation.
+                //
+                // IMPORTANT: the LSFIT optimizer supports parallel model  evaluation  and
+                //            parallel numerical differentiation ('callback parallelism').
+                //            This feature, which is present in commercial ALGLIB editions
+                //            greatly  accelerates  fits  with   large   datasets   and/or
+                //            expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial  when  a  single
+                //            pass over the entire  dataset  requires  more  than  several
+                //            milliseconds. This particular example,  of  course,  is  not
+                //            suited for callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on  lsfitfit()  function  for  more
+                //            information.
+                //
+                real_2d_array x = "[[-1],[-0.8],[-0.6],[-0.4],[-0.2],[0],[0.2],[0.4],[0.6],[0.8],[1.0]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(x);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(x);
+                real_1d_array y = "[0.223130, 0.382893, 0.582748, 0.786628, 0.941765, 1.000000, 0.941765, 0.786628, 0.582748, 0.382893, 0.223130]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array c = "[0.3]";
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_nan(c);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_posinf(c);
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_neginf(c);
+                double epsx = 0.000001;
+                if( _spoil_scenario==13 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==14 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==15 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                lsfitstate state;
+                lsfitreport rep;
+                double diffstep = 0.0001;
+                if( _spoil_scenario==16 )
+                    diffstep = fp_nan;
+                if( _spoil_scenario==17 )
+                    diffstep = fp_posinf;
+                if( _spoil_scenario==18 )
+                    diffstep = fp_neginf;
+
+                //
+                // Fitting without weights
+                //
+                lsfitcreatef(x, y, c, diffstep, state);
+                lsfitsetcond(state, epsx, maxits);
+                alglib::lsfitfit(state, function_cx_1_func);
+                lsfitresults(state, c, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 2);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
+
+                //
+                // Fitting with weights
+                // (you can change weights and see how it changes result)
+                //
+                real_1d_array w = "[1,1,1,1,1,1,1,1,1,1,1]";
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==21 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==22 )
+                    spoil_vector_by_adding_element(w);
+                if( _spoil_scenario==23 )
+                    spoil_vector_by_deleting_element(w);
+                lsfitcreatewf(x, y, w, c, diffstep, state);
+                lsfitsetcond(state, epsx, maxits);
+                alglib::lsfitfit(state, function_cx_1_func);
+                lsfitresults(state, c, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 2);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_nlf");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_nlfg
+        //      Nonlinear fitting using gradient
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<21; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // In this example we demonstrate exponential fitting by
+                //
+                //     f(x) = exp(-c*x^2)
+                //
+                // using function value and gradient (with respect to c).
+                //
+                // IMPORTANT: the LSFIT optimizer supports parallel model  evaluation  and
+                //            parallel numerical differentiation ('callback parallelism').
+                //            This feature, which is present in commercial ALGLIB editions
+                //            greatly  accelerates  fits  with   large   datasets   and/or
+                //            expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial  when  a  single
+                //            pass over the entire  dataset  requires  more  than  several
+                //            milliseconds. This particular example,  of  course,  is  not
+                //            suited for callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on  lsfitfit()  function  for  more
+                //            information.
+                //
+                real_2d_array x = "[[-1],[-0.8],[-0.6],[-0.4],[-0.2],[0],[0.2],[0.4],[0.6],[0.8],[1.0]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(x);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(x);
+                real_1d_array y = "[0.223130, 0.382893, 0.582748, 0.786628, 0.941765, 1.000000, 0.941765, 0.786628, 0.582748, 0.382893, 0.223130]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array c = "[0.3]";
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_nan(c);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_posinf(c);
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_neginf(c);
+                double epsx = 0.000001;
+                if( _spoil_scenario==13 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==14 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==15 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                lsfitstate state;
+                lsfitreport rep;
+
+                //
+                // Fitting without weights
+                //
+                lsfitcreatefg(x, y, c, state);
+                lsfitsetcond(state, epsx, maxits);
+                alglib::lsfitfit(state, function_cx_1_func, function_cx_1_grad);
+                lsfitresults(state, c, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 2);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
+
+                //
+                // Fitting with weights
+                // (you can change weights and see how it changes result)
+                //
+                real_1d_array w = "[1,1,1,1,1,1,1,1,1,1,1]";
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==18 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_adding_element(w);
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_deleting_element(w);
+                lsfitcreatewfg(x, y, w, c, state);
+                lsfitsetcond(state, epsx, maxits);
+                alglib::lsfitfit(state, function_cx_1_func, function_cx_1_grad);
+                lsfitresults(state, c, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 2);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_nlfg");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_nlfb
+        //      Bound contstrained nonlinear fitting using function value only
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<23; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // In this example we demonstrate exponential fitting by
+                //
+                //     f(x) = exp(-c*x^2)
+                //
+                // subject to box constraints
+                //
+                //     0.0 <= c <= 1.0
+                //
+                // using function value only. An unconstrained solution is c=1.5, but because of
+                // constraints we should get c=1.0 (at the boundary).
+                //
+                // IMPORTANT: the LSFIT optimizer supports parallel model  evaluation  and
+                //            parallel numerical differentiation ('callback parallelism').
+                //            This feature, which is present in commercial ALGLIB editions
+                //            greatly  accelerates  fits  with   large   datasets   and/or
+                //            expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial  when  a  single
+                //            pass over the entire  dataset  requires  more  than  several
+                //            milliseconds. This particular example,  of  course,  is  not
+                //            suited for callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on  lsfitfit()  function  for  more
+                //            information.
+                //
+                real_2d_array x = "[[-1],[-0.8],[-0.6],[-0.4],[-0.2],[0],[0.2],[0.4],[0.6],[0.8],[1.0]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(x);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(x);
+                real_1d_array y = "[0.223130, 0.382893, 0.582748, 0.786628, 0.941765, 1.000000, 0.941765, 0.786628, 0.582748, 0.382893, 0.223130]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array c = "[0.3]";
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_nan(c);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_posinf(c);
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_neginf(c);
+                real_1d_array bndl = "[0.0]";
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_nan(bndl);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_deleting_element(bndl);
+                real_1d_array bndu = "[1.0]";
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_nan(bndu);
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_deleting_element(bndu);
+                double epsx = 0.000001;
+                if( _spoil_scenario==17 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==18 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==19 )
+                    epsx = fp_neginf;
+                ae_int_t maxits = 0;
+                lsfitstate state;
+                lsfitreport rep;
+                double diffstep = 0.0001;
+                if( _spoil_scenario==20 )
+                    diffstep = fp_nan;
+                if( _spoil_scenario==21 )
+                    diffstep = fp_posinf;
+                if( _spoil_scenario==22 )
+                    diffstep = fp_neginf;
+
+                lsfitcreatef(x, y, c, diffstep, state);
+                lsfitsetbc(state, bndl, bndu);
+                lsfitsetcond(state, epsx, maxits);
+                alglib::lsfitfit(state, function_cx_1_func);
+                lsfitresults(state, c, rep);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[1.0]", 0.05);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_nlfb");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_nlscale
+        //      Nonlinear fitting with custom scaling and bound constraints
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<27; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // In this example we demonstrate fitting by
+                //
+                //     f(x) = c[0]*(1+c[1]*((x-1999)^c[2]-1))
+                //
+                // subject to box constraints
+                //
+                //     -INF  < c[0] < +INF
+                //      -10 <= c[1] <= +10
+                //      0.1 <= c[2] <= 2.0
+                //
+                // The data we want to fit are time series of Japan national debt
+                // collected from 2000 to 2008 measured in USD (dollars, not
+                // millions of dollars).
+                //
+                // Our variables are:
+                //     c[0] - debt value at initial moment (2000),
+                //     c[1] - direction coefficient (growth or decrease),
+                //     c[2] - curvature coefficient.
+                // You may see that our variables are badly scaled - first one 
+                // is order of 10^12, and next two are somewhere about 1 in 
+                // magnitude. Such problem is difficult to solve without some
+                // kind of scaling.
+                // That is exactly where lsfitsetscale() function can be used.
+                // We set scale of our variables to [1.0E12, 1, 1], which allows
+                // us to easily solve this problem.
+                //
+                // You can try commenting out lsfitsetscale() call - and you will 
+                // see that algorithm will fail to converge.
+                //
+                // IMPORTANT: the LSFIT optimizer supports parallel model  evaluation  and
+                //            parallel numerical differentiation ('callback parallelism').
+                //            This feature, which is present in commercial ALGLIB editions
+                //            greatly  accelerates  fits  with   large   datasets   and/or
+                //            expensive target functions.
+                //
+                //            Callback parallelism is usually  beneficial  when  a  single
+                //            pass over the entire  dataset  requires  more  than  several
+                //            milliseconds. This particular example,  of  course,  is  not
+                //            suited for callback parallelism.
+                //
+                //            See ALGLIB Reference Manual, 'Working with commercial version'
+                //            section,  and  comments  on  lsfitfit()  function  for  more
+                //            information.
+                //
+                real_2d_array x = "[[2000],[2001],[2002],[2003],[2004],[2005],[2006],[2007],[2008]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(x);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(x);
+                real_1d_array y = "[4323239600000.0, 4560913100000.0, 5564091500000.0, 6743189300000.0, 7284064600000.0, 7050129600000.0, 7092221500000.0, 8483907600000.0, 8625804400000.0]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array c = "[1.0e+13, 1, 1]";
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_nan(c);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_posinf(c);
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_neginf(c);
+                double epsx = 1.0e-5;
+                if( _spoil_scenario==13 )
+                    epsx = fp_nan;
+                if( _spoil_scenario==14 )
+                    epsx = fp_posinf;
+                if( _spoil_scenario==15 )
+                    epsx = fp_neginf;
+                real_1d_array bndl = "[-inf, -10, 0.1]";
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_nan(bndl);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_deleting_element(bndl);
+                real_1d_array bndu = "[+inf, +10, 2.0]";
+                if( _spoil_scenario==18 )
+                    spoil_vector_by_nan(bndu);
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_deleting_element(bndu);
+                real_1d_array s = "[1.0e+12, 1, 1]";
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_nan(s);
+                if( _spoil_scenario==21 )
+                    spoil_vector_by_posinf(s);
+                if( _spoil_scenario==22 )
+                    spoil_vector_by_neginf(s);
+                if( _spoil_scenario==23 )
+                    spoil_vector_by_deleting_element(s);
+                ae_int_t maxits = 0;
+                lsfitstate state;
+                lsfitreport rep;
+                double diffstep = 1.0e-5;
+                if( _spoil_scenario==24 )
+                    diffstep = fp_nan;
+                if( _spoil_scenario==25 )
+                    diffstep = fp_posinf;
+                if( _spoil_scenario==26 )
+                    diffstep = fp_neginf;
+
+                lsfitcreatef(x, y, c, diffstep, state);
+                lsfitsetcond(state, epsx, maxits);
+                lsfitsetbc(state, bndl, bndu);
+                lsfitsetscale(state, s);
+                alglib::lsfitfit(state, function_debt_func);
+                lsfitresults(state, c, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 2);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[4.142560e+12, 0.434240, 0.565376]", -0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_nlscale");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_lin
+        //      Unconstrained (general) linear least squares fitting with and without weights
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<13; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // In this example we demonstrate linear fitting by f(x|a) = a*exp(0.5*x).
+                //
+                // We have:
+                // * y - vector of experimental data
+                // * fmatrix -  matrix of basis functions calculated at sample points
+                //              Actually, we have only one basis function F0 = exp(0.5*x).
+                //
+                real_2d_array fmatrix = "[[0.606531],[0.670320],[0.740818],[0.818731],[0.904837],[1.000000],[1.105171],[1.221403],[1.349859],[1.491825],[1.648721]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(fmatrix);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(fmatrix);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(fmatrix);
+                real_1d_array y = "[1.133719, 1.306522, 1.504604, 1.554663, 1.884638, 2.072436, 2.257285, 2.534068, 2.622017, 2.897713, 3.219371]";
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array c;
+                lsfitreport rep;
+
+                //
+                // Linear fitting without weights
+                //
+                lsfitlinear(y, fmatrix, c, rep);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[1.98650]", 0.00005);
+
+                //
+                // Linear fitting with individual weights.
+                // Slightly different result is returned.
+                //
+                real_1d_array w = "[1.414213, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_adding_element(w);
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_deleting_element(w);
+                lsfitlinearw(y, w, fmatrix, c, rep);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[1.983354]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_lin");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_linc
+        //      Constrained (general) linear least squares fitting with and without weights
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<20; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // In this example we demonstrate linear fitting by f(x|a,b) = a*x+b
+                // with simple constraint f(0)=0.
+                //
+                // We have:
+                // * y - vector of experimental data
+                // * fmatrix -  matrix of basis functions sampled at [0,1] with step 0.2:
+                //                  [ 1.0   0.0 ]
+                //                  [ 1.0   0.2 ]
+                //                  [ 1.0   0.4 ]
+                //                  [ 1.0   0.6 ]
+                //                  [ 1.0   0.8 ]
+                //                  [ 1.0   1.0 ]
+                //              first column contains value of first basis function (constant term)
+                //              second column contains second basis function (linear term)
+                // * cmatrix -  matrix of linear constraints:
+                //                  [ 1.0  0.0  0.0 ]
+                //              first two columns contain coefficients before basis functions,
+                //              last column contains desired value of their sum.
+                //              So [1,0,0] means "1*constant_term + 0*linear_term = 0" 
+                //
+                real_1d_array y = "[0.072436,0.246944,0.491263,0.522300,0.714064,0.921929]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(y);
+                real_2d_array fmatrix = "[[1,0.0],[1,0.2],[1,0.4],[1,0.6],[1,0.8],[1,1.0]]";
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_nan(fmatrix);
+                if( _spoil_scenario==6 )
+                    spoil_matrix_by_posinf(fmatrix);
+                if( _spoil_scenario==7 )
+                    spoil_matrix_by_neginf(fmatrix);
+                if( _spoil_scenario==8 )
+                    spoil_matrix_by_adding_row(fmatrix);
+                if( _spoil_scenario==9 )
+                    spoil_matrix_by_adding_col(fmatrix);
+                if( _spoil_scenario==10 )
+                    spoil_matrix_by_deleting_row(fmatrix);
+                if( _spoil_scenario==11 )
+                    spoil_matrix_by_deleting_col(fmatrix);
+                real_2d_array cmatrix = "[[1,0,0]]";
+                if( _spoil_scenario==12 )
+                    spoil_matrix_by_nan(cmatrix);
+                if( _spoil_scenario==13 )
+                    spoil_matrix_by_posinf(cmatrix);
+                if( _spoil_scenario==14 )
+                    spoil_matrix_by_neginf(cmatrix);
+                real_1d_array c;
+                lsfitreport rep;
+
+                //
+                // Constrained fitting without weights
+                //
+                lsfitlinearc(y, fmatrix, cmatrix, c, rep);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[0,0.932933]", 0.0005);
+
+                //
+                // Constrained fitting with individual weights
+                //
+                real_1d_array w = "[1, 1.414213, 1, 1, 1, 1]";
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==18 )
+                    spoil_vector_by_adding_element(w);
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_deleting_element(w);
+                lsfitlinearwc(y, w, fmatrix, cmatrix, c, rep);
+                _TestResult = _TestResult && doc_test_real_vector(c, "[0,0.938322]", 0.0005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_linc");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_pol
+        //      Unconstrained polynomial fitting
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<20; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates polynomial fitting.
+                //
+                // Fitting is done by two (M=2) functions from polynomial basis:
+                //     f0 = 1
+                //     f1 = x
+                // Basically, it just a linear fit; more complex polynomials may be used
+                // (e.g. parabolas with M=3, cubic with M=4), but even such simple fit allows
+                // us to demonstrate polynomialfit() function in action.
+                //
+                // We have:
+                // * x      set of abscissas
+                // * y      experimental data
+                //
+                // Additionally we demonstrate weighted fitting, where second point has
+                // more weight than other ones.
+                //
+                real_1d_array x = "[0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.00,0.05,0.26,0.32,0.33,0.43,0.60,0.60,0.77,0.98,1.02]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                ae_int_t m = 2;
+                double t = 2;
+                if( _spoil_scenario==10 )
+                    t = fp_posinf;
+                if( _spoil_scenario==11 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                polynomialfitreport rep;
+                double v;
+
+                //
+                // Fitting without individual weights
+                //
+                // NOTE: result is returned as barycentricinterpolant structure.
+                //       if you want to get representation in the power basis,
+                //       you can use barycentricbar2pow() function to convert
+                //       from barycentric to power representation (see docs for 
+                //       POLINT subpackage for more info).
+                //
+                polynomialfit(x, y, m, p, rep);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.011, 0.002);
+
+                //
+                // Fitting with individual weights
+                //
+                // NOTE: slightly different result is returned
+                //
+                real_1d_array w = "[1,1.414213562,1,1,1,1,1,1,1,1,1]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_adding_element(w);
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_deleting_element(w);
+                real_1d_array xc = "[]";
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_adding_element(xc);
+                real_1d_array yc = "[]";
+                if( _spoil_scenario==18 )
+                    spoil_vector_by_adding_element(yc);
+                integer_1d_array dc = "[]";
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_adding_element(dc);
+                polynomialfitwc(x, y, w, xc, yc, dc, m, p, rep);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.023, 0.002);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_pol");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_polc
+        //      Constrained polynomial fitting
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<29; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example demonstrates polynomial fitting.
+                //
+                // Fitting is done by two (M=2) functions from polynomial basis:
+                //     f0 = 1
+                //     f1 = x
+                // with simple constraint on function value
+                //     f(0) = 0
+                // Basically, it just a linear fit; more complex polynomials may be used
+                // (e.g. parabolas with M=3, cubic with M=4), but even such simple fit allows
+                // us to demonstrate polynomialfit() function in action.
+                //
+                // We have:
+                // * x      set of abscissas
+                // * y      experimental data
+                // * xc     points where constraints are placed
+                // * yc     constraints on derivatives
+                // * dc     derivative indices
+                //          (0 means function itself, 1 means first derivative)
+                //
+                real_1d_array x = "[1.0,1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.9,1.1]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array w = "[1,1]";
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_adding_element(w);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_deleting_element(w);
+                real_1d_array xc = "[0]";
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_nan(xc);
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_posinf(xc);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_neginf(xc);
+                if( _spoil_scenario==18 )
+                    spoil_vector_by_adding_element(xc);
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_deleting_element(xc);
+                real_1d_array yc = "[0]";
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_nan(yc);
+                if( _spoil_scenario==21 )
+                    spoil_vector_by_posinf(yc);
+                if( _spoil_scenario==22 )
+                    spoil_vector_by_neginf(yc);
+                if( _spoil_scenario==23 )
+                    spoil_vector_by_adding_element(yc);
+                if( _spoil_scenario==24 )
+                    spoil_vector_by_deleting_element(yc);
+                integer_1d_array dc = "[0]";
+                if( _spoil_scenario==25 )
+                    spoil_vector_by_adding_element(dc);
+                if( _spoil_scenario==26 )
+                    spoil_vector_by_deleting_element(dc);
+                double t = 2;
+                if( _spoil_scenario==27 )
+                    t = fp_posinf;
+                if( _spoil_scenario==28 )
+                    t = fp_neginf;
+                ae_int_t m = 2;
+                barycentricinterpolant p;
+                polynomialfitreport rep;
+                double v;
+
+                polynomialfitwc(x, y, w, xc, yc, dc, m, p, rep);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.000, 0.001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_polc");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_d_spline
+        //      Unconstrained fitting by penalized regression spline
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // In this example we demonstrate penalized spline fitting of noisy data
+                //
+                // We have:
+                // * x - abscissas
+                // * y - vector of experimental data, straight line with small noise
+                //
+                real_1d_array x = "[0.00,0.10,0.20,0.30,0.40,0.50,0.60,0.70,0.80,0.90]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_adding_element(x);
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.10,0.00,0.30,0.40,0.30,0.40,0.62,0.68,0.75,0.95]";
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_adding_element(y);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_deleting_element(y);
+                double v;
+                spline1dinterpolant s;
+                spline1dfitreport rep;
+
+                //
+                // Fit with VERY small amount of smoothing (eps = 1.0E-9)
+                // and large number of basis functions (M=50).
+                //
+                // With such small regularization penalized spline almost fully reproduces function values
+                //
+                spline1dfit(x, y, 50, 0.000000001, s, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                v = spline1dcalc(s, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 0.10, 0.01);
+
+                //
+                // Fit with VERY large amount of smoothing eps=1000000
+                // and large number of basis functions (M=50).
+                //
+                // With such regularization our spline should become close to the straight line fit.
+                // We will compare its value in x=1.0 with results obtained from such fit.
+                //
+                spline1dfit(x, y, 50, 1000000, s, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                v = spline1dcalc(s, 1.0);
+                _TestResult = _TestResult && doc_test_real(v, 0.969, 0.001);
+
+                //
+                // In real life applications you may need some moderate degree of fitting,
+                // so we try to fit once more with eps=0.1.
+                //
+                spline1dfit(x, y, 50, 0.1, s, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_d_spline");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_t_polfit_1
+        //      Polynomial fitting, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array x = "[0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.00,0.05,0.26,0.32,0.33,0.43,0.60,0.60,0.77,0.98,1.02]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                ae_int_t m = 2;
+                double t = 2;
+                if( _spoil_scenario==8 )
+                    t = fp_posinf;
+                if( _spoil_scenario==9 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                polynomialfitreport rep;
+                double v;
+                polynomialfit(x, y, 11, m, p, rep);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.011, 0.002);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_t_polfit_1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_t_polfit_2
+        //      Polynomial fitting, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<14; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array x = "[0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.00,0.05,0.26,0.32,0.33,0.43,0.60,0.60,0.77,0.98,1.02]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array w = "[1,1.414213562,1,1,1,1,1,1,1,1,1]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(w);
+                real_1d_array xc = "[]";
+                real_1d_array yc = "[]";
+                integer_1d_array dc = "[]";
+                ae_int_t m = 2;
+                double t = 2;
+                if( _spoil_scenario==12 )
+                    t = fp_posinf;
+                if( _spoil_scenario==13 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                polynomialfitreport rep;
+                double v;
+                polynomialfitwc(x, y, w, 11, xc, yc, dc, 0, m, p, rep);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.023, 0.002);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_t_polfit_2");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_t_polfit_3
+        //      Polynomial fitting, full list of parameters.
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<23; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array x = "[1.0,1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.9,1.1]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array w = "[1,1]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(w);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(w);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(w);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(w);
+                real_1d_array xc = "[0]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(xc);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_posinf(xc);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_neginf(xc);
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_deleting_element(xc);
+                real_1d_array yc = "[0]";
+                if( _spoil_scenario==16 )
+                    spoil_vector_by_nan(yc);
+                if( _spoil_scenario==17 )
+                    spoil_vector_by_posinf(yc);
+                if( _spoil_scenario==18 )
+                    spoil_vector_by_neginf(yc);
+                if( _spoil_scenario==19 )
+                    spoil_vector_by_deleting_element(yc);
+                integer_1d_array dc = "[0]";
+                if( _spoil_scenario==20 )
+                    spoil_vector_by_deleting_element(dc);
+                ae_int_t m = 2;
+                double t = 2;
+                if( _spoil_scenario==21 )
+                    t = fp_posinf;
+                if( _spoil_scenario==22 )
+                    t = fp_neginf;
+                barycentricinterpolant p;
+                polynomialfitreport rep;
+                double v;
+                polynomialfitwc(x, y, w, 2, xc, yc, dc, 1, m, p, rep);
+                v = barycentriccalc(p, t);
+                _TestResult = _TestResult && doc_test_real(v, 2.000, 0.001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_t_polfit_3");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_t_4pl
+        //      4-parameter logistic fitting
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<8; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array x = "[1,2,3,4,5,6,7,8]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.06313223,0.44552624,0.61838364,0.71385108,0.77345838,0.81383140,0.84280033,0.86449822]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                ae_int_t n = 8;
+                double a;
+                double b;
+                double c;
+                double d;
+                lsfitreport rep;
+
+                //
+                // Test logisticfit4() on carefully designed data with a priori known answer.
+                //
+                logisticfit4(x, y, n, a, b, c, d, rep);
+                _TestResult = _TestResult && doc_test_real(a, -1.000, 0.01);
+                _TestResult = _TestResult && doc_test_real(b, 1.200, 0.01);
+                _TestResult = _TestResult && doc_test_real(c, 0.900, 0.01);
+                _TestResult = _TestResult && doc_test_real(d, 1.000, 0.01);
+
+                //
+                // Evaluate model at point x=0.5
+                //
+                double v;
+                v = logisticcalc4(0.5, a, b, c, d);
+                _TestResult = _TestResult && doc_test_real(v, -0.33874308, 0.001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_t_4pl");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST lsfit_t_5pl
+        //      5-parameter logistic fitting
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<8; _spoil_scenario++)
+        {
+            try
+            {
+                real_1d_array x = "[1,2,3,4,5,6,7,8]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.1949776139,0.5710060208,0.726002637,0.8060434158,0.8534547965,0.8842071579,0.9054773317,0.9209088299]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                ae_int_t n = 8;
+                double a;
+                double b;
+                double c;
+                double d;
+                double g;
+                lsfitreport rep;
+
+                //
+                // Test logisticfit5() on carefully designed data with a priori known answer.
+                //
+                logisticfit5(x, y, n, a, b, c, d, g, rep);
+                _TestResult = _TestResult && doc_test_real(a, -1.000, 0.01);
+                _TestResult = _TestResult && doc_test_real(b, 1.200, 0.01);
+                _TestResult = _TestResult && doc_test_real(c, 0.900, 0.01);
+                _TestResult = _TestResult && doc_test_real(d, 1.000, 0.01);
+                _TestResult = _TestResult && doc_test_real(g, 1.200, 0.01);
+
+                //
+                // Evaluate model at point x=0.5
+                //
+                double v;
+                v = logisticcalc5(0.5, a, b, c, d, g);
+                _TestResult = _TestResult && doc_test_real(v, -0.2354656824, 0.001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "lsfit_t_5pl");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST parametric_rdp
+        //      Parametric Ramer-Douglas-Peucker approximation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use RDP algorithm to approximate parametric 2D curve given by
+                // locations in t=0,1,2,3 (see below), which form piecewise linear
+                // trajectory through D-dimensional space (2-dimensional in our example).
+                // 
+                //     |
+                //     |
+                //     -     *     *     X2................X3
+                //     |                .
+                //     |               .
+                //     -     *     *  .  *     *     *     *
+                //     |             .
+                //     |            .
+                //     -     *     X1    *     *     *     *
+                //     |      .....
+                //     |  ....
+                //     X0----|-----|-----|-----|-----|-----|---
+                //
+                ae_int_t npoints = 4;
+                ae_int_t ndimensions = 2;
+                real_2d_array x = "[[0,0],[2,1],[3,3],[6,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(x);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(x);
+
+                //
+                // Approximation of parametric curve is performed by another parametric curve
+                // with lesser amount of points. It allows to work with "compressed"
+                // representation, which needs smaller amount of memory. Say, in our example
+                // (we allow points with error smaller than 0.8) approximation will have
+                // just two sequential sections connecting X0 with X2, and X2 with X3.
+                // 
+                //     |
+                //     |
+                //     -     *     *     X2................X3
+                //     |               . 
+                //     |             .  
+                //     -     *     .     *     *     *     *
+                //     |         .    
+                //     |       .     
+                //     -     .     X1    *     *     *     *
+                //     |   .       
+                //     | .    
+                //     X0----|-----|-----|-----|-----|-----|---
+                //
+                //
+                real_2d_array y;
+                integer_1d_array idxy;
+                ae_int_t nsections;
+                ae_int_t limitcnt = 0;
+                double limiteps = 0.8;
+                if( _spoil_scenario==5 )
+                    limiteps = fp_posinf;
+                if( _spoil_scenario==6 )
+                    limiteps = fp_neginf;
+                parametricrdpfixed(x, npoints, ndimensions, limitcnt, limiteps, y, idxy, nsections);
+                _TestResult = _TestResult && doc_test_int(nsections, 2);
+                _TestResult = _TestResult && doc_test_int_vector(idxy, "[0,2,3]");
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "parametric_rdp");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline2d_bilinear
+        //      Bilinear spline interpolation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<16; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use bilinear spline to interpolate f(x,y)=x^2+2*y^2 sampled 
+                // at (x,y) from [0.0, 0.5, 1.0] X [0.0, 1.0].
+                //
+                real_1d_array x = "[0.0, 0.5, 1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.0, 1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array f = "[0.00,0.25,1.00,2.00,2.25,3.00]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(f);
+                double vx = 0.25;
+                if( _spoil_scenario==12 )
+                    vx = fp_posinf;
+                if( _spoil_scenario==13 )
+                    vx = fp_neginf;
+                double vy = 0.50;
+                if( _spoil_scenario==14 )
+                    vy = fp_posinf;
+                if( _spoil_scenario==15 )
+                    vy = fp_neginf;
+                double v;
+                spline2dinterpolant s;
+
+                // build spline
+                spline2dbuildbilinearv(x, 3, y, 2, f, 1, s);
+
+                // calculate S(0.25,0.50)
+                v = spline2dcalc(s, vx, vy);
+                _TestResult = _TestResult && doc_test_real(v, 1.1250, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline2d_bilinear");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline2d_bicubic
+        //      Bilinear spline interpolation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<16; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use bilinear spline to interpolate f(x,y)=x^2+2*y^2 sampled 
+                // at (x,y) from [0.0, 0.5, 1.0] X [0.0, 1.0].
+                //
+                real_1d_array x = "[0.0, 0.5, 1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.0, 1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array f = "[0.00,0.25,1.00,2.00,2.25,3.00]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(f);
+                double vx = 0.25;
+                if( _spoil_scenario==12 )
+                    vx = fp_posinf;
+                if( _spoil_scenario==13 )
+                    vx = fp_neginf;
+                double vy = 0.50;
+                if( _spoil_scenario==14 )
+                    vy = fp_posinf;
+                if( _spoil_scenario==15 )
+                    vy = fp_neginf;
+                double v;
+                double dx;
+                double dy;
+                spline2dinterpolant s;
+
+                // build spline
+                spline2dbuildbicubicv(x, 3, y, 2, f, 1, s);
+
+                // calculate S(0.25,0.50)
+                v = spline2dcalc(s, vx, vy);
+                _TestResult = _TestResult && doc_test_real(v, 1.0625, 0.00005);
+
+                // calculate derivatives
+                spline2ddiff(s, vx, vy, v, dx, dy);
+                _TestResult = _TestResult && doc_test_real(v, 1.0625, 0.00005);
+                _TestResult = _TestResult && doc_test_real(dx, 0.5000, 0.00005);
+                _TestResult = _TestResult && doc_test_real(dy, 2.0000, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline2d_bicubic");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline2d_fit_blocklls
+        //      Fitting bicubic spline to irregular data
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use bicubic spline to reproduce f(x,y)=1/(1+x^2+2*y^2) sampled
+                // at irregular points (x,y) from [-1,+1]*[-1,+1]
+                //
+                // We have 5 such points, located approximately at corners of the area
+                // and its center -  but not exactly at the grid. Thus, we have to FIT
+                // the spline, i.e. to solve least squares problem
+                //
+                real_2d_array xy = "[[-0.987,-0.902,0.359],[0.948,-0.992,0.347],[-1.000,1.000,0.333],[1.000,0.973,0.339],[0.017,0.180,0.968]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_deleting_row(xy);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_deleting_col(xy);
+
+                //
+                // First step is to create spline2dbuilder object and set its properties:
+                // * d=1 means that we create vector-valued spline with 1 component
+                // * we specify dataset xy
+                // * we rely on automatic selection of interpolation area
+                // * we tell builder that we want to use 5x5 grid for an underlying spline
+                // * we choose least squares solver named BlockLLS and configure it by
+                //   telling that we want to apply zero nonlinearity penalty.
+                //
+                // NOTE: you can specify non-zero lambdav if you want to make your spline
+                //       more "rigid", i.e. to penalize nonlinearity.
+                //
+                // NOTE: ALGLIB has two solvers which fit bicubic splines to irregular data,
+                //       one of them is BlockLLS and another one is FastDDM. Former is
+                //       intended for moderately sized grids (up to 512x512 nodes, although
+                //       it may take up to few minutes); it is the most easy to use and
+                //       control spline fitting function in the library. Latter, FastDDM,
+                //       is intended for efficient solution of large-scale problems
+                //       (up to 100.000.000 nodes). Both solvers can be parallelized, but
+                //       FastDDM is much more efficient. See comments for more information.
+                //
+                spline2dbuilder builder;
+                ae_int_t d = 1;
+                double lambdav = 0.000;
+                spline2dbuildercreate(d, builder);
+                spline2dbuildersetpoints(builder, xy, 5);
+                spline2dbuildersetgrid(builder, 5, 5);
+                spline2dbuildersetalgoblocklls(builder, lambdav);
+
+                //
+                // Now we are ready to fit and evaluate our results
+                //
+                spline2dinterpolant s;
+                spline2dfitreport rep;
+                spline2dfit(builder, s, rep);
+
+                // evaluate results - function value at the grid is reproduced exactly
+                double v;
+                v = spline2dcalc(s, -1, 1);
+                _TestResult = _TestResult && doc_test_real(v, 0.333000, 0.005);
+
+                // check maximum error - it must be nearly zero
+                _TestResult = _TestResult && doc_test_real(rep.maxerror, 0.000, 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline2d_fit_blocklls");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline2d_unpack
+        //      Unpacking bilinear spline
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We build bilinear spline for f(x,y)=x+2*y+3*xy for (x,y) in [0,1].
+                // Then we demonstrate how to unpack it.
+                //
+                real_1d_array x = "[0.0, 1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.0, 1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array f = "[0.00,1.00,2.00,6.00]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(f);
+                real_2d_array c;
+                ae_int_t m;
+                ae_int_t n;
+                ae_int_t d;
+                spline2dinterpolant s;
+
+                // build spline
+                spline2dbuildbilinearv(x, 2, y, 2, f, 1, s);
+
+                // unpack and test
+                spline2dunpackv(s, m, n, d, c);
+                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0, 1, 0, 1, 0,2,0,0, 1,3,0,0, 0,0,0,0, 0,0,0,0, 1]]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline2d_unpack");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline2d_copytrans
+        //      Copy and transform
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<16; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We build bilinear spline for f(x,y)=x+2*y for (x,y) in [0,1].
+                // Then we apply several transformations to this spline.
+                //
+                real_1d_array x = "[0.0, 1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.0, 1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array f = "[0.00,1.00,2.00,3.00]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(f);
+                spline2dinterpolant s;
+                spline2dinterpolant snew;
+                double v;
+                spline2dbuildbilinearv(x, 2, y, 2, f, 1, s);
+
+                // copy spline, apply transformation x:=2*xnew, y:=4*ynew
+                // evaluate at (xnew,ynew) = (0.25,0.25) - should be same as (x,y)=(0.5,1.0)
+                spline2dcopy(s, snew);
+                spline2dlintransxy(snew, 2.0, 0.0, 4.0, 0.0);
+                v = spline2dcalc(snew, 0.25, 0.25);
+                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.00005);
+
+                // copy spline, apply transformation SNew:=2*S+3
+                spline2dcopy(s, snew);
+                spline2dlintransf(snew, 2.0, 3.0);
+                v = spline2dcalc(snew, 0.5, 1.0);
+                _TestResult = _TestResult && doc_test_real(v, 8.000, 0.00005);
+
+                //
+                // Same example, but for vector spline (f0,f1) = {x+2*y, 2*x+y}
+                //
+                real_1d_array f2 = "[0.00,0.00, 1.00,2.00, 2.00,1.00, 3.00,3.00]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(f2);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_posinf(f2);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_neginf(f2);
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_deleting_element(f2);
+                real_1d_array vr;
+                spline2dbuildbilinearv(x, 2, y, 2, f2, 2, s);
+
+                // copy spline, apply transformation x:=2*xnew, y:=4*ynew
+                spline2dcopy(s, snew);
+                spline2dlintransxy(snew, 2.0, 0.0, 4.0, 0.0);
+                spline2dcalcv(snew, 0.25, 0.25, vr);
+                _TestResult = _TestResult && doc_test_real_vector(vr, "[2.500,2.000]", 0.00005);
+
+                // copy spline, apply transformation SNew:=2*S+3
+                spline2dcopy(s, snew);
+                spline2dlintransf(snew, 2.0, 3.0);
+                spline2dcalcv(snew, 0.5, 1.0, vr);
+                _TestResult = _TestResult && doc_test_real_vector(vr, "[8.000,7.000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline2d_copytrans");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline2d_vector
+        //      Copy and transform
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We build bilinear vector-valued spline (f0,f1) = {x+2*y, 2*x+y}
+                // Spline is built using function values at 2x2 grid: (x,y)=[0,1]*[0,1]
+                // Then we perform evaluation at (x,y)=(0.1,0.3)
+                //
+                real_1d_array x = "[0.0, 1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.0, 1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array f = "[0.00,0.00, 1.00,2.00, 2.00,1.00, 3.00,3.00]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(f);
+                spline2dinterpolant s;
+                real_1d_array vr;
+                spline2dbuildbilinearv(x, 2, y, 2, f, 2, s);
+                spline2dcalcv(s, 0.1, 0.3, vr);
+                _TestResult = _TestResult && doc_test_real_vector(vr, "[0.700,0.500]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline2d_vector");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline3d_trilinear
+        //      Trilinear spline interpolation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<22; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use trilinear spline to interpolate f(x,y,z)=x+xy+z sampled 
+                // at (x,y,z) from [0.0, 1.0] X [0.0, 1.0] X [0.0, 1.0].
+                //
+                // We store x, y and z-values at local arrays with same names.
+                // Function values are stored in the array F as follows:
+                //     f[0]     (x,y,z) = (0,0,0)
+                //     f[1]     (x,y,z) = (1,0,0)
+                //     f[2]     (x,y,z) = (0,1,0)
+                //     f[3]     (x,y,z) = (1,1,0)
+                //     f[4]     (x,y,z) = (0,0,1)
+                //     f[5]     (x,y,z) = (1,0,1)
+                //     f[6]     (x,y,z) = (0,1,1)
+                //     f[7]     (x,y,z) = (1,1,1)
+                //
+                real_1d_array x = "[0.0, 1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.0, 1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array z = "[0.0, 1.0]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(z);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(z);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(z);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(z);
+                real_1d_array f = "[0,1,0,2,1,2,1,3]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_deleting_element(f);
+                double vx = 0.50;
+                if( _spoil_scenario==16 )
+                    vx = fp_posinf;
+                if( _spoil_scenario==17 )
+                    vx = fp_neginf;
+                double vy = 0.50;
+                if( _spoil_scenario==18 )
+                    vy = fp_posinf;
+                if( _spoil_scenario==19 )
+                    vy = fp_neginf;
+                double vz = 0.50;
+                if( _spoil_scenario==20 )
+                    vz = fp_posinf;
+                if( _spoil_scenario==21 )
+                    vz = fp_neginf;
+                double v;
+                spline3dinterpolant s;
+
+                // build spline
+                spline3dbuildtrilinearv(x, 2, y, 2, z, 2, f, 1, s);
+
+                // calculate S(0.5,0.5,0.5)
+                v = spline3dcalc(s, vx, vy, vz);
+                _TestResult = _TestResult && doc_test_real(v, 1.2500, 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline3d_trilinear");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST spline3d_vector
+        //      Vector-valued trilinear spline interpolation
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<22; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We use trilinear vector-valued spline to interpolate {f0,f1}={x+xy+z,x+xy+yz+z}
+                // sampled at (x,y,z) from [0.0, 1.0] X [0.0, 1.0] X [0.0, 1.0].
+                //
+                // We store x, y and z-values at local arrays with same names.
+                // Function values are stored in the array F as follows:
+                //     f[0]     f0, (x,y,z) = (0,0,0)
+                //     f[1]     f1, (x,y,z) = (0,0,0)
+                //     f[2]     f0, (x,y,z) = (1,0,0)
+                //     f[3]     f1, (x,y,z) = (1,0,0)
+                //     f[4]     f0, (x,y,z) = (0,1,0)
+                //     f[5]     f1, (x,y,z) = (0,1,0)
+                //     f[6]     f0, (x,y,z) = (1,1,0)
+                //     f[7]     f1, (x,y,z) = (1,1,0)
+                //     f[8]     f0, (x,y,z) = (0,0,1)
+                //     f[9]     f1, (x,y,z) = (0,0,1)
+                //     f[10]    f0, (x,y,z) = (1,0,1)
+                //     f[11]    f1, (x,y,z) = (1,0,1)
+                //     f[12]    f0, (x,y,z) = (0,1,1)
+                //     f[13]    f1, (x,y,z) = (0,1,1)
+                //     f[14]    f0, (x,y,z) = (1,1,1)
+                //     f[15]    f1, (x,y,z) = (1,1,1)
+                //
+                real_1d_array x = "[0.0, 1.0]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                if( _spoil_scenario==3 )
+                    spoil_vector_by_deleting_element(x);
+                real_1d_array y = "[0.0, 1.0]";
+                if( _spoil_scenario==4 )
+                    spoil_vector_by_nan(y);
+                if( _spoil_scenario==5 )
+                    spoil_vector_by_posinf(y);
+                if( _spoil_scenario==6 )
+                    spoil_vector_by_neginf(y);
+                if( _spoil_scenario==7 )
+                    spoil_vector_by_deleting_element(y);
+                real_1d_array z = "[0.0, 1.0]";
+                if( _spoil_scenario==8 )
+                    spoil_vector_by_nan(z);
+                if( _spoil_scenario==9 )
+                    spoil_vector_by_posinf(z);
+                if( _spoil_scenario==10 )
+                    spoil_vector_by_neginf(z);
+                if( _spoil_scenario==11 )
+                    spoil_vector_by_deleting_element(z);
+                real_1d_array f = "[0,0, 1,1, 0,0, 2,2, 1,1, 2,2, 1,2, 3,4]";
+                if( _spoil_scenario==12 )
+                    spoil_vector_by_nan(f);
+                if( _spoil_scenario==13 )
+                    spoil_vector_by_posinf(f);
+                if( _spoil_scenario==14 )
+                    spoil_vector_by_neginf(f);
+                if( _spoil_scenario==15 )
+                    spoil_vector_by_deleting_element(f);
+                double vx = 0.50;
+                if( _spoil_scenario==16 )
+                    vx = fp_posinf;
+                if( _spoil_scenario==17 )
+                    vx = fp_neginf;
+                double vy = 0.50;
+                if( _spoil_scenario==18 )
+                    vy = fp_posinf;
+                if( _spoil_scenario==19 )
+                    vy = fp_neginf;
+                double vz = 0.50;
+                if( _spoil_scenario==20 )
+                    vz = fp_posinf;
+                if( _spoil_scenario==21 )
+                    vz = fp_neginf;
+                spline3dinterpolant s;
+
+                // build spline
+                spline3dbuildtrilinearv(x, 2, y, 2, z, 2, f, 2, s);
+
+                // calculate S(0.5,0.5,0.5) - we have vector of values instead of single value
+                real_1d_array v;
+                spline3dcalcv(s, vx, vy, vz, v);
+                _TestResult = _TestResult && doc_test_real_vector(v, "[1.2500,1.5000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "spline3d_vector");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST rbf_d_hrbf
+        //      Simple model built with HRBF algorithm
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example illustrates basic concepts of the RBF models: creation, modification,
+                // evaluation.
+                // 
+                // Suppose that we have set of 2-dimensional points with associated
+                // scalar function values, and we want to build a RBF model using
+                // our data.
+                // 
+                // NOTE: we can work with 3D models too :)
+                // 
+                // Typical sequence of steps is given below:
+                // 1. we create RBF model object
+                // 2. we attach our dataset to the RBF model and tune algorithm settings
+                // 3. we rebuild RBF model using QNN algorithm on new data
+                // 4. we use RBF model (evaluate, serialize, etc.)
+                //
+                double v;
+
+                //
+                // Step 1: RBF model creation.
+                //
+                // We have to specify dimensionality of the space (2 or 3) and
+                // dimensionality of the function (scalar or vector).
+                //
+                // New model is empty - it can be evaluated,
+                // but we just get zero value at any point.
+                //
+                rbfmodel model;
+                rbfcreate(2, 1, model);
+
+                v = rbfcalc2(model, 0.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
+
+                //
+                // Step 2: we add dataset.
+                //
+                // XY contains two points - x0=(-1,0) and x1=(+1,0) -
+                // and two function values f(x0)=2, f(x1)=3.
+                //
+                // We added points, but model was not rebuild yet.
+                // If we call rbfcalc2(), we still will get 0.0 as result.
+                //
+                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                rbfsetpoints(model, xy);
+
+                v = rbfcalc2(model, 0.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
+
+                //
+                // Step 3: rebuild model
+                //
+                // After we've configured model, we should rebuild it -
+                // it will change coefficients stored internally in the
+                // rbfmodel structure.
+                //
+                // We use hierarchical RBF algorithm with following parameters:
+                // * RBase - set to 1.0
+                // * NLayers - three layers are used (although such simple problem
+                //   does not need more than 1 layer)
+                // * LambdaReg - is set to zero value, no smoothing is required
+                //
+                rbfreport rep;
+                rbfsetalgohierarchical(model, 1.0, 3, 0.0);
+                rbfbuildmodel(model, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+
+                //
+                // Step 4: model was built
+                //
+                // After call of rbfbuildmodel(), rbfcalc2() will return
+                // value of the new model.
+                //
+                v = rbfcalc2(model, 0.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "rbf_d_hrbf");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST rbf_d_vector
+        //      Working with vector functions
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Suppose that we have set of 2-dimensional points with associated VECTOR
+                // function values, and we want to build a RBF model using our data.
+                // 
+                // Typical sequence of steps is given below:
+                // 1. we create RBF model object
+                // 2. we attach our dataset to the RBF model and tune algorithm settings
+                // 3. we rebuild RBF model using new data
+                // 4. we use RBF model (evaluate, serialize, etc.)
+                //
+                real_1d_array x;
+                real_1d_array y;
+
+                //
+                // Step 1: RBF model creation.
+                //
+                // We have to specify dimensionality of the space (equal to 2) and
+                // dimensionality of the function (2-dimensional vector function).
+                //
+                // New model is empty - it can be evaluated,
+                // but we just get zero value at any point.
+                //
+                rbfmodel model;
+                rbfcreate(2, 2, model);
+
+                x = "[+1,+1]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                rbfcalc(model, x, y);
+                _TestResult = _TestResult && doc_test_real_vector(y, "[0.000,0.000]", 0.005);
+
+                //
+                // Step 2: we add dataset.
+                //
+                // XY arrays containt four points:
+                // * (x0,y0) = (+1,+1), f(x0,y0)=(0,-1)
+                // * (x1,y1) = (+1,-1), f(x1,y1)=(-1,0)
+                // * (x2,y2) = (-1,-1), f(x2,y2)=(0,+1)
+                // * (x3,y3) = (-1,+1), f(x3,y3)=(+1,0)
+                //
+                real_2d_array xy = "[[+1,+1,0,-1],[+1,-1,-1,0],[-1,-1,0,+1],[-1,+1,+1,0]]";
+                if( _spoil_scenario==3 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==4 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==5 )
+                    spoil_matrix_by_neginf(xy);
+                rbfsetpoints(model, xy);
+
+                // We added points, but model was not rebuild yet.
+                // If we call rbfcalc(), we still will get 0.0 as result.
+                rbfcalc(model, x, y);
+                _TestResult = _TestResult && doc_test_real_vector(y, "[0.000,0.000]", 0.005);
+
+                //
+                // Step 3: rebuild model
+                //
+                // We use hierarchical RBF algorithm with following parameters:
+                // * RBase - set to 1.0
+                // * NLayers - three layers are used (although such simple problem
+                //   does not need more than 1 layer)
+                // * LambdaReg - is set to zero value, no smoothing is required
+                //
+                // After we've configured model, we should rebuild it -
+                // it will change coefficients stored internally in the
+                // rbfmodel structure.
+                //
+                rbfreport rep;
+                rbfsetalgohierarchical(model, 1.0, 3, 0.0);
+                rbfbuildmodel(model, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+
+                //
+                // Step 4: model was built
+                //
+                // After call of rbfbuildmodel(), rbfcalc() will return
+                // value of the new model.
+                //
+                rbfcalc(model, x, y);
+                _TestResult = _TestResult && doc_test_real_vector(y, "[0.000,-1.000]", 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "rbf_d_vector");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST rbf_d_polterm
+        //      RBF models - working with polynomial term
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example show how to work with polynomial term
+                // 
+                // Suppose that we have set of 2-dimensional points with associated
+                // scalar function values, and we want to build a RBF model using
+                // our data.
+                //
+                // We use hierarchical RBF algorithm with following parameters:
+                // * RBase - set to 1.0
+                // * NLayers - three layers are used (although such simple problem
+                //   does not need more than 1 layer)
+                // * LambdaReg - is set to zero value, no smoothing is required
+                //
+                double v;
+                rbfmodel model;
+                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                rbfreport rep;
+
+                rbfcreate(2, 1, model);
+                rbfsetpoints(model, xy);
+                rbfsetalgohierarchical(model, 1.0, 3, 0.0);
+
+                //
+                // By default, RBF model uses linear term. It means that model
+                // looks like
+                //     f(x,y) = SUM(RBF[i]) + a*x + b*y + c
+                // where RBF[i] is I-th radial basis function and a*x+by+c is a
+                // linear term. Having linear terms in a model gives us:
+                // (1) improved extrapolation properties
+                // (2) linearity of the model when data can be perfectly fitted
+                //     by the linear function
+                // (3) linear asymptotic behavior
+                //
+                // Our simple dataset can be modelled by the linear function
+                //     f(x,y) = 0.5*x + 2.5
+                // and rbfbuildmodel() with default settings should preserve this
+                // linearity.
+                //
+                ae_int_t nx;
+                ae_int_t ny;
+                ae_int_t nc;
+                ae_int_t modelversion;
+                real_2d_array xwr;
+                real_2d_array c;
+                rbfbuildmodel(model, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                rbfunpack(model, nx, ny, xwr, nc, c, modelversion);
+                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0.500,0.000,2.500]]", 0.005);
+
+                // asymptotic behavior of our function is linear
+                v = rbfcalc2(model, 1000.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 502.50, 0.05);
+
+                //
+                // Instead of linear term we can use constant term. In this case
+                // we will get model which has form
+                //     f(x,y) = SUM(RBF[i]) + c
+                // where RBF[i] is I-th radial basis function and c is a constant,
+                // which is equal to the average function value on the dataset.
+                //
+                // Because we've already attached dataset to the model the only
+                // thing we have to do is to call rbfsetconstterm() and then
+                // rebuild model with rbfbuildmodel().
+                //
+                rbfsetconstterm(model);
+                rbfbuildmodel(model, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                rbfunpack(model, nx, ny, xwr, nc, c, modelversion);
+                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0.000,0.000,2.500]]", 0.005);
+
+                // asymptotic behavior of our function is constant
+                v = rbfcalc2(model, 1000.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
+
+                //
+                // Finally, we can use zero term. Just plain RBF without polynomial
+                // part:
+                //     f(x,y) = SUM(RBF[i])
+                // where RBF[i] is I-th radial basis function.
+                //
+                rbfsetzeroterm(model);
+                rbfbuildmodel(model, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+                rbfunpack(model, nx, ny, xwr, nc, c, modelversion);
+                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0.000,0.000,0.000]]", 0.005);
+
+                // asymptotic behavior of our function is just zero constant
+                v = rbfcalc2(model, 1000.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "rbf_d_polterm");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST rbf_d_serialize
+        //      Serialization/unserialization
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // This example show how to serialize and unserialize RBF model
+                // 
+                // Suppose that we have set of 2-dimensional points with associated
+                // scalar function values, and we want to build a RBF model using
+                // our data. Then we want to serialize it to string and to unserialize
+                // from string, loading to another instance of RBF model.
+                //
+                // Here we assume that you already know how to create RBF models.
+                //
+                std::string s;
+                double v;
+                rbfmodel model0;
+                rbfmodel model1;
+                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                rbfreport rep;
+
+                // model initialization
+                rbfcreate(2, 1, model0);
+                rbfsetpoints(model0, xy);
+                rbfsetalgohierarchical(model0, 1.0, 3, 0.0);
+                rbfbuildmodel(model0, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+
+                //
+                // Serialization - it looks easy,
+                // but you should carefully read next section.
+                //
+                alglib::rbfserialize(model0, s);
+                alglib::rbfunserialize(s, model1);
+
+                // both models return same value
+                v = rbfcalc2(model0, 0.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
+                v = rbfcalc2(model1, 0.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
+
+                //
+                // Previous section shows that model state is saved/restored during
+                // serialization. However, some properties are NOT serialized.
+                //
+                // Serialization saves/restores RBF model, but it does NOT saves/restores
+                // settings which were used to build current model. In particular, dataset
+                // which was used to build model, is not preserved.
+                //
+                // What does it mean in for us?
+                //
+                // Do you remember this sequence: rbfcreate-rbfsetpoints-rbfbuildmodel?
+                // First step creates model, second step adds dataset and tunes model
+                // settings, third step builds model using current dataset and model
+                // construction settings.
+                //
+                // If you call rbfbuildmodel() without calling rbfsetpoints() first, you
+                // will get empty (zero) RBF model. In our example, model0 contains
+                // dataset which was added by rbfsetpoints() call. However, model1 does
+                // NOT contain dataset - because dataset is NOT serialized.
+                //
+                // This, if we call rbfbuildmodel(model0,rep), we will get same model,
+                // which returns 2.5 at (x,y)=(0,0). However, after same call model1 will
+                // return zero - because it contains RBF model (coefficients), but does NOT
+                // contain dataset which was used to build this model.
+                //
+                // Basically, it means that:
+                // * serialization of the RBF model preserves anything related to the model
+                //   EVALUATION
+                // * but it does NOT creates perfect copy of the original object.
+                //
+                rbfbuildmodel(model0, rep);
+                v = rbfcalc2(model0, 0.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
+
+                rbfbuildmodel(model1, rep);
+                v = rbfcalc2(model1, 0.0, 0.0);
+                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "rbf_d_serialize");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST fft_complex_d1
+        //      Complex FFT: simple example
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // first we demonstrate forward FFT:
+                // [1i,1i,1i,1i] is converted to [4i, 0, 0, 0]
+                //
+                complex_1d_array z = "[1i,1i,1i,1i]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(z);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(z);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(z);
+                fftc1d(z);
+                _TestResult = _TestResult && doc_test_complex_vector(z, "[4i,0,0,0]", 0.0001);
+
+                //
+                // now we convert [4i, 0, 0, 0] back to [1i,1i,1i,1i]
+                // with backward FFT
+                //
+                fftc1dinv(z);
+                _TestResult = _TestResult && doc_test_complex_vector(z, "[1i,1i,1i,1i]", 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "fft_complex_d1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST fft_complex_d2
+        //      Complex FFT: advanced example
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // first we demonstrate forward FFT:
+                // [0,1,0,1i] is converted to [1+1i, -1-1i, -1-1i, 1+1i]
+                //
+                complex_1d_array z = "[0,1,0,1i]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(z);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(z);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(z);
+                fftc1d(z);
+                _TestResult = _TestResult && doc_test_complex_vector(z, "[1+1i, -1-1i, -1-1i, 1+1i]", 0.0001);
+
+                //
+                // now we convert result back with backward FFT
+                //
+                fftc1dinv(z);
+                _TestResult = _TestResult && doc_test_complex_vector(z, "[0,1,0,1i]", 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "fft_complex_d2");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST fft_real_d1
+        //      Real FFT: simple example
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // first we demonstrate forward FFT:
+                // [1,1,1,1] is converted to [4, 0, 0, 0]
+                //
+                real_1d_array x = "[1,1,1,1]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                complex_1d_array f;
+                real_1d_array x2;
+                fftr1d(x, f);
+                _TestResult = _TestResult && doc_test_complex_vector(f, "[4,0,0,0]", 0.0001);
+
+                //
+                // now we convert [4, 0, 0, 0] back to [1,1,1,1]
+                // with backward FFT
+                //
+                fftr1dinv(f, x2);
+                _TestResult = _TestResult && doc_test_real_vector(x2, "[1,1,1,1]", 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "fft_real_d1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST fft_real_d2
+        //      Real FFT: advanced example
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // first we demonstrate forward FFT:
+                // [1,2,3,4] is converted to [10, -2+2i, -2, -2-2i]
+                //
+                // note that output array is self-adjoint:
+                // * f[0] = conj(f[0])
+                // * f[1] = conj(f[3])
+                // * f[2] = conj(f[2])
+                //
+                real_1d_array x = "[1,2,3,4]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+                complex_1d_array f;
+                real_1d_array x2;
+                fftr1d(x, f);
+                _TestResult = _TestResult && doc_test_complex_vector(f, "[10, -2+2i, -2, -2-2i]", 0.0001);
+
+                //
+                // now we convert [10, -2+2i, -2, -2-2i] back to [1,2,3,4]
+                //
+                fftr1dinv(f, x2);
+                _TestResult = _TestResult && doc_test_real_vector(x2, "[1,2,3,4]", 0.0001);
+
+                //
+                // remember that F is self-adjoint? It means that we can pass just half
+                // (slightly larger than half) of F to inverse real FFT and still get our result.
+                //
+                // I.e. instead [10, -2+2i, -2, -2-2i] we pass just [10, -2+2i, -2] and everything works!
+                //
+                // NOTE: in this case we should explicitly pass array length (which is 4) to ALGLIB;
+                // if not, it will automatically use array length to determine FFT size and
+                // will erroneously make half-length FFT.
+                //
+                f = "[10, -2+2i, -2]";
+                fftr1dinv(f, 4, x2);
+                _TestResult = _TestResult && doc_test_real_vector(x2, "[1,2,3,4]", 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "fft_real_d2");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST fft_complex_e1
+        //      error detection in backward FFT
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                complex_1d_array z = "[0,2,0,-2]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(z);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(z);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(z);
+                fftc1dinv(z);
+                _TestResult = _TestResult && doc_test_complex_vector(z, "[0,1i,0,-1i]", 0.0001);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "fft_complex_e1");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST clst_ahc
+        //      Simple hierarchical clusterization with Euclidean distance function
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // The very simple clusterization example
+                //
+                // We have a set of points in 2D space:
+                //     (P0,P1,P2,P3,P4) = ((1,1),(1,2),(4,1),(2,3),(4,1.5))
+                //
+                //  |
+                //  |     P3
+                //  |
+                //  | P1          
+                //  |             P4
+                //  | P0          P2
+                //  |-------------------------
+                //
+                // We want to perform Agglomerative Hierarchic Clusterization (AHC),
+                // using complete linkage (default algorithm) and Euclidean distance
+                // (default metric).
+                //
+                // In order to do that, we:
+                // * create clusterizer with clusterizercreate()
+                // * set points XY and metric (2=Euclidean) with clusterizersetpoints()
+                // * run AHC algorithm with clusterizerrunahc
+                //
+                // You may see that clusterization itself is a minor part of the example,
+                // most of which is dominated by comments :)
+                //
+                clusterizerstate s;
+                ahcreport rep;
+                real_2d_array xy = "[[1,1],[1,2],[4,1],[2,3],[4,1.5]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+
+                clusterizercreate(s);
+                clusterizersetpoints(s, xy, 2);
+                clusterizerrunahc(s, rep);
+
+                //
+                // Now we've built our clusterization tree. Rep.z contains information which
+                // is required to build dendrogram. I-th row of rep.z represents one merge
+                // operation, with first cluster to merge having index rep.z[I,0] and second
+                // one having index rep.z[I,1]. Merge result has index NPoints+I.
+                //
+                // Clusters with indexes less than NPoints are single-point initial clusters,
+                // while ones with indexes from NPoints to 2*NPoints-2 are multi-point
+                // clusters created during merges.
+                //
+                // In our example, Z=[[2,4], [0,1], [3,6], [5,7]]
+                //
+                // It means that:
+                // * first, we merge C2=(P2) and C4=(P4),    and create C5=(P2,P4)
+                // * then, we merge  C2=(P0) and C1=(P1),    and create C6=(P0,P1)
+                // * then, we merge  C3=(P3) and C6=(P0,P1), and create C7=(P0,P1,P3)
+                // * finally, we merge C5 and C7 and create C8=(P0,P1,P2,P3,P4)
+                //
+                // Thus, we have following dendrogram:
+                //  
+                //      ------8-----
+                //      |          |
+                //      |      ----7----
+                //      |      |       |
+                //   ---5---   |    ---6---
+                //   |     |   |    |     |
+                //   P2   P4   P3   P0   P1
+                //
+                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[2,4],[0,1],[3,6],[5,7]]");
+
+                //
+                // We've built dendrogram above by reordering our dataset.
+                //
+                // Without such reordering it would be impossible to build dendrogram without
+                // intersections. Luckily, ahcreport structure contains two additional fields
+                // which help to build dendrogram from your data:
+                // * rep.p, which contains permutation applied to dataset
+                // * rep.pm, which contains another representation of merges 
+                //
+                // In our example we have:
+                // * P=[3,4,0,2,1]
+                // * PZ=[[0,0,1,1,0,0],[3,3,4,4,0,0],[2,2,3,4,0,1],[0,1,2,4,1,2]]
+                //
+                // Permutation array P tells us that P0 should be moved to position 3,
+                // P1 moved to position 4, P2 moved to position 0 and so on:
+                //
+                //   (P0 P1 P2 P3 P4) => (P2 P4 P3 P0 P1)
+                //
+                // Merges array PZ tells us how to perform merges on the sorted dataset.
+                // One row of PZ corresponds to one merge operations, with first pair of
+                // elements denoting first of the clusters to merge (start index, end
+                // index) and next pair of elements denoting second of the clusters to
+                // merge. Clusters being merged are always adjacent, with first one on
+                // the left and second one on the right.
+                //
+                // For example, first row of PZ tells us that clusters [0,0] and [1,1] are
+                // merged (single-point clusters, with first one containing P2 and second
+                // one containing P4). Third row of PZ tells us that we merge one single-
+                // point cluster [2,2] with one two-point cluster [3,4].
+                //
+                // There are two more elements in each row of PZ. These are the helper
+                // elements, which denote HEIGHT (not size) of left and right subdendrograms.
+                // For example, according to PZ, first two merges are performed on clusterization
+                // trees of height 0, while next two merges are performed on 0-1 and 1-2
+                // pairs of trees correspondingly.
+                //
+                _TestResult = _TestResult && doc_test_int_vector(rep.p, "[3,4,0,2,1]");
+                _TestResult = _TestResult && doc_test_int_matrix(rep.pm, "[[0,0,1,1,0,0],[3,3,4,4,0,0],[2,2,3,4,0,1],[0,1,2,4,1,2]]");
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "clst_ahc");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST clst_kmeans
+        //      Simple k-means clusterization
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // The very simple clusterization example
+                //
+                // We have a set of points in 2D space:
+                //     (P0,P1,P2,P3,P4) = ((1,1),(1,2),(4,1),(2,3),(4,1.5))
+                //
+                //  |
+                //  |     P3
+                //  |
+                //  | P1          
+                //  |             P4
+                //  | P0          P2
+                //  |-------------------------
+                //
+                // We want to perform k-means++ clustering with K=2.
+                //
+                // In order to do that, we:
+                // * create clusterizer with clusterizercreate()
+                // * set points XY and metric (must be Euclidean, distype=2) with clusterizersetpoints()
+                // * (optional) set number of restarts from random positions to 5
+                // * run k-means algorithm with clusterizerrunkmeans()
+                //
+                // You may see that clusterization itself is a minor part of the example,
+                // most of which is dominated by comments :)
+                //
+                clusterizerstate s;
+                kmeansreport rep;
+                real_2d_array xy = "[[1,1],[1,2],[4,1],[2,3],[4,1.5]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+
+                clusterizercreate(s);
+                clusterizersetpoints(s, xy, 2);
+                clusterizersetkmeanslimits(s, 5, 0);
+                clusterizerrunkmeans(s, 2, rep);
+
+                //
+                // We've performed clusterization, and it succeeded (completion code is +1).
+                //
+                // Now first center is stored in the first row of rep.c, second one is stored
+                // in the second row. rep.cidx can be used to determine which center is
+                // closest to some specific point of the dataset.
+                //
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
+
+                // We called clusterizersetpoints() with disttype=2 because k-means++
+                // algorithm does NOT support metrics other than Euclidean. But what if we
+                // try to use some other metric?
+                //
+                // We change metric type by calling clusterizersetpoints() one more time,
+                // and try to run k-means algo again. It fails.
+                //
+                clusterizersetpoints(s, xy, 0);
+                clusterizerrunkmeans(s, 2, rep);
+                _TestResult = _TestResult && doc_test_int(rep.terminationtype, -5);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "clst_kmeans");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST clst_linkage
+        //      Clusterization with different linkage types
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We have a set of points in 1D space:
+                //     (P0,P1,P2,P3,P4) = (1, 3, 10, 16, 20)
+                //
+                // We want to perform Agglomerative Hierarchic Clusterization (AHC),
+                // using either complete or single linkage and Euclidean distance
+                // (default metric).
+                //
+                // First two steps merge P0/P1 and P3/P4 independently of the linkage type.
+                // However, third step depends on linkage type being used:
+                // * in case of complete linkage P2=10 is merged with [P0,P1]
+                // * in case of single linkage P2=10 is merged with [P3,P4]
+                //
+                clusterizerstate s;
+                ahcreport rep;
+                real_2d_array xy = "[[1],[3],[10],[16],[20]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                integer_1d_array cidx;
+                integer_1d_array cz;
+
+                clusterizercreate(s);
+                clusterizersetpoints(s, xy, 2);
+
+                // use complete linkage, reduce set down to 2 clusters.
+                // print clusterization with clusterizergetkclusters(2).
+                // P2 must belong to [P0,P1]
+                clusterizersetahcalgo(s, 0);
+                clusterizerrunahc(s, rep);
+                clusterizergetkclusters(rep, 2, cidx, cz);
+                _TestResult = _TestResult && doc_test_int_vector(cidx, "[1,1,1,0,0]");
+
+                // use single linkage, reduce set down to 2 clusters.
+                // print clusterization with clusterizergetkclusters(2).
+                // P2 must belong to [P2,P3]
+                clusterizersetahcalgo(s, 1);
+                clusterizerrunahc(s, rep);
+                clusterizergetkclusters(rep, 2, cidx, cz);
+                _TestResult = _TestResult && doc_test_int_vector(cidx, "[0,0,1,1,1]");
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "clst_linkage");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST clst_distance
+        //      Clusterization with different metric types
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We have three points in 4D space:
+                //     (P0,P1,P2) = ((1, 2, 1, 2), (6, 7, 6, 7), (7, 6, 7, 6))
+                //
+                // We want to try clustering them with different distance functions.
+                // Distance function is chosen when we add dataset to the clusterizer.
+                // We can choose several distance types - Euclidean, city block, Chebyshev,
+                // several correlation measures or user-supplied distance matrix.
+                //
+                // Here we'll try three distances: Euclidean, Pearson correlation,
+                // user-supplied distance matrix. Different distance functions lead
+                // to different choices being made by algorithm during clustering.
+                //
+                clusterizerstate s;
+                ahcreport rep;
+                ae_int_t disttype;
+                real_2d_array xy = "[[1, 2, 1, 2], [6, 7, 6, 7], [7, 6, 7, 6]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                clusterizercreate(s);
+
+                // With Euclidean distance function (disttype=2) two closest points
+                // are P1 and P2, thus:
+                // * first, we merge P1 and P2 to form C3=[P1,P2]
+                // * second, we merge P0 and C3 to form C4=[P0,P1,P2]
+                disttype = 2;
+                clusterizersetpoints(s, xy, disttype);
+                clusterizerrunahc(s, rep);
+                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[1,2],[0,3]]");
+
+                // With Pearson correlation distance function (disttype=10) situation
+                // is different - distance between P0 and P1 is zero, thus:
+                // * first, we merge P0 and P1 to form C3=[P0,P1]
+                // * second, we merge P2 and C3 to form C4=[P0,P1,P2]
+                disttype = 10;
+                clusterizersetpoints(s, xy, disttype);
+                clusterizerrunahc(s, rep);
+                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[0,1],[2,3]]");
+
+                // Finally, we try clustering with user-supplied distance matrix:
+                //     [ 0 3 1 ]
+                // P = [ 3 0 3 ], where P[i,j] = dist(Pi,Pj)
+                //     [ 1 3 0 ]
+                //
+                // * first, we merge P0 and P2 to form C3=[P0,P2]
+                // * second, we merge P1 and C3 to form C4=[P0,P1,P2]
+                real_2d_array d = "[[0,3,1],[3,0,3],[1,3,0]]";
+                clusterizersetdistances(s, d, true);
+                clusterizerrunahc(s, rep);
+                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[0,2],[1,3]]");
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "clst_distance");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST clst_kclusters
+        //      Obtaining K top clusters from clusterization tree
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // We have a set of points in 2D space:
+                //     (P0,P1,P2,P3,P4) = ((1,1),(1,2),(4,1),(2,3),(4,1.5))
+                //
+                //  |
+                //  |     P3
+                //  |
+                //  | P1          
+                //  |             P4
+                //  | P0          P2
+                //  |-------------------------
+                //
+                // We perform Agglomerative Hierarchic Clusterization (AHC) and we want
+                // to get top K clusters from clusterization tree for different K.
+                //
+                clusterizerstate s;
+                ahcreport rep;
+                real_2d_array xy = "[[1,1],[1,2],[4,1],[2,3],[4,1.5]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+                integer_1d_array cidx;
+                integer_1d_array cz;
+
+                clusterizercreate(s);
+                clusterizersetpoints(s, xy, 2);
+                clusterizerrunahc(s, rep);
+
+                // with K=5, every points is assigned to its own cluster:
+                // C0=P0, C1=P1 and so on...
+                clusterizergetkclusters(rep, 5, cidx, cz);
+                _TestResult = _TestResult && doc_test_int_vector(cidx, "[0,1,2,3,4]");
+
+                // with K=1 we have one large cluster C0=[P0,P1,P2,P3,P4,P5]
+                clusterizergetkclusters(rep, 1, cidx, cz);
+                _TestResult = _TestResult && doc_test_int_vector(cidx, "[0,0,0,0,0]");
+
+                // with K=3 we have three clusters C0=[P3], C1=[P2,P4], C2=[P0,P1]
+                clusterizergetkclusters(rep, 3, cidx, cz);
+                _TestResult = _TestResult && doc_test_int_vector(cidx, "[2,2,1,0,1]");
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "clst_kclusters");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST randomforest_cls
+        //      Simple classification with random forests
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // The very simple classification example: classify points (x,y) in 2D space
+                // as ones with x>=0 and ones with x<0 (y is ignored, but our classifier
+                // has to find out it).
+                //
+                // First, we have to create decision forest builder object, load dataset and
+                // specify training settings. Our dataset is specified as matrix, which has
+                // following format:
+                //
+                //     x0 y0 class0
+                //     x1 y1 class1
+                //     x2 y2 class2
+                //     ....
+                //
+                // Here xi and yi can be any values (and in fact you can have any number of
+                // independent variables), and classi MUST be integer number in [0,NClasses)
+                // range. In our example we denote points with x>=0 as class #0, and
+                // ones with negative xi as class #1.
+                //
+                // NOTE: if you want to solve regression problem, specify NClasses=1. In
+                //       this case last column of xy can be any numeric value.
+                //
+                // For the sake of simplicity, our example includes only 4-point dataset.
+                // However, random forests are able to cope with extremely large datasets
+                // having millions of examples.
+                //
+                decisionforestbuilder builder;
+                ae_int_t nvars = 2;
+                ae_int_t nclasses = 2;
+                ae_int_t npoints = 4;
+                real_2d_array xy = "[[1,1,0],[1,-1,0],[-1,1,1],[-1,-1,1]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+
+                dfbuildercreate(builder);
+                dfbuildersetdataset(builder, xy, npoints, nvars, nclasses);
+
+                // in our example we train decision forest using full sample - it allows us
+                // to get zero classification error. However, in practical applications smaller
+                // values are used: 50%, 25%, 5% or even less.
+                dfbuildersetsubsampleratio(builder, 1.0);
+
+                // we train random forest with just one tree; again, in real life situations
+                // you typically need from 50 to 500 trees.
+                ae_int_t ntrees = 1;
+                decisionforest forest;
+                dfreport rep;
+                dfbuilderbuildrandomforest(builder, ntrees, forest, rep);
+
+                // with such settings (100% of the training set is used) you can expect
+                // zero classification error. Beautiful results, but remember - in real life
+                // you do not need zero TRAINING SET error, you need good generalization.
+
+                _TestResult = _TestResult && doc_test_real(rep.relclserror, 0.0000, 0.00005);
+
+                // now, let's perform some simple processing with dfprocess()
+                real_1d_array x = "[+1,0]";
+                real_1d_array y = "[]";
+                dfprocess(forest, x, y);
+                _TestResult = _TestResult && doc_test_real_vector(y, "[+1,0]", 0.0005);
+
+                // another option is to use dfprocess0() which returns just first component
+                // of the output vector y. ideal for regression problems and binary classifiers.
+                double y0;
+                y0 = dfprocess0(forest, x);
+                _TestResult = _TestResult && doc_test_real(y0, 1.000, 0.0005);
+
+                // finally, you can use dfclassify() which returns most probable class index (i.e. argmax y[i]).
+                ae_int_t i;
+                i = dfclassify(forest, x);
+                _TestResult = _TestResult && doc_test_int(i, 0);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "randomforest_cls");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST randomforest_reg
+        //      Simple regression with decision forest
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // The very simple regression example: model f(x,y)=x+y
+                //
+                // First, we have to create DF builder object, load dataset and specify
+                // training settings. Our dataset is specified as matrix, which has following
+                // format:
+                //
+                //     x0 y0 f0
+                //     x1 y1 f1
+                //     x2 y2 f2
+                //     ....
+                //
+                // Here xi and yi can be any values, and fi is a dependent function value.
+                //
+                // NOTE: you can also solve classification problems with DF models, see
+                //       another example for this unit.
+                //
+                decisionforestbuilder builder;
+                ae_int_t nvars = 2;
+                ae_int_t nclasses = 1;
+                ae_int_t npoints = 4;
+                real_2d_array xy = "[[1,1,+2],[1,-1,0],[-1,1,0],[-1,-1,-2]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+
+                dfbuildercreate(builder);
+                dfbuildersetdataset(builder, xy, npoints, nvars, nclasses);
+
+                // in our example we train decision forest using full sample - it allows us
+                // to get zero classification error. However, in practical applications smaller
+                // values are used: 50%, 25%, 5% or even less.
+                dfbuildersetsubsampleratio(builder, 1.0);
+
+                // we train random forest with just one tree; again, in real life situations
+                // you typically need from 50 to 500 trees.
+                ae_int_t ntrees = 1;
+                decisionforest model;
+                dfreport rep;
+                dfbuilderbuildrandomforest(builder, ntrees, model, rep);
+
+                // with such settings (full sample is used) you can expect zero RMS error on the
+                // training set. Beautiful results, but remember - in real life you do not
+                // need zero TRAINING SET error, you need good generalization.
+
+                _TestResult = _TestResult && doc_test_real(rep.rmserror, 0.0000, 0.00005);
+
+                // now, let's perform some simple processing with dfprocess()
+                real_1d_array x = "[+1,+1]";
+                real_1d_array y = "[]";
+                dfprocess(model, x, y);
+                _TestResult = _TestResult && doc_test_real_vector(y, "[+2]", 0.0005);
+
+                // another option is to use dfprocess0() which returns just first component
+                // of the output vector y. ideal for regression problems and binary classifiers.
+                double y0;
+                y0 = dfprocess0(model, x);
+                _TestResult = _TestResult && doc_test_real(y0, 2.000, 0.0005);
+
+                // there also exist another convenience function, dfclassify(),
+                // but it does not work for regression problems - it always returns -1.
+                ae_int_t i;
+                i = dfclassify(model, x);
+                _TestResult = _TestResult && doc_test_int(i, -1);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "randomforest_reg");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST linreg_d_basic
+        //      Linear regression used to build the very basic model and unpack coefficients
+        //
+        _TestResult = true;
+        try
+        {
+            //
+            // In this example we demonstrate linear fitting by f(x|a) = a*exp(0.5*x).
+            //
+            // We have:
+            // * xy - matrix of basic function values (exp(0.5*x)) and expected values
+            //
+            real_2d_array xy = "[[0.606531,1.133719],[0.670320,1.306522],[0.740818,1.504604],[0.818731,1.554663],[0.904837,1.884638],[1.000000,2.072436],[1.105171,2.257285],[1.221403,2.534068],[1.349859,2.622017],[1.491825,2.897713],[1.648721,3.219371]]";
+            ae_int_t nvars;
+            linearmodel model;
+            lrreport rep;
+            real_1d_array c;
+
+            lrbuildz(xy, 11, 1, model, rep);
+            lrunpack(model, c, nvars);
+            _TestResult = _TestResult && doc_test_real_vector(c, "[1.98650,0.00000]", 0.00005);
+        }
+        catch(ap_error)
+        { _TestResult = false; }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "linreg_d_basic");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST filters_d_sma
+        //      SMA(k) filter
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Here we demonstrate SMA(k) filtering for time series.
+                //
+                real_1d_array x = "[5,6,7,8]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+
+                //
+                // Apply filter.
+                // We should get [5, 5.5, 6.5, 7.5] as result
+                //
+                filtersma(x, 2);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[5,5.5,6.5,7.5]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "filters_d_sma");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST filters_d_ema
+        //      EMA(alpha) filter
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Here we demonstrate EMA(0.5) filtering for time series.
+                //
+                real_1d_array x = "[5,6,7,8]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+
+                //
+                // Apply filter.
+                // We should get [5, 5.5, 6.25, 7.125] as result
+                //
+                filterema(x, 0.5);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[5,5.5,6.25,7.125]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "filters_d_ema");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST filters_d_lrma
+        //      LRMA(k) filter
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // Here we demonstrate LRMA(3) filtering for time series.
+                //
+                real_1d_array x = "[7,8,8,9,12,12]";
+                if( _spoil_scenario==0 )
+                    spoil_vector_by_nan(x);
+                if( _spoil_scenario==1 )
+                    spoil_vector_by_posinf(x);
+                if( _spoil_scenario==2 )
+                    spoil_vector_by_neginf(x);
+
+                //
+                // Apply filter.
+                // We should get [7.0000, 8.0000, 8.1667, 8.8333, 11.6667, 12.5000] as result
+                //    
+                filterlrma(x, 3);
+                _TestResult = _TestResult && doc_test_real_vector(x, "[7.0000,8.0000,8.1667,8.8333,11.6667,12.5000]", 0.00005);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "filters_d_lrma");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
         // TEST ssa_d_basic
         //      Simple SSA analysis demo
         //
@@ -6378,161 +13536,10 @@ int main()
 
 
         //
-        // TEST linreg_d_basic
-        //      Linear regression used to build the very basic model and unpack coefficients
-        //
-        _TestResult = true;
-        try
-        {
-            //
-            // In this example we demonstrate linear fitting by f(x|a) = a*exp(0.5*x).
-            //
-            // We have:
-            // * xy - matrix of basic function values (exp(0.5*x)) and expected values
-            //
-            real_2d_array xy = "[[0.606531,1.133719],[0.670320,1.306522],[0.740818,1.504604],[0.818731,1.554663],[0.904837,1.884638],[1.000000,2.072436],[1.105171,2.257285],[1.221403,2.534068],[1.349859,2.622017],[1.491825,2.897713],[1.648721,3.219371]]";
-            ae_int_t info;
-            ae_int_t nvars;
-            linearmodel model;
-            lrreport rep;
-            real_1d_array c;
-
-            lrbuildz(xy, 11, 1, info, model, rep);
-            _TestResult = _TestResult && doc_test_int(info, 1);
-            lrunpack(model, c, nvars);
-            _TestResult = _TestResult && doc_test_real_vector(c, "[1.98650,0.00000]", 0.00005);
-        }
-        catch(ap_error)
-        { _TestResult = false; }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "linreg_d_basic");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST filters_d_sma
-        //      SMA(k) filter
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Here we demonstrate SMA(k) filtering for time series.
-                //
-                real_1d_array x = "[5,6,7,8]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-
-                //
-                // Apply filter.
-                // We should get [5, 5.5, 6.5, 7.5] as result
-                //
-                filtersma(x, 2);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[5,5.5,6.5,7.5]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "filters_d_sma");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST filters_d_ema
-        //      EMA(alpha) filter
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Here we demonstrate EMA(0.5) filtering for time series.
-                //
-                real_1d_array x = "[5,6,7,8]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-
-                //
-                // Apply filter.
-                // We should get [5, 5.5, 6.25, 7.125] as result
-                //
-                filterema(x, 0.5);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[5,5.5,6.25,7.125]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "filters_d_ema");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST filters_d_lrma
-        //      LRMA(k) filter
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Here we demonstrate LRMA(3) filtering for time series.
-                //
-                real_1d_array x = "[7,8,8,9,12,12]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-
-                //
-                // Apply filter.
-                // We should get [7.0000, 8.0000, 8.1667, 8.8333, 11.6667, 12.5000] as result
-                //    
-                filterlrma(x, 3);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[7.0000,8.0000,8.1667,8.8333,11.6667,12.5000]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "filters_d_lrma");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
         // TEST mcpd_simple1
         //      Simple unconstrained MCPD model (no entry/exit states)
         //
+        printf("150/162\n");
         _TestResult = true;
         for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
         {
@@ -6709,6 +13716,189 @@ int main()
         if( !_TestResult)
         {
             printf("%-32s FAILED\n", "mcpd_simple2");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST knn_cls
+        //      Simple classification with KNN model
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // The very simple classification example: classify points (x,y) in 2D space
+                // as ones with x>=0 and ones with x<0 (y is ignored, but our classifier
+                // has to find out it).
+                //
+                // First, we have to create KNN builder object, load dataset and specify
+                // training settings. Our dataset is specified as matrix, which has following
+                // format:
+                //
+                //     x0 y0 class0
+                //     x1 y1 class1
+                //     x2 y2 class2
+                //     ....
+                //
+                // Here xi and yi can be any values (and in fact you can have any number of
+                // independent variables), and classi MUST be integer number in [0,NClasses)
+                // range. In our example we denote points with x>=0 as class #0, and
+                // ones with negative xi as class #1.
+                //
+                // NOTE: if you want to solve regression problem, specify dataset in similar
+                //       format, but with dependent variable(s) instead of class labels. You
+                //       can have dataset with multiple dependent variables, by the way!
+                //
+                // For the sake of simplicity, our example includes only 4-point dataset and
+                // really simple K=1 nearest neighbor search. Industrial problems typically
+                // need larger values of K.
+                //
+                knnbuilder builder;
+                ae_int_t nvars = 2;
+                ae_int_t nclasses = 2;
+                ae_int_t npoints = 4;
+                real_2d_array xy = "[[1,1,0],[1,-1,0],[-1,1,1],[-1,-1,1]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+
+                knnbuildercreate(builder);
+                knnbuildersetdatasetcls(builder, xy, npoints, nvars, nclasses);
+
+                // we build KNN model with k=1 and eps=0 (exact k-nn search is performed)
+                ae_int_t k = 1;
+                double eps = 0;
+                knnmodel model;
+                knnreport rep;
+                knnbuilderbuildknnmodel(builder, k, eps, model, rep);
+
+                // with such settings (k=1 is used) you can expect zero classification
+                // error on training set. Beautiful results, but remember - in real life
+                // you do not need zero TRAINING SET error, you need good generalization.
+
+                _TestResult = _TestResult && doc_test_real(rep.relclserror, 0.0000, 0.00005);
+
+                // now, let's perform some simple processing with knnprocess()
+                real_1d_array x = "[+1,0]";
+                real_1d_array y = "[]";
+                knnprocess(model, x, y);
+                _TestResult = _TestResult && doc_test_real_vector(y, "[+1,0]", 0.0005);
+
+                // another option is to use knnprocess0() which returns just first component
+                // of the output vector y. ideal for regression problems and binary classifiers.
+                double y0;
+                y0 = knnprocess0(model, x);
+                _TestResult = _TestResult && doc_test_real(y0, 1.000, 0.0005);
+
+                // finally, you can use knnclassify() which returns most probable class index (i.e. argmax y[i]).
+                ae_int_t i;
+                i = knnclassify(model, x);
+                _TestResult = _TestResult && doc_test_int(i, 0);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "knn_cls");
+            fflush(stdout);
+        }
+        _TotalResult = _TotalResult && _TestResult;
+
+
+        //
+        // TEST knn_reg
+        //      Simple classification with KNN model
+        //
+        _TestResult = true;
+        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
+        {
+            try
+            {
+                //
+                // The very simple regression example: model f(x,y)=x+y
+                //
+                // First, we have to create KNN builder object, load dataset and specify
+                // training settings. Our dataset is specified as matrix, which has following
+                // format:
+                //
+                //     x0 y0 f0
+                //     x1 y1 f1
+                //     x2 y2 f2
+                //     ....
+                //
+                // Here xi and yi can be any values, and fi is a dependent function value.
+                // By the way, with KNN algorithm you can even model functions with multiple
+                // dependent variables!
+                //
+                // NOTE: you can also solve classification problems with KNN models, see
+                //       another example for this unit.
+                //
+                // For the sake of simplicity, our example includes only 4-point dataset and
+                // really simple K=1 nearest neighbor search. Industrial problems typically
+                // need larger values of K.
+                //
+                knnbuilder builder;
+                ae_int_t nvars = 2;
+                ae_int_t nout = 1;
+                ae_int_t npoints = 4;
+                real_2d_array xy = "[[1,1,+2],[1,-1,0],[-1,1,0],[-1,-1,-2]]";
+                if( _spoil_scenario==0 )
+                    spoil_matrix_by_nan(xy);
+                if( _spoil_scenario==1 )
+                    spoil_matrix_by_posinf(xy);
+                if( _spoil_scenario==2 )
+                    spoil_matrix_by_neginf(xy);
+
+                knnbuildercreate(builder);
+                knnbuildersetdatasetreg(builder, xy, npoints, nvars, nout);
+
+                // we build KNN model with k=1 and eps=0 (exact k-nn search is performed)
+                ae_int_t k = 1;
+                double eps = 0;
+                knnmodel model;
+                knnreport rep;
+                knnbuilderbuildknnmodel(builder, k, eps, model, rep);
+
+                // with such settings (k=1 is used) you can expect zero RMS error on the
+                // training set. Beautiful results, but remember - in real life you do not
+                // need zero TRAINING SET error, you need good generalization.
+
+                _TestResult = _TestResult && doc_test_real(rep.rmserror, 0.0000, 0.00005);
+
+                // now, let's perform some simple processing with knnprocess()
+                real_1d_array x = "[+1,+1]";
+                real_1d_array y = "[]";
+                knnprocess(model, x, y);
+                _TestResult = _TestResult && doc_test_real_vector(y, "[+2]", 0.0005);
+
+                // another option is to use knnprocess0() which returns just first component
+                // of the output vector y. ideal for regression problems and binary classifiers.
+                double y0;
+                y0 = knnprocess0(model, x);
+                _TestResult = _TestResult && doc_test_real(y0, 2.000, 0.0005);
+
+                // there also exist another convenience function, knnclassify(),
+                // but it does not work for regression problems - it always returns -1.
+                ae_int_t i;
+                i = knnclassify(model, x);
+                _TestResult = _TestResult && doc_test_int(i, -1);
+                _TestResult = _TestResult && (_spoil_scenario==-1);
+            }
+            catch(ap_error)
+            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
+        }
+        if( !_TestResult)
+        {
+            printf("%-32s FAILED\n", "knn_reg");
             fflush(stdout);
         }
         _TotalResult = _TotalResult && _TestResult;
@@ -7466,5630 +14656,7 @@ int main()
         _TotalResult = _TotalResult && _TestResult;
 
 
-        //
-        // TEST clst_ahc
-        //      Simple hierarchical clusterization with Euclidean distance function
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // The very simple clusterization example
-                //
-                // We have a set of points in 2D space:
-                //     (P0,P1,P2,P3,P4) = ((1,1),(1,2),(4,1),(2,3),(4,1.5))
-                //
-                //  |
-                //  |     P3
-                //  |
-                //  | P1          
-                //  |             P4
-                //  | P0          P2
-                //  |-------------------------
-                //
-                // We want to perform Agglomerative Hierarchic Clusterization (AHC),
-                // using complete linkage (default algorithm) and Euclidean distance
-                // (default metric).
-                //
-                // In order to do that, we:
-                // * create clusterizer with clusterizercreate()
-                // * set points XY and metric (2=Euclidean) with clusterizersetpoints()
-                // * run AHC algorithm with clusterizerrunahc
-                //
-                // You may see that clusterization itself is a minor part of the example,
-                // most of which is dominated by comments :)
-                //
-                clusterizerstate s;
-                ahcreport rep;
-                real_2d_array xy = "[[1,1],[1,2],[4,1],[2,3],[4,1.5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-
-                clusterizercreate(s);
-                clusterizersetpoints(s, xy, 2);
-                clusterizerrunahc(s, rep);
-
-                //
-                // Now we've built our clusterization tree. Rep.z contains information which
-                // is required to build dendrogram. I-th row of rep.z represents one merge
-                // operation, with first cluster to merge having index rep.z[I,0] and second
-                // one having index rep.z[I,1]. Merge result has index NPoints+I.
-                //
-                // Clusters with indexes less than NPoints are single-point initial clusters,
-                // while ones with indexes from NPoints to 2*NPoints-2 are multi-point
-                // clusters created during merges.
-                //
-                // In our example, Z=[[2,4], [0,1], [3,6], [5,7]]
-                //
-                // It means that:
-                // * first, we merge C2=(P2) and C4=(P4),    and create C5=(P2,P4)
-                // * then, we merge  C2=(P0) and C1=(P1),    and create C6=(P0,P1)
-                // * then, we merge  C3=(P3) and C6=(P0,P1), and create C7=(P0,P1,P3)
-                // * finally, we merge C5 and C7 and create C8=(P0,P1,P2,P3,P4)
-                //
-                // Thus, we have following dendrogram:
-                //  
-                //      ------8-----
-                //      |          |
-                //      |      ----7----
-                //      |      |       |
-                //   ---5---   |    ---6---
-                //   |     |   |    |     |
-                //   P2   P4   P3   P0   P1
-                //
-                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[2,4],[0,1],[3,6],[5,7]]");
-
-                //
-                // We've built dendrogram above by reordering our dataset.
-                //
-                // Without such reordering it would be impossible to build dendrogram without
-                // intersections. Luckily, ahcreport structure contains two additional fields
-                // which help to build dendrogram from your data:
-                // * rep.p, which contains permutation applied to dataset
-                // * rep.pm, which contains another representation of merges 
-                //
-                // In our example we have:
-                // * P=[3,4,0,2,1]
-                // * PZ=[[0,0,1,1,0,0],[3,3,4,4,0,0],[2,2,3,4,0,1],[0,1,2,4,1,2]]
-                //
-                // Permutation array P tells us that P0 should be moved to position 3,
-                // P1 moved to position 4, P2 moved to position 0 and so on:
-                //
-                //   (P0 P1 P2 P3 P4) => (P2 P4 P3 P0 P1)
-                //
-                // Merges array PZ tells us how to perform merges on the sorted dataset.
-                // One row of PZ corresponds to one merge operations, with first pair of
-                // elements denoting first of the clusters to merge (start index, end
-                // index) and next pair of elements denoting second of the clusters to
-                // merge. Clusters being merged are always adjacent, with first one on
-                // the left and second one on the right.
-                //
-                // For example, first row of PZ tells us that clusters [0,0] and [1,1] are
-                // merged (single-point clusters, with first one containing P2 and second
-                // one containing P4). Third row of PZ tells us that we merge one single-
-                // point cluster [2,2] with one two-point cluster [3,4].
-                //
-                // There are two more elements in each row of PZ. These are the helper
-                // elements, which denote HEIGHT (not size) of left and right subdendrograms.
-                // For example, according to PZ, first two merges are performed on clusterization
-                // trees of height 0, while next two merges are performed on 0-1 and 1-2
-                // pairs of trees correspondingly.
-                //
-                _TestResult = _TestResult && doc_test_int_vector(rep.p, "[3,4,0,2,1]");
-                _TestResult = _TestResult && doc_test_int_matrix(rep.pm, "[[0,0,1,1,0,0],[3,3,4,4,0,0],[2,2,3,4,0,1],[0,1,2,4,1,2]]");
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "clst_ahc");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST clst_kmeans
-        //      Simple k-means clusterization
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // The very simple clusterization example
-                //
-                // We have a set of points in 2D space:
-                //     (P0,P1,P2,P3,P4) = ((1,1),(1,2),(4,1),(2,3),(4,1.5))
-                //
-                //  |
-                //  |     P3
-                //  |
-                //  | P1          
-                //  |             P4
-                //  | P0          P2
-                //  |-------------------------
-                //
-                // We want to perform k-means++ clustering with K=2.
-                //
-                // In order to do that, we:
-                // * create clusterizer with clusterizercreate()
-                // * set points XY and metric (must be Euclidean, distype=2) with clusterizersetpoints()
-                // * (optional) set number of restarts from random positions to 5
-                // * run k-means algorithm with clusterizerrunkmeans()
-                //
-                // You may see that clusterization itself is a minor part of the example,
-                // most of which is dominated by comments :)
-                //
-                clusterizerstate s;
-                kmeansreport rep;
-                real_2d_array xy = "[[1,1],[1,2],[4,1],[2,3],[4,1.5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-
-                clusterizercreate(s);
-                clusterizersetpoints(s, xy, 2);
-                clusterizersetkmeanslimits(s, 5, 0);
-                clusterizerrunkmeans(s, 2, rep);
-
-                //
-                // We've performed clusterization, and it succeeded (completion code is +1).
-                //
-                // Now first center is stored in the first row of rep.c, second one is stored
-                // in the second row. rep.cidx can be used to determine which center is
-                // closest to some specific point of the dataset.
-                //
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-
-                // We called clusterizersetpoints() with disttype=2 because k-means++
-                // algorithm does NOT support metrics other than Euclidean. But what if we
-                // try to use some other metric?
-                //
-                // We change metric type by calling clusterizersetpoints() one more time,
-                // and try to run k-means algo again. It fails.
-                //
-                clusterizersetpoints(s, xy, 0);
-                clusterizerrunkmeans(s, 2, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, -5);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "clst_kmeans");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST clst_linkage
-        //      Clusterization with different linkage types
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We have a set of points in 1D space:
-                //     (P0,P1,P2,P3,P4) = (1, 3, 10, 16, 20)
-                //
-                // We want to perform Agglomerative Hierarchic Clusterization (AHC),
-                // using either complete or single linkage and Euclidean distance
-                // (default metric).
-                //
-                // First two steps merge P0/P1 and P3/P4 independently of the linkage type.
-                // However, third step depends on linkage type being used:
-                // * in case of complete linkage P2=10 is merged with [P0,P1]
-                // * in case of single linkage P2=10 is merged with [P3,P4]
-                //
-                clusterizerstate s;
-                ahcreport rep;
-                real_2d_array xy = "[[1],[3],[10],[16],[20]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                integer_1d_array cidx;
-                integer_1d_array cz;
-
-                clusterizercreate(s);
-                clusterizersetpoints(s, xy, 2);
-
-                // use complete linkage, reduce set down to 2 clusters.
-                // print clusterization with clusterizergetkclusters(2).
-                // P2 must belong to [P0,P1]
-                clusterizersetahcalgo(s, 0);
-                clusterizerrunahc(s, rep);
-                clusterizergetkclusters(rep, 2, cidx, cz);
-                _TestResult = _TestResult && doc_test_int_vector(cidx, "[1,1,1,0,0]");
-
-                // use single linkage, reduce set down to 2 clusters.
-                // print clusterization with clusterizergetkclusters(2).
-                // P2 must belong to [P2,P3]
-                clusterizersetahcalgo(s, 1);
-                clusterizerrunahc(s, rep);
-                clusterizergetkclusters(rep, 2, cidx, cz);
-                _TestResult = _TestResult && doc_test_int_vector(cidx, "[0,0,1,1,1]");
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "clst_linkage");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST clst_distance
-        //      Clusterization with different metric types
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We have three points in 4D space:
-                //     (P0,P1,P2) = ((1, 2, 1, 2), (6, 7, 6, 7), (7, 6, 7, 6))
-                //
-                // We want to try clustering them with different distance functions.
-                // Distance function is chosen when we add dataset to the clusterizer.
-                // We can choose several distance types - Euclidean, city block, Chebyshev,
-                // several correlation measures or user-supplied distance matrix.
-                //
-                // Here we'll try three distances: Euclidean, Pearson correlation,
-                // user-supplied distance matrix. Different distance functions lead
-                // to different choices being made by algorithm during clustering.
-                //
-                clusterizerstate s;
-                ahcreport rep;
-                ae_int_t disttype;
-                real_2d_array xy = "[[1, 2, 1, 2], [6, 7, 6, 7], [7, 6, 7, 6]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                clusterizercreate(s);
-
-                // With Euclidean distance function (disttype=2) two closest points
-                // are P1 and P2, thus:
-                // * first, we merge P1 and P2 to form C3=[P1,P2]
-                // * second, we merge P0 and C3 to form C4=[P0,P1,P2]
-                disttype = 2;
-                clusterizersetpoints(s, xy, disttype);
-                clusterizerrunahc(s, rep);
-                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[1,2],[0,3]]");
-
-                // With Pearson correlation distance function (disttype=10) situation
-                // is different - distance between P0 and P1 is zero, thus:
-                // * first, we merge P0 and P1 to form C3=[P0,P1]
-                // * second, we merge P2 and C3 to form C4=[P0,P1,P2]
-                disttype = 10;
-                clusterizersetpoints(s, xy, disttype);
-                clusterizerrunahc(s, rep);
-                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[0,1],[2,3]]");
-
-                // Finally, we try clustering with user-supplied distance matrix:
-                //     [ 0 3 1 ]
-                // P = [ 3 0 3 ], where P[i,j] = dist(Pi,Pj)
-                //     [ 1 3 0 ]
-                //
-                // * first, we merge P0 and P2 to form C3=[P0,P2]
-                // * second, we merge P1 and C3 to form C4=[P0,P1,P2]
-                real_2d_array d = "[[0,3,1],[3,0,3],[1,3,0]]";
-                clusterizersetdistances(s, d, true);
-                clusterizerrunahc(s, rep);
-                _TestResult = _TestResult && doc_test_int_matrix(rep.z, "[[0,2],[1,3]]");
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "clst_distance");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST clst_kclusters
-        //      Obtaining K top clusters from clusterization tree
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We have a set of points in 2D space:
-                //     (P0,P1,P2,P3,P4) = ((1,1),(1,2),(4,1),(2,3),(4,1.5))
-                //
-                //  |
-                //  |     P3
-                //  |
-                //  | P1          
-                //  |             P4
-                //  | P0          P2
-                //  |-------------------------
-                //
-                // We perform Agglomerative Hierarchic Clusterization (AHC) and we want
-                // to get top K clusters from clusterization tree for different K.
-                //
-                clusterizerstate s;
-                ahcreport rep;
-                real_2d_array xy = "[[1,1],[1,2],[4,1],[2,3],[4,1.5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                integer_1d_array cidx;
-                integer_1d_array cz;
-
-                clusterizercreate(s);
-                clusterizersetpoints(s, xy, 2);
-                clusterizerrunahc(s, rep);
-
-                // with K=5, every points is assigned to its own cluster:
-                // C0=P0, C1=P1 and so on...
-                clusterizergetkclusters(rep, 5, cidx, cz);
-                _TestResult = _TestResult && doc_test_int_vector(cidx, "[0,1,2,3,4]");
-
-                // with K=1 we have one large cluster C0=[P0,P1,P2,P3,P4,P5]
-                clusterizergetkclusters(rep, 1, cidx, cz);
-                _TestResult = _TestResult && doc_test_int_vector(cidx, "[0,0,0,0,0]");
-
-                // with K=3 we have three clusters C0=[P3], C1=[P2,P4], C2=[P0,P1]
-                clusterizergetkclusters(rep, 3, cidx, cz);
-                _TestResult = _TestResult && doc_test_int_vector(cidx, "[2,2,1,0,1]");
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "clst_kclusters");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST randomforest_cls
-        //      Simple classification with random forests
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // The very simple classification example: classify points (x,y) in 2D space
-                // as ones with x>=0 and ones with x<0 (y is ignored, but our classifier
-                // has to find out it).
-                //
-                // First, we have to create decision forest builder object, load dataset and
-                // specify training settings. Our dataset is specified as matrix, which has
-                // following format:
-                //
-                //     x0 y0 class0
-                //     x1 y1 class1
-                //     x2 y2 class2
-                //     ....
-                //
-                // Here xi and yi can be any values (and in fact you can have any number of
-                // independent variables), and classi MUST be integer number in [0,NClasses)
-                // range. In our example we denote points with x>=0 as class #0, and
-                // ones with negative xi as class #1.
-                //
-                // NOTE: if you want to solve regression problem, specify NClasses=1. In
-                //       this case last column of xy can be any numeric value.
-                //
-                // For the sake of simplicity, our example includes only 4-point dataset.
-                // However, random forests are able to cope with extremely large datasets
-                // having millions of examples.
-                //
-                decisionforestbuilder builder;
-                ae_int_t nvars = 2;
-                ae_int_t nclasses = 2;
-                ae_int_t npoints = 4;
-                real_2d_array xy = "[[1,1,0],[1,-1,0],[-1,1,1],[-1,-1,1]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-
-                dfbuildercreate(builder);
-                dfbuildersetdataset(builder, xy, npoints, nvars, nclasses);
-
-                // in our example we train decision forest using full sample - it allows us
-                // to get zero classification error. However, in practical applications smaller
-                // values are used: 50%, 25%, 5% or even less.
-                dfbuildersetsubsampleratio(builder, 1.0);
-
-                // we train random forest with just one tree; again, in real life situations
-                // you typically need from 50 to 500 trees.
-                ae_int_t ntrees = 1;
-                decisionforest forest;
-                dfreport rep;
-                dfbuilderbuildrandomforest(builder, ntrees, forest, rep);
-
-                // with such settings (100% of the training set is used) you can expect
-                // zero classification error. Beautiful results, but remember - in real life
-                // you do not need zero TRAINING SET error, you need good generalization.
-
-                _TestResult = _TestResult && doc_test_real(rep.relclserror, 0.0000, 0.00005);
-
-                // now, let's perform some simple processing with dfprocess()
-                real_1d_array x = "[+1,0]";
-                real_1d_array y = "[]";
-                dfprocess(forest, x, y);
-                _TestResult = _TestResult && doc_test_real_vector(y, "[+1,0]", 0.0005);
-
-                // another option is to use dfprocess0() which returns just first component
-                // of the output vector y. ideal for regression problems and binary classifiers.
-                double y0;
-                y0 = dfprocess0(forest, x);
-                _TestResult = _TestResult && doc_test_real(y0, 1.000, 0.0005);
-
-                // finally, you can use dfclassify() which returns most probable class index (i.e. argmax y[i]).
-                ae_int_t i;
-                i = dfclassify(forest, x);
-                _TestResult = _TestResult && doc_test_int(i, 0);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "randomforest_cls");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST randomforest_reg
-        //      Simple classification with decision forest
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // The very simple regression example: model f(x,y)=x+y
-                //
-                // First, we have to create DF builder object, load dataset and specify
-                // training settings. Our dataset is specified as matrix, which has following
-                // format:
-                //
-                //     x0 y0 f0
-                //     x1 y1 f1
-                //     x2 y2 f2
-                //     ....
-                //
-                // Here xi and yi can be any values, and fi is a dependent function value.
-                //
-                // NOTE: you can also solve classification problems with DF models, see
-                //       another example for this unit.
-                //
-                decisionforestbuilder builder;
-                ae_int_t nvars = 2;
-                ae_int_t nclasses = 1;
-                ae_int_t npoints = 4;
-                real_2d_array xy = "[[1,1,+2],[1,-1,0],[-1,1,0],[-1,-1,-2]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-
-                dfbuildercreate(builder);
-                dfbuildersetdataset(builder, xy, npoints, nvars, nclasses);
-
-                // in our example we train decision forest using full sample - it allows us
-                // to get zero classification error. However, in practical applications smaller
-                // values are used: 50%, 25%, 5% or even less.
-                dfbuildersetsubsampleratio(builder, 1.0);
-
-                // we train random forest with just one tree; again, in real life situations
-                // you typically need from 50 to 500 trees.
-                ae_int_t ntrees = 1;
-                decisionforest model;
-                dfreport rep;
-                dfbuilderbuildrandomforest(builder, ntrees, model, rep);
-
-                // with such settings (full sample is used) you can expect zero RMS error on the
-                // training set. Beautiful results, but remember - in real life you do not
-                // need zero TRAINING SET error, you need good generalization.
-
-                _TestResult = _TestResult && doc_test_real(rep.rmserror, 0.0000, 0.00005);
-
-                // now, let's perform some simple processing with dfprocess()
-                real_1d_array x = "[+1,+1]";
-                real_1d_array y = "[]";
-                dfprocess(model, x, y);
-                _TestResult = _TestResult && doc_test_real_vector(y, "[+2]", 0.0005);
-
-                // another option is to use dfprocess0() which returns just first component
-                // of the output vector y. ideal for regression problems and binary classifiers.
-                double y0;
-                y0 = dfprocess0(model, x);
-                _TestResult = _TestResult && doc_test_real(y0, 2.000, 0.0005);
-
-                // there also exist another convenience function, dfclassify(),
-                // but it does not work for regression problems - it always returns -1.
-                ae_int_t i;
-                i = dfclassify(model, x);
-                _TestResult = _TestResult && doc_test_int(i, -1);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "randomforest_reg");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST knn_cls
-        //      Simple classification with KNN model
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // The very simple classification example: classify points (x,y) in 2D space
-                // as ones with x>=0 and ones with x<0 (y is ignored, but our classifier
-                // has to find out it).
-                //
-                // First, we have to create KNN builder object, load dataset and specify
-                // training settings. Our dataset is specified as matrix, which has following
-                // format:
-                //
-                //     x0 y0 class0
-                //     x1 y1 class1
-                //     x2 y2 class2
-                //     ....
-                //
-                // Here xi and yi can be any values (and in fact you can have any number of
-                // independent variables), and classi MUST be integer number in [0,NClasses)
-                // range. In our example we denote points with x>=0 as class #0, and
-                // ones with negative xi as class #1.
-                //
-                // NOTE: if you want to solve regression problem, specify dataset in similar
-                //       format, but with dependent variable(s) instead of class labels. You
-                //       can have dataset with multiple dependent variables, by the way!
-                //
-                // For the sake of simplicity, our example includes only 4-point dataset and
-                // really simple K=1 nearest neighbor search. Industrial problems typically
-                // need larger values of K.
-                //
-                knnbuilder builder;
-                ae_int_t nvars = 2;
-                ae_int_t nclasses = 2;
-                ae_int_t npoints = 4;
-                real_2d_array xy = "[[1,1,0],[1,-1,0],[-1,1,1],[-1,-1,1]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-
-                knnbuildercreate(builder);
-                knnbuildersetdatasetcls(builder, xy, npoints, nvars, nclasses);
-
-                // we build KNN model with k=1 and eps=0 (exact k-nn search is performed)
-                ae_int_t k = 1;
-                double eps = 0;
-                knnmodel model;
-                knnreport rep;
-                knnbuilderbuildknnmodel(builder, k, eps, model, rep);
-
-                // with such settings (k=1 is used) you can expect zero classification
-                // error on training set. Beautiful results, but remember - in real life
-                // you do not need zero TRAINING SET error, you need good generalization.
-
-                _TestResult = _TestResult && doc_test_real(rep.relclserror, 0.0000, 0.00005);
-
-                // now, let's perform some simple processing with knnprocess()
-                real_1d_array x = "[+1,0]";
-                real_1d_array y = "[]";
-                knnprocess(model, x, y);
-                _TestResult = _TestResult && doc_test_real_vector(y, "[+1,0]", 0.0005);
-
-                // another option is to use knnprocess0() which returns just first component
-                // of the output vector y. ideal for regression problems and binary classifiers.
-                double y0;
-                y0 = knnprocess0(model, x);
-                _TestResult = _TestResult && doc_test_real(y0, 1.000, 0.0005);
-
-                // finally, you can use knnclassify() which returns most probable class index (i.e. argmax y[i]).
-                ae_int_t i;
-                i = knnclassify(model, x);
-                _TestResult = _TestResult && doc_test_int(i, 0);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "knn_cls");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST knn_reg
-        //      Simple classification with KNN model
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // The very simple regression example: model f(x,y)=x+y
-                //
-                // First, we have to create KNN builder object, load dataset and specify
-                // training settings. Our dataset is specified as matrix, which has following
-                // format:
-                //
-                //     x0 y0 f0
-                //     x1 y1 f1
-                //     x2 y2 f2
-                //     ....
-                //
-                // Here xi and yi can be any values, and fi is a dependent function value.
-                // By the way, with KNN algorithm you can even model functions with multiple
-                // dependent variables!
-                //
-                // NOTE: you can also solve classification problems with KNN models, see
-                //       another example for this unit.
-                //
-                // For the sake of simplicity, our example includes only 4-point dataset and
-                // really simple K=1 nearest neighbor search. Industrial problems typically
-                // need larger values of K.
-                //
-                knnbuilder builder;
-                ae_int_t nvars = 2;
-                ae_int_t nout = 1;
-                ae_int_t npoints = 4;
-                real_2d_array xy = "[[1,1,+2],[1,-1,0],[-1,1,0],[-1,-1,-2]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-
-                knnbuildercreate(builder);
-                knnbuildersetdatasetreg(builder, xy, npoints, nvars, nout);
-
-                // we build KNN model with k=1 and eps=0 (exact k-nn search is performed)
-                ae_int_t k = 1;
-                double eps = 0;
-                knnmodel model;
-                knnreport rep;
-                knnbuilderbuildknnmodel(builder, k, eps, model, rep);
-
-                // with such settings (k=1 is used) you can expect zero RMS error on the
-                // training set. Beautiful results, but remember - in real life you do not
-                // need zero TRAINING SET error, you need good generalization.
-
-                _TestResult = _TestResult && doc_test_real(rep.rmserror, 0.0000, 0.00005);
-
-                // now, let's perform some simple processing with knnprocess()
-                real_1d_array x = "[+1,+1]";
-                real_1d_array y = "[]";
-                knnprocess(model, x, y);
-                _TestResult = _TestResult && doc_test_real_vector(y, "[+2]", 0.0005);
-
-                // another option is to use knnprocess0() which returns just first component
-                // of the output vector y. ideal for regression problems and binary classifiers.
-                double y0;
-                y0 = knnprocess0(model, x);
-                _TestResult = _TestResult && doc_test_real(y0, 2.000, 0.0005);
-
-                // there also exist another convenience function, knnclassify(),
-                // but it does not work for regression problems - it always returns -1.
-                ae_int_t i;
-                i = knnclassify(model, x);
-                _TestResult = _TestResult && doc_test_int(i, -1);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "knn_reg");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST autogk_d1
-        //      Integrating f=exp(x) by adaptive integrator
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example demonstrates integration of f=exp(x) on [0,1]:
-                // * first, autogkstate is initialized
-                // * then we call integration function
-                // * and finally we obtain results with autogkresults() call
-                //
-                double a = 0;
-                if( _spoil_scenario==0 )
-                    a = fp_nan;
-                if( _spoil_scenario==1 )
-                    a = fp_posinf;
-                if( _spoil_scenario==2 )
-                    a = fp_neginf;
-                double b = 1;
-                if( _spoil_scenario==3 )
-                    b = fp_nan;
-                if( _spoil_scenario==4 )
-                    b = fp_posinf;
-                if( _spoil_scenario==5 )
-                    b = fp_neginf;
-                autogkstate s;
-                double v;
-                autogkreport rep;
-
-                autogksmooth(a, b, s);
-                alglib::autogkintegrate(s, int_function_1_func);
-                autogkresults(s, v, rep);
-
-                _TestResult = _TestResult && doc_test_real(v, 1.7182, 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "autogk_d1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST fft_complex_d1
-        //      Complex FFT: simple example
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // first we demonstrate forward FFT:
-                // [1i,1i,1i,1i] is converted to [4i, 0, 0, 0]
-                //
-                complex_1d_array z = "[1i,1i,1i,1i]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(z);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(z);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(z);
-                fftc1d(z);
-                _TestResult = _TestResult && doc_test_complex_vector(z, "[4i,0,0,0]", 0.0001);
-
-                //
-                // now we convert [4i, 0, 0, 0] back to [1i,1i,1i,1i]
-                // with backward FFT
-                //
-                fftc1dinv(z);
-                _TestResult = _TestResult && doc_test_complex_vector(z, "[1i,1i,1i,1i]", 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "fft_complex_d1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST fft_complex_d2
-        //      Complex FFT: advanced example
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // first we demonstrate forward FFT:
-                // [0,1,0,1i] is converted to [1+1i, -1-1i, -1-1i, 1+1i]
-                //
-                complex_1d_array z = "[0,1,0,1i]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(z);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(z);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(z);
-                fftc1d(z);
-                _TestResult = _TestResult && doc_test_complex_vector(z, "[1+1i, -1-1i, -1-1i, 1+1i]", 0.0001);
-
-                //
-                // now we convert result back with backward FFT
-                //
-                fftc1dinv(z);
-                _TestResult = _TestResult && doc_test_complex_vector(z, "[0,1,0,1i]", 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "fft_complex_d2");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST fft_real_d1
-        //      Real FFT: simple example
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // first we demonstrate forward FFT:
-                // [1,1,1,1] is converted to [4, 0, 0, 0]
-                //
-                real_1d_array x = "[1,1,1,1]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                complex_1d_array f;
-                real_1d_array x2;
-                fftr1d(x, f);
-                _TestResult = _TestResult && doc_test_complex_vector(f, "[4,0,0,0]", 0.0001);
-
-                //
-                // now we convert [4, 0, 0, 0] back to [1,1,1,1]
-                // with backward FFT
-                //
-                fftr1dinv(f, x2);
-                _TestResult = _TestResult && doc_test_real_vector(x2, "[1,1,1,1]", 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "fft_real_d1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST fft_real_d2
-        //      Real FFT: advanced example
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // first we demonstrate forward FFT:
-                // [1,2,3,4] is converted to [10, -2+2i, -2, -2-2i]
-                //
-                // note that output array is self-adjoint:
-                // * f[0] = conj(f[0])
-                // * f[1] = conj(f[3])
-                // * f[2] = conj(f[2])
-                //
-                real_1d_array x = "[1,2,3,4]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                complex_1d_array f;
-                real_1d_array x2;
-                fftr1d(x, f);
-                _TestResult = _TestResult && doc_test_complex_vector(f, "[10, -2+2i, -2, -2-2i]", 0.0001);
-
-                //
-                // now we convert [10, -2+2i, -2, -2-2i] back to [1,2,3,4]
-                //
-                fftr1dinv(f, x2);
-                _TestResult = _TestResult && doc_test_real_vector(x2, "[1,2,3,4]", 0.0001);
-
-                //
-                // remember that F is self-adjoint? It means that we can pass just half
-                // (slightly larger than half) of F to inverse real FFT and still get our result.
-                //
-                // I.e. instead [10, -2+2i, -2, -2-2i] we pass just [10, -2+2i, -2] and everything works!
-                //
-                // NOTE: in this case we should explicitly pass array length (which is 4) to ALGLIB;
-                // if not, it will automatically use array length to determine FFT size and
-                // will erroneously make half-length FFT.
-                //
-                f = "[10, -2+2i, -2]";
-                fftr1dinv(f, 4, x2);
-                _TestResult = _TestResult && doc_test_real_vector(x2, "[1,2,3,4]", 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "fft_real_d2");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST fft_complex_e1
-        //      error detection in backward FFT
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                complex_1d_array z = "[0,2,0,-2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(z);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(z);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(z);
-                fftc1dinv(z);
-                _TestResult = _TestResult && doc_test_complex_vector(z, "[0,1i,0,-1i]", 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "fft_complex_e1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST idw_d_mstab
-        //      Simple model built with IDW-MSTAB algorithm
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example illustrates basic concepts of the IDW models:
-                // creation and evaluation.
-                // 
-                // Suppose that we have set of 2-dimensional points with associated
-                // scalar function values, and we want to build an IDW model using
-                // our data.
-                // 
-                // NOTE: we can work with N-dimensional models and vector-valued functions too :)
-                // 
-                // Typical sequence of steps is given below:
-                // 1. we create IDW builder object
-                // 2. we attach our dataset to the IDW builder and tune algorithm settings
-                // 3. we generate IDW model
-                // 4. we use IDW model instance (evaluate, serialize, etc.)
-                //
-                double v;
-
-                //
-                // Step 1: IDW builder creation.
-                //
-                // We have to specify dimensionality of the space (2 or 3) and
-                // dimensionality of the function (scalar or vector).
-                //
-                // New builder object is empty - it has not dataset and uses
-                // default model construction settings
-                //
-                idwbuilder builder;
-                idwbuildercreate(2, 1, builder);
-
-                //
-                // Step 2: dataset addition
-                //
-                // XY contains two points - x0=(-1,0) and x1=(+1,0) -
-                // and two function values f(x0)=2, f(x1)=3.
-                //
-                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                idwbuildersetpoints(builder, xy);
-
-                //
-                // Step 3: choose IDW algorithm and generate model
-                //
-                // We use modified stabilized IDW algorithm with following parameters:
-                // * SRad - set to 5.0 (search radius must be large enough)
-                //
-                // IDW-MSTAB algorithm is a state-of-the-art implementation of IDW which
-                // is competitive with RBFs and bicubic splines. See comments on the
-                // idwbuildersetalgomstab() function for more information.
-                //
-                idwmodel model;
-                idwreport rep;
-                idwbuildersetalgomstab(builder, 5.0);
-                idwfit(builder, model, rep);
-
-                //
-                // Step 4: model was built, evaluate its value
-                //
-                v = idwcalc2(model, 1.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 3.000, 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "idw_d_mstab");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST idw_d_serialize
-        //      IDW model serialization/unserialization
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example shows how to serialize and unserialize IDW model.
-                // 
-                // Suppose that we have set of 2-dimensional points with associated
-                // scalar function values, and we have built an IDW model using
-                // our data.
-                //
-                // This model can be serialized to string or stream. ALGLIB supports
-                // flexible (un)serialization, i.e. you can move serialized model
-                // representation between different machines (32-bit or 64-bit),
-                // different CPU architectures (x86/64, ARM) or even different
-                // programming languages supported by ALGLIB (C#, C++, ...).
-                //
-                // Our first step is to build model, evaluate it at point (1,0),
-                // and serialize it to string.
-                //
-                std::string s;
-                double v;
-                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                idwbuilder builder;
-                idwmodel model;
-                idwmodel model2;
-                idwreport rep;
-                idwbuildercreate(2, 1, builder);
-                idwbuildersetpoints(builder, xy);
-                idwbuildersetalgomstab(builder, 5.0);
-                idwfit(builder, model, rep);
-                v = idwcalc2(model, 1.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 3.000, 0.005);
-
-                //
-                // Serialization + unserialization to a different instance
-                // of the model class.
-                //
-                alglib::idwserialize(model, s);
-                alglib::idwunserialize(s, model2);
-
-                //
-                // Evaluate unserialized model at the same point
-                //
-                v = idwcalc2(model2, 1.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 3.000, 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "idw_d_serialize");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline1d_d_linear
-        //      Piecewise linear spline interpolation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use piecewise linear spline to interpolate f(x)=x^2 sampled 
-                // at 5 equidistant nodes on [-1,+1].
-                //
-                real_1d_array x = "[-1.0,-0.5,0.0,+0.5,+1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(x);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[+1.0,0.25,0.0,0.25,+1.0]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                double t = 0.25;
-                if( _spoil_scenario==10 )
-                    t = fp_posinf;
-                if( _spoil_scenario==11 )
-                    t = fp_neginf;
-                double v;
-                spline1dinterpolant s;
-
-                // build spline
-                spline1dbuildlinear(x, y, s);
-
-                // calculate S(0.25) - it is quite different from 0.25^2=0.0625
-                v = spline1dcalc(s, t);
-                _TestResult = _TestResult && doc_test_real(v, 0.125, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline1d_d_linear");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline1d_d_cubic
-        //      Cubic spline interpolation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use cubic spline to interpolate f(x)=x^2 sampled 
-                // at 5 equidistant nodes on [-1,+1].
-                //
-                // First, we use default boundary conditions ("parabolically terminated
-                // spline") because cubic spline built with such boundary conditions 
-                // will exactly reproduce any quadratic f(x).
-                //
-                // Then we try to use natural boundary conditions
-                //     d2S(-1)/dx^2 = 0.0
-                //     d2S(+1)/dx^2 = 0.0
-                // and see that such spline interpolated f(x) with small error.
-                //
-                real_1d_array x = "[-1.0,-0.5,0.0,+0.5,+1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[+1.0,0.25,0.0,0.25,+1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                double t = 0.25;
-                if( _spoil_scenario==8 )
-                    t = fp_posinf;
-                if( _spoil_scenario==9 )
-                    t = fp_neginf;
-                double v;
-                spline1dinterpolant s;
-                ae_int_t natural_bound_type = 2;
-                //
-                // Test exact boundary conditions: build S(x), calculare S(0.25)
-                // (almost same as original function)
-                //
-                spline1dbuildcubic(x, y, s);
-                v = spline1dcalc(s, t);
-                _TestResult = _TestResult && doc_test_real(v, 0.0625, 0.00001);
-
-                //
-                // Test natural boundary conditions: build S(x), calculare S(0.25)
-                // (small interpolation error)
-                //
-                spline1dbuildcubic(x, y, 5, natural_bound_type, 0.0, natural_bound_type, 0.0, s);
-                v = spline1dcalc(s, t);
-                _TestResult = _TestResult && doc_test_real(v, 0.0580, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline1d_d_cubic");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline1d_d_monotone
-        //      Monotone interpolation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Spline built witn spline1dbuildcubic() can be non-monotone even when
-                // Y-values form monotone sequence. Say, for x=[0,1,2] and y=[0,1,1]
-                // cubic spline will monotonically grow until x=1.5 and then start
-                // decreasing.
-                //
-                // That's why ALGLIB provides special spline construction function
-                // which builds spline which preserves monotonicity of the original
-                // dataset.
-                //
-                // NOTE: in case original dataset is non-monotonic, ALGLIB splits it
-                // into monotone subsequences and builds piecewise monotonic spline.
-                //
-                real_1d_array x = "[0,1,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(x);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0,1,1]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                spline1dinterpolant s;
-
-                // build spline
-                spline1dbuildmonotone(x, y, s);
-
-                // calculate S at x = [-0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
-                // you may see that spline is really monotonic
-                double v;
-                v = spline1dcalc(s, -0.5);
-                _TestResult = _TestResult && doc_test_real(v, 0.0000, 0.00005);
-                v = spline1dcalc(s, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 0.0000, 0.00005);
-                v = spline1dcalc(s, +0.5);
-                _TestResult = _TestResult && doc_test_real(v, 0.5000, 0.00005);
-                v = spline1dcalc(s, 1.0);
-                _TestResult = _TestResult && doc_test_real(v, 1.0000, 0.00005);
-                v = spline1dcalc(s, 1.5);
-                _TestResult = _TestResult && doc_test_real(v, 1.0000, 0.00005);
-                v = spline1dcalc(s, 2.0);
-                _TestResult = _TestResult && doc_test_real(v, 1.0000, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline1d_d_monotone");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline1d_d_griddiff
-        //      Differentiation on the grid using cubic splines
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use cubic spline to do grid differentiation, i.e. having
-                // values of f(x)=x^2 sampled at 5 equidistant nodes on [-1,+1]
-                // we calculate derivatives of cubic spline at nodes WITHOUT
-                // CONSTRUCTION OF SPLINE OBJECT.
-                //
-                // There are efficient functions spline1dgriddiffcubic() and
-                // spline1dgriddiff2cubic() for such calculations.
-                //
-                // We use default boundary conditions ("parabolically terminated
-                // spline") because cubic spline built with such boundary conditions 
-                // will exactly reproduce any quadratic f(x).
-                //
-                // Actually, we could use natural conditions, but we feel that 
-                // spline which exactly reproduces f() will show us more 
-                // understandable results.
-                //
-                real_1d_array x = "[-1.0,-0.5,0.0,+0.5,+1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(x);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[+1.0,0.25,0.0,0.25,+1.0]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array d1;
-                real_1d_array d2;
-
-                //
-                // We calculate first derivatives: they must be equal to 2*x
-                //
-                spline1dgriddiffcubic(x, y, d1);
-                _TestResult = _TestResult && doc_test_real_vector(d1, "[-2.0, -1.0, 0.0, +1.0, +2.0]", 0.0001);
-
-                //
-                // Now test griddiff2, which returns first AND second derivatives.
-                // First derivative is 2*x, second is equal to 2.0
-                //
-                spline1dgriddiff2cubic(x, y, d1, d2);
-                _TestResult = _TestResult && doc_test_real_vector(d1, "[-2.0, -1.0, 0.0, +1.0, +2.0]", 0.0001);
-                _TestResult = _TestResult && doc_test_real_vector(d2, "[ 2.0,  2.0, 2.0,  2.0,  2.0]", 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline1d_d_griddiff");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline1d_d_convdiff
-        //      Resampling using cubic splines
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use cubic spline to do resampling, i.e. having
-                // values of f(x)=x^2 sampled at 5 equidistant nodes on [-1,+1]
-                // we calculate values/derivatives of cubic spline on 
-                // another grid (equidistant with 9 nodes on [-1,+1])
-                // WITHOUT CONSTRUCTION OF SPLINE OBJECT.
-                //
-                // There are efficient functions spline1dconvcubic(),
-                // spline1dconvdiffcubic() and spline1dconvdiff2cubic() 
-                // for such calculations.
-                //
-                // We use default boundary conditions ("parabolically terminated
-                // spline") because cubic spline built with such boundary conditions 
-                // will exactly reproduce any quadratic f(x).
-                //
-                // Actually, we could use natural conditions, but we feel that 
-                // spline which exactly reproduces f() will show us more 
-                // understandable results.
-                //
-                real_1d_array x_old = "[-1.0,-0.5,0.0,+0.5,+1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x_old);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x_old);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x_old);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x_old);
-                real_1d_array y_old = "[+1.0,0.25,0.0,0.25,+1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y_old);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y_old);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y_old);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y_old);
-                real_1d_array x_new = "[-1.00,-0.75,-0.50,-0.25,0.00,+0.25,+0.50,+0.75,+1.00]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(x_new);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(x_new);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(x_new);
-                real_1d_array y_new;
-                real_1d_array d1_new;
-                real_1d_array d2_new;
-
-                //
-                // First, conversion without differentiation.
-                //
-                //
-                spline1dconvcubic(x_old, y_old, x_new, y_new);
-                _TestResult = _TestResult && doc_test_real_vector(y_new, "[1.0000, 0.5625, 0.2500, 0.0625, 0.0000, 0.0625, 0.2500, 0.5625, 1.0000]", 0.0001);
-
-                //
-                // Then, conversion with differentiation (first derivatives only)
-                //
-                //
-                spline1dconvdiffcubic(x_old, y_old, x_new, y_new, d1_new);
-                _TestResult = _TestResult && doc_test_real_vector(y_new, "[1.0000, 0.5625, 0.2500, 0.0625, 0.0000, 0.0625, 0.2500, 0.5625, 1.0000]", 0.0001);
-                _TestResult = _TestResult && doc_test_real_vector(d1_new, "[-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]", 0.0001);
-
-                //
-                // Finally, conversion with first and second derivatives
-                //
-                //
-                spline1dconvdiff2cubic(x_old, y_old, x_new, y_new, d1_new, d2_new);
-                _TestResult = _TestResult && doc_test_real_vector(y_new, "[1.0000, 0.5625, 0.2500, 0.0625, 0.0000, 0.0625, 0.2500, 0.5625, 1.0000]", 0.0001);
-                _TestResult = _TestResult && doc_test_real_vector(d1_new, "[-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]", 0.0001);
-                _TestResult = _TestResult && doc_test_real_vector(d2_new, "[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]", 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline1d_d_convdiff");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST parametric_rdp
-        //      Parametric Ramer-Douglas-Peucker approximation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use RDP algorithm to approximate parametric 2D curve given by
-                // locations in t=0,1,2,3 (see below), which form piecewise linear
-                // trajectory through D-dimensional space (2-dimensional in our example).
-                // 
-                //     |
-                //     |
-                //     -     *     *     X2................X3
-                //     |                .
-                //     |               .
-                //     -     *     *  .  *     *     *     *
-                //     |             .
-                //     |            .
-                //     -     *     X1    *     *     *     *
-                //     |      .....
-                //     |  ....
-                //     X0----|-----|-----|-----|-----|-----|---
-                //
-                ae_int_t npoints = 4;
-                ae_int_t ndimensions = 2;
-                real_2d_array x = "[[0,0],[2,1],[3,3],[6,3]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(x);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(x);
-
-                //
-                // Approximation of parametric curve is performed by another parametric curve
-                // with lesser amount of points. It allows to work with "compressed"
-                // representation, which needs smaller amount of memory. Say, in our example
-                // (we allow points with error smaller than 0.8) approximation will have
-                // just two sequential sections connecting X0 with X2, and X2 with X3.
-                // 
-                //     |
-                //     |
-                //     -     *     *     X2................X3
-                //     |               . 
-                //     |             .  
-                //     -     *     .     *     *     *     *
-                //     |         .    
-                //     |       .     
-                //     -     .     X1    *     *     *     *
-                //     |   .       
-                //     | .    
-                //     X0----|-----|-----|-----|-----|-----|---
-                //
-                //
-                real_2d_array y;
-                integer_1d_array idxy;
-                ae_int_t nsections;
-                ae_int_t limitcnt = 0;
-                double limiteps = 0.8;
-                if( _spoil_scenario==5 )
-                    limiteps = fp_posinf;
-                if( _spoil_scenario==6 )
-                    limiteps = fp_neginf;
-                parametricrdpfixed(x, npoints, ndimensions, limitcnt, limiteps, y, idxy, nsections);
-                _TestResult = _TestResult && doc_test_int(nsections, 2);
-                _TestResult = _TestResult && doc_test_int_vector(idxy, "[0,2,3]");
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "parametric_rdp");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline3d_trilinear
-        //      Trilinear spline interpolation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<22; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use trilinear spline to interpolate f(x,y,z)=x+xy+z sampled 
-                // at (x,y,z) from [0.0, 1.0] X [0.0, 1.0] X [0.0, 1.0].
-                //
-                // We store x, y and z-values at local arrays with same names.
-                // Function values are stored in the array F as follows:
-                //     f[0]     (x,y,z) = (0,0,0)
-                //     f[1]     (x,y,z) = (1,0,0)
-                //     f[2]     (x,y,z) = (0,1,0)
-                //     f[3]     (x,y,z) = (1,1,0)
-                //     f[4]     (x,y,z) = (0,0,1)
-                //     f[5]     (x,y,z) = (1,0,1)
-                //     f[6]     (x,y,z) = (0,1,1)
-                //     f[7]     (x,y,z) = (1,1,1)
-                //
-                real_1d_array x = "[0.0, 1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.0, 1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array z = "[0.0, 1.0]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(z);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(z);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(z);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(z);
-                real_1d_array f = "[0,1,0,2,1,2,1,3]";
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_nan(f);
-                if( _spoil_scenario==13 )
-                    spoil_vector_by_posinf(f);
-                if( _spoil_scenario==14 )
-                    spoil_vector_by_neginf(f);
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_deleting_element(f);
-                double vx = 0.50;
-                if( _spoil_scenario==16 )
-                    vx = fp_posinf;
-                if( _spoil_scenario==17 )
-                    vx = fp_neginf;
-                double vy = 0.50;
-                if( _spoil_scenario==18 )
-                    vy = fp_posinf;
-                if( _spoil_scenario==19 )
-                    vy = fp_neginf;
-                double vz = 0.50;
-                if( _spoil_scenario==20 )
-                    vz = fp_posinf;
-                if( _spoil_scenario==21 )
-                    vz = fp_neginf;
-                double v;
-                spline3dinterpolant s;
-
-                // build spline
-                spline3dbuildtrilinearv(x, 2, y, 2, z, 2, f, 1, s);
-
-                // calculate S(0.5,0.5,0.5)
-                v = spline3dcalc(s, vx, vy, vz);
-                _TestResult = _TestResult && doc_test_real(v, 1.2500, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline3d_trilinear");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline3d_vector
-        //      Vector-valued trilinear spline interpolation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<22; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use trilinear vector-valued spline to interpolate {f0,f1}={x+xy+z,x+xy+yz+z}
-                // sampled at (x,y,z) from [0.0, 1.0] X [0.0, 1.0] X [0.0, 1.0].
-                //
-                // We store x, y and z-values at local arrays with same names.
-                // Function values are stored in the array F as follows:
-                //     f[0]     f0, (x,y,z) = (0,0,0)
-                //     f[1]     f1, (x,y,z) = (0,0,0)
-                //     f[2]     f0, (x,y,z) = (1,0,0)
-                //     f[3]     f1, (x,y,z) = (1,0,0)
-                //     f[4]     f0, (x,y,z) = (0,1,0)
-                //     f[5]     f1, (x,y,z) = (0,1,0)
-                //     f[6]     f0, (x,y,z) = (1,1,0)
-                //     f[7]     f1, (x,y,z) = (1,1,0)
-                //     f[8]     f0, (x,y,z) = (0,0,1)
-                //     f[9]     f1, (x,y,z) = (0,0,1)
-                //     f[10]    f0, (x,y,z) = (1,0,1)
-                //     f[11]    f1, (x,y,z) = (1,0,1)
-                //     f[12]    f0, (x,y,z) = (0,1,1)
-                //     f[13]    f1, (x,y,z) = (0,1,1)
-                //     f[14]    f0, (x,y,z) = (1,1,1)
-                //     f[15]    f1, (x,y,z) = (1,1,1)
-                //
-                real_1d_array x = "[0.0, 1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.0, 1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array z = "[0.0, 1.0]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(z);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(z);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(z);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(z);
-                real_1d_array f = "[0,0, 1,1, 0,0, 2,2, 1,1, 2,2, 1,2, 3,4]";
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_nan(f);
-                if( _spoil_scenario==13 )
-                    spoil_vector_by_posinf(f);
-                if( _spoil_scenario==14 )
-                    spoil_vector_by_neginf(f);
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_deleting_element(f);
-                double vx = 0.50;
-                if( _spoil_scenario==16 )
-                    vx = fp_posinf;
-                if( _spoil_scenario==17 )
-                    vx = fp_neginf;
-                double vy = 0.50;
-                if( _spoil_scenario==18 )
-                    vy = fp_posinf;
-                if( _spoil_scenario==19 )
-                    vy = fp_neginf;
-                double vz = 0.50;
-                if( _spoil_scenario==20 )
-                    vz = fp_posinf;
-                if( _spoil_scenario==21 )
-                    vz = fp_neginf;
-                spline3dinterpolant s;
-
-                // build spline
-                spline3dbuildtrilinearv(x, 2, y, 2, z, 2, f, 2, s);
-
-                // calculate S(0.5,0.5,0.5) - we have vector of values instead of single value
-                real_1d_array v;
-                spline3dcalcv(s, vx, vy, vz, v);
-                _TestResult = _TestResult && doc_test_real_vector(v, "[1.2500,1.5000]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline3d_vector");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_d_calcdiff
-        //      Interpolation and differentiation using barycentric representation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Here we demonstrate polynomial interpolation and differentiation
-                // of y=x^2-x sampled at [0,1,2]. Barycentric representation of polynomial is used.
-                //
-                real_1d_array x = "[0,1,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(x);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -1;
-                if( _spoil_scenario==10 )
-                    t = fp_posinf;
-                if( _spoil_scenario==11 )
-                    t = fp_neginf;
-                double v;
-                double dv;
-                double d2v;
-                barycentricinterpolant p;
-
-                // barycentric model is created
-                polynomialbuild(x, y, p);
-
-                // barycentric interpolation is demonstrated
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-
-                // barycentric differentation is demonstrated
-                barycentricdiff1(p, t, v, dv);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && doc_test_real(dv, -3.0, 0.00005);
-
-                // second derivatives with barycentric representation
-                barycentricdiff1(p, t, v, dv);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && doc_test_real(dv, -3.0, 0.00005);
-                barycentricdiff2(p, t, v, dv, d2v);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && doc_test_real(dv, -3.0, 0.00005);
-                _TestResult = _TestResult && doc_test_real(d2v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_d_calcdiff");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_d_conv
-        //      Conversion between power basis and barycentric representation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Here we demonstrate conversion of y=x^2-x
-                // between power basis and barycentric representation.
-                //
-                real_1d_array a = "[0,-1,+1]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(a);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(a);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(a);
-                double t = 2;
-                if( _spoil_scenario==3 )
-                    t = fp_posinf;
-                if( _spoil_scenario==4 )
-                    t = fp_neginf;
-                real_1d_array a2;
-                double v;
-                barycentricinterpolant p;
-
-                //
-                // a=[0,-1,+1] is decomposition of y=x^2-x in the power basis:
-                //
-                //     y = 0 - 1*x + 1*x^2
-                //
-                // We convert it to the barycentric form.
-                //
-                polynomialpow2bar(a, p);
-
-                // now we have barycentric interpolation; we can use it for interpolation
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.005);
-
-                // we can also convert back from barycentric representation to power basis
-                polynomialbar2pow(p, a2);
-                _TestResult = _TestResult && doc_test_real_vector(a2, "[0,-1,+1]", 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_d_conv");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_d_spec
-        //      Polynomial interpolation on special grids (equidistant, Chebyshev I/II)
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Temporaries:
-                // * values of y=x^2-x sampled at three special grids:
-                //   * equdistant grid spanning [0,2],     x[i] = 2*i/(N-1), i=0..N-1
-                //   * Chebyshev-I grid spanning [-1,+1],  x[i] = 1 + Cos(PI*(2*i+1)/(2*n)), i=0..N-1
-                //   * Chebyshev-II grid spanning [-1,+1], x[i] = 1 + Cos(PI*i/(n-1)), i=0..N-1
-                // * barycentric interpolants for these three grids
-                // * vectors to store coefficients of quadratic representation
-                //
-                real_1d_array y_eqdist = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y_eqdist);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y_eqdist);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y_eqdist);
-                real_1d_array y_cheb1 = "[-0.116025,0.000000,1.616025]";
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(y_cheb1);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(y_cheb1);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(y_cheb1);
-                real_1d_array y_cheb2 = "[0,0,2]";
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_nan(y_cheb2);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_posinf(y_cheb2);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_neginf(y_cheb2);
-                barycentricinterpolant p_eqdist;
-                barycentricinterpolant p_cheb1;
-                barycentricinterpolant p_cheb2;
-                real_1d_array a_eqdist;
-                real_1d_array a_cheb1;
-                real_1d_array a_cheb2;
-
-                //
-                // First, we demonstrate construction of barycentric interpolants on
-                // special grids. We unpack power representation to ensure that
-                // interpolant was built correctly.
-                //
-                // In all three cases we should get same quadratic function.
-                //
-                polynomialbuildeqdist(0.0, 2.0, y_eqdist, p_eqdist);
-                polynomialbar2pow(p_eqdist, a_eqdist);
-                _TestResult = _TestResult && doc_test_real_vector(a_eqdist, "[0,-1,+1]", 0.00005);
-
-                polynomialbuildcheb1(-1, +1, y_cheb1, p_cheb1);
-                polynomialbar2pow(p_cheb1, a_cheb1);
-                _TestResult = _TestResult && doc_test_real_vector(a_cheb1, "[0,-1,+1]", 0.00005);
-
-                polynomialbuildcheb2(-1, +1, y_cheb2, p_cheb2);
-                polynomialbar2pow(p_cheb2, a_cheb2);
-                _TestResult = _TestResult && doc_test_real_vector(a_cheb2, "[0,-1,+1]", 0.00005);
-
-                //
-                // Now we demonstrate polynomial interpolation without construction 
-                // of the barycentricinterpolant structure.
-                //
-                // We calculate interpolant value at x=-2.
-                // In all three cases we should get same f=6
-                //
-                double t = -2;
-                if( _spoil_scenario==9 )
-                    t = fp_posinf;
-                if( _spoil_scenario==10 )
-                    t = fp_neginf;
-                double v;
-                v = polynomialcalceqdist(0.0, 2.0, y_eqdist, t);
-                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
-
-                v = polynomialcalccheb1(-1, +1, y_cheb1, t);
-                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
-
-                v = polynomialcalccheb2(-1, +1, y_cheb2, t);
-                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_d_spec");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_1
-        //      Polynomial interpolation, full list of parameters.
-        //
-        printf("100/151\n");
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array x = "[0,1,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -1;
-                if( _spoil_scenario==8 )
-                    t = fp_posinf;
-                if( _spoil_scenario==9 )
-                    t = fp_neginf;
-                barycentricinterpolant p;
-                double v;
-                polynomialbuild(x, y, 3, p);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_2
-        //      Polynomial interpolation, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -1;
-                if( _spoil_scenario==4 )
-                    t = fp_posinf;
-                if( _spoil_scenario==5 )
-                    t = fp_neginf;
-                barycentricinterpolant p;
-                double v;
-                polynomialbuildeqdist(0.0, 2.0, y, 3, p);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_2");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_3
-        //      Polynomial interpolation, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[-0.116025,0.000000,1.616025]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -1;
-                if( _spoil_scenario==4 )
-                    t = fp_posinf;
-                if( _spoil_scenario==5 )
-                    t = fp_neginf;
-                barycentricinterpolant p;
-                double v;
-                polynomialbuildcheb1(-1.0, +1.0, y, 3, p);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_3");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_4
-        //      Polynomial interpolation, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -2;
-                if( _spoil_scenario==4 )
-                    t = fp_posinf;
-                if( _spoil_scenario==5 )
-                    t = fp_neginf;
-                double a = -1;
-                if( _spoil_scenario==6 )
-                    a = fp_nan;
-                if( _spoil_scenario==7 )
-                    a = fp_posinf;
-                if( _spoil_scenario==8 )
-                    a = fp_neginf;
-                double b = +1;
-                if( _spoil_scenario==9 )
-                    b = fp_nan;
-                if( _spoil_scenario==10 )
-                    b = fp_posinf;
-                if( _spoil_scenario==11 )
-                    b = fp_neginf;
-                barycentricinterpolant p;
-                double v;
-                polynomialbuildcheb2(a, b, y, 3, p);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_4");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_5
-        //      Polynomial interpolation, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -1;
-                if( _spoil_scenario==4 )
-                    t = fp_posinf;
-                if( _spoil_scenario==5 )
-                    t = fp_neginf;
-                double v;
-                v = polynomialcalceqdist(0.0, 2.0, y, 3, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_5");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_6
-        //      Polynomial interpolation, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[-0.116025,0.000000,1.616025]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -1;
-                if( _spoil_scenario==4 )
-                    t = fp_posinf;
-                if( _spoil_scenario==5 )
-                    t = fp_neginf;
-                double a = -1;
-                if( _spoil_scenario==6 )
-                    a = fp_nan;
-                if( _spoil_scenario==7 )
-                    a = fp_posinf;
-                if( _spoil_scenario==8 )
-                    a = fp_neginf;
-                double b = +1;
-                if( _spoil_scenario==9 )
-                    b = fp_nan;
-                if( _spoil_scenario==10 )
-                    b = fp_posinf;
-                if( _spoil_scenario==11 )
-                    b = fp_neginf;
-                double v;
-                v = polynomialcalccheb1(a, b, y, 3, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_6");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_7
-        //      Polynomial interpolation, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(y);
-                double t = -2;
-                if( _spoil_scenario==4 )
-                    t = fp_posinf;
-                if( _spoil_scenario==5 )
-                    t = fp_neginf;
-                double a = -1;
-                if( _spoil_scenario==6 )
-                    a = fp_nan;
-                if( _spoil_scenario==7 )
-                    a = fp_posinf;
-                if( _spoil_scenario==8 )
-                    a = fp_neginf;
-                double b = +1;
-                if( _spoil_scenario==9 )
-                    b = fp_nan;
-                if( _spoil_scenario==10 )
-                    b = fp_posinf;
-                if( _spoil_scenario==11 )
-                    b = fp_neginf;
-                double v;
-                v = polynomialcalccheb2(a, b, y, 3, t);
-                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_7");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_8
-        //      Polynomial interpolation: y=x^2-x, equidistant grid, barycentric form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                double t = -1;
-                if( _spoil_scenario==3 )
-                    t = fp_posinf;
-                if( _spoil_scenario==4 )
-                    t = fp_neginf;
-                barycentricinterpolant p;
-                double v;
-                polynomialbuildeqdist(0.0, 2.0, y, p);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_8");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_9
-        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (first kind), barycentric form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[-0.116025,0.000000,1.616025]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                double t = -1;
-                if( _spoil_scenario==3 )
-                    t = fp_posinf;
-                if( _spoil_scenario==4 )
-                    t = fp_neginf;
-                double a = -1;
-                if( _spoil_scenario==5 )
-                    a = fp_nan;
-                if( _spoil_scenario==6 )
-                    a = fp_posinf;
-                if( _spoil_scenario==7 )
-                    a = fp_neginf;
-                double b = +1;
-                if( _spoil_scenario==8 )
-                    b = fp_nan;
-                if( _spoil_scenario==9 )
-                    b = fp_posinf;
-                if( _spoil_scenario==10 )
-                    b = fp_neginf;
-                barycentricinterpolant p;
-                double v;
-                polynomialbuildcheb1(a, b, y, p);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_9");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_10
-        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (second kind), barycentric form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                double t = -2;
-                if( _spoil_scenario==3 )
-                    t = fp_posinf;
-                if( _spoil_scenario==4 )
-                    t = fp_neginf;
-                double a = -1;
-                if( _spoil_scenario==5 )
-                    a = fp_nan;
-                if( _spoil_scenario==6 )
-                    a = fp_posinf;
-                if( _spoil_scenario==7 )
-                    a = fp_neginf;
-                double b = +1;
-                if( _spoil_scenario==8 )
-                    b = fp_nan;
-                if( _spoil_scenario==9 )
-                    b = fp_posinf;
-                if( _spoil_scenario==10 )
-                    b = fp_neginf;
-                barycentricinterpolant p;
-                double v;
-                polynomialbuildcheb2(a, b, y, p);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_10");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_11
-        //      Polynomial interpolation: y=x^2-x, equidistant grid
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                double t = -1;
-                if( _spoil_scenario==3 )
-                    t = fp_posinf;
-                if( _spoil_scenario==4 )
-                    t = fp_neginf;
-                double v;
-                v = polynomialcalceqdist(0.0, 2.0, y, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_11");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_12
-        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (first kind)
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[-0.116025,0.000000,1.616025]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                double t = -1;
-                if( _spoil_scenario==3 )
-                    t = fp_posinf;
-                if( _spoil_scenario==4 )
-                    t = fp_neginf;
-                double a = -1;
-                if( _spoil_scenario==5 )
-                    a = fp_nan;
-                if( _spoil_scenario==6 )
-                    a = fp_posinf;
-                if( _spoil_scenario==7 )
-                    a = fp_neginf;
-                double b = +1;
-                if( _spoil_scenario==8 )
-                    b = fp_nan;
-                if( _spoil_scenario==9 )
-                    b = fp_posinf;
-                if( _spoil_scenario==10 )
-                    b = fp_neginf;
-                double v;
-                v = polynomialcalccheb1(a, b, y, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_12");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST polint_t_13
-        //      Polynomial interpolation: y=x^2-x, Chebyshev grid (second kind)
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<11; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array y = "[0,0,2]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                double t = -2;
-                if( _spoil_scenario==3 )
-                    t = fp_posinf;
-                if( _spoil_scenario==4 )
-                    t = fp_neginf;
-                double a = -1;
-                if( _spoil_scenario==5 )
-                    a = fp_nan;
-                if( _spoil_scenario==6 )
-                    a = fp_posinf;
-                if( _spoil_scenario==7 )
-                    a = fp_neginf;
-                double b = +1;
-                if( _spoil_scenario==8 )
-                    b = fp_nan;
-                if( _spoil_scenario==9 )
-                    b = fp_posinf;
-                if( _spoil_scenario==10 )
-                    b = fp_neginf;
-                double v;
-                v = polynomialcalccheb2(a, b, y, t);
-                _TestResult = _TestResult && doc_test_real(v, 6.0, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "polint_t_13");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_nlf
-        //      Nonlinear fitting using function value only
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<24; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate exponential fitting
-                // by f(x) = exp(-c*x^2)
-                // using function value only.
-                //
-                // Gradient is estimated using combination of numerical differences
-                // and secant updates. diffstep variable stores differentiation step 
-                // (we have to tell algorithm what step to use).
-                //
-                real_2d_array x = "[[-1],[-0.8],[-0.6],[-0.4],[-0.2],[0],[0.2],[0.4],[0.6],[0.8],[1.0]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(x);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(x);
-                real_1d_array y = "[0.223130, 0.382893, 0.582748, 0.786628, 0.941765, 1.000000, 0.941765, 0.786628, 0.582748, 0.382893, 0.223130]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array c = "[0.3]";
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_nan(c);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_posinf(c);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_neginf(c);
-                double epsx = 0.000001;
-                if( _spoil_scenario==13 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==14 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==15 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                ae_int_t info;
-                lsfitstate state;
-                lsfitreport rep;
-                double diffstep = 0.0001;
-                if( _spoil_scenario==16 )
-                    diffstep = fp_nan;
-                if( _spoil_scenario==17 )
-                    diffstep = fp_posinf;
-                if( _spoil_scenario==18 )
-                    diffstep = fp_neginf;
-
-                //
-                // Fitting without weights
-                //
-                lsfitcreatef(x, y, c, diffstep, state);
-                lsfitsetcond(state, epsx, maxits);
-                alglib::lsfitfit(state, function_cx_1_func);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 2);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
-
-                //
-                // Fitting with weights
-                // (you can change weights and see how it changes result)
-                //
-                real_1d_array w = "[1,1,1,1,1,1,1,1,1,1,1]";
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==20 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==21 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==22 )
-                    spoil_vector_by_adding_element(w);
-                if( _spoil_scenario==23 )
-                    spoil_vector_by_deleting_element(w);
-                lsfitcreatewf(x, y, w, c, diffstep, state);
-                lsfitsetcond(state, epsx, maxits);
-                alglib::lsfitfit(state, function_cx_1_func);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 2);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_nlf");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_nlfg
-        //      Nonlinear fitting using gradient
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<21; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate exponential fitting
-                // by f(x) = exp(-c*x^2)
-                // using function value and gradient (with respect to c).
-                //
-                real_2d_array x = "[[-1],[-0.8],[-0.6],[-0.4],[-0.2],[0],[0.2],[0.4],[0.6],[0.8],[1.0]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(x);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(x);
-                real_1d_array y = "[0.223130, 0.382893, 0.582748, 0.786628, 0.941765, 1.000000, 0.941765, 0.786628, 0.582748, 0.382893, 0.223130]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array c = "[0.3]";
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_nan(c);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_posinf(c);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_neginf(c);
-                double epsx = 0.000001;
-                if( _spoil_scenario==13 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==14 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==15 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                ae_int_t info;
-                lsfitstate state;
-                lsfitreport rep;
-
-                //
-                // Fitting without weights
-                //
-                lsfitcreatefg(x, y, c, true, state);
-                lsfitsetcond(state, epsx, maxits);
-                alglib::lsfitfit(state, function_cx_1_func, function_cx_1_grad);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 2);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
-
-                //
-                // Fitting with weights
-                // (you can change weights and see how it changes result)
-                //
-                real_1d_array w = "[1,1,1,1,1,1,1,1,1,1,1]";
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==17 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_adding_element(w);
-                if( _spoil_scenario==20 )
-                    spoil_vector_by_deleting_element(w);
-                lsfitcreatewfg(x, y, w, c, true, state);
-                lsfitsetcond(state, epsx, maxits);
-                alglib::lsfitfit(state, function_cx_1_func, function_cx_1_grad);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 2);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_nlfg");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_nlfgh
-        //      Nonlinear fitting using gradient and Hessian
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<21; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate exponential fitting
-                // by f(x) = exp(-c*x^2)
-                // using function value, gradient and Hessian (with respect to c)
-                //
-                real_2d_array x = "[[-1],[-0.8],[-0.6],[-0.4],[-0.2],[0],[0.2],[0.4],[0.6],[0.8],[1.0]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(x);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(x);
-                real_1d_array y = "[0.223130, 0.382893, 0.582748, 0.786628, 0.941765, 1.000000, 0.941765, 0.786628, 0.582748, 0.382893, 0.223130]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array c = "[0.3]";
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_nan(c);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_posinf(c);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_neginf(c);
-                double epsx = 0.000001;
-                if( _spoil_scenario==13 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==14 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==15 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                ae_int_t info;
-                lsfitstate state;
-                lsfitreport rep;
-
-                //
-                // Fitting without weights
-                //
-                lsfitcreatefgh(x, y, c, state);
-                lsfitsetcond(state, epsx, maxits);
-                alglib::lsfitfit(state, function_cx_1_func, function_cx_1_grad, function_cx_1_hess);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 2);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
-
-                //
-                // Fitting with weights
-                // (you can change weights and see how it changes result)
-                //
-                real_1d_array w = "[1,1,1,1,1,1,1,1,1,1,1]";
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==17 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_adding_element(w);
-                if( _spoil_scenario==20 )
-                    spoil_vector_by_deleting_element(w);
-                lsfitcreatewfgh(x, y, w, c, state);
-                lsfitsetcond(state, epsx, maxits);
-                alglib::lsfitfit(state, function_cx_1_func, function_cx_1_grad, function_cx_1_hess);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 2);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.5]", 0.05);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_nlfgh");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_nlfb
-        //      Bound contstrained nonlinear fitting using function value only
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<23; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate exponential fitting by
-                //     f(x) = exp(-c*x^2)
-                // subject to bound constraints
-                //     0.0 <= c <= 1.0
-                // using function value only.
-                //
-                // Gradient is estimated using combination of numerical differences
-                // and secant updates. diffstep variable stores differentiation step 
-                // (we have to tell algorithm what step to use).
-                //
-                // Unconstrained solution is c=1.5, but because of constraints we should
-                // get c=1.0 (at the boundary).
-                //
-                real_2d_array x = "[[-1],[-0.8],[-0.6],[-0.4],[-0.2],[0],[0.2],[0.4],[0.6],[0.8],[1.0]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(x);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(x);
-                real_1d_array y = "[0.223130, 0.382893, 0.582748, 0.786628, 0.941765, 1.000000, 0.941765, 0.786628, 0.582748, 0.382893, 0.223130]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array c = "[0.3]";
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_nan(c);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_posinf(c);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_neginf(c);
-                real_1d_array bndl = "[0.0]";
-                if( _spoil_scenario==13 )
-                    spoil_vector_by_nan(bndl);
-                if( _spoil_scenario==14 )
-                    spoil_vector_by_deleting_element(bndl);
-                real_1d_array bndu = "[1.0]";
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_nan(bndu);
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_deleting_element(bndu);
-                double epsx = 0.000001;
-                if( _spoil_scenario==17 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==18 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==19 )
-                    epsx = fp_neginf;
-                ae_int_t maxits = 0;
-                ae_int_t info;
-                lsfitstate state;
-                lsfitreport rep;
-                double diffstep = 0.0001;
-                if( _spoil_scenario==20 )
-                    diffstep = fp_nan;
-                if( _spoil_scenario==21 )
-                    diffstep = fp_posinf;
-                if( _spoil_scenario==22 )
-                    diffstep = fp_neginf;
-
-                lsfitcreatef(x, y, c, diffstep, state);
-                lsfitsetbc(state, bndl, bndu);
-                lsfitsetcond(state, epsx, maxits);
-                alglib::lsfitfit(state, function_cx_1_func);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.0]", 0.05);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_nlfb");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_nlscale
-        //      Nonlinear fitting with custom scaling and bound constraints
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<27; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate fitting by
-                //     f(x) = c[0]*(1+c[1]*((x-1999)^c[2]-1))
-                // subject to bound constraints
-                //     -INF  < c[0] < +INF
-                //      -10 <= c[1] <= +10
-                //      0.1 <= c[2] <= 2.0
-                // Data we want to fit are time series of Japan national debt
-                // collected from 2000 to 2008 measured in USD (dollars, not
-                // millions of dollars).
-                //
-                // Our variables are:
-                //     c[0] - debt value at initial moment (2000),
-                //     c[1] - direction coefficient (growth or decrease),
-                //     c[2] - curvature coefficient.
-                // You may see that our variables are badly scaled - first one 
-                // is order of 10^12, and next two are somewhere about 1 in 
-                // magnitude. Such problem is difficult to solve without some
-                // kind of scaling.
-                // That is exactly where lsfitsetscale() function can be used.
-                // We set scale of our variables to [1.0E12, 1, 1], which allows
-                // us to easily solve this problem.
-                //
-                // You can try commenting out lsfitsetscale() call - and you will 
-                // see that algorithm will fail to converge.
-                //
-                real_2d_array x = "[[2000],[2001],[2002],[2003],[2004],[2005],[2006],[2007],[2008]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(x);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(x);
-                real_1d_array y = "[4323239600000.0, 4560913100000.0, 5564091500000.0, 6743189300000.0, 7284064600000.0, 7050129600000.0, 7092221500000.0, 8483907600000.0, 8625804400000.0]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array c = "[1.0e+13, 1, 1]";
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_nan(c);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_posinf(c);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_neginf(c);
-                double epsx = 1.0e-5;
-                if( _spoil_scenario==13 )
-                    epsx = fp_nan;
-                if( _spoil_scenario==14 )
-                    epsx = fp_posinf;
-                if( _spoil_scenario==15 )
-                    epsx = fp_neginf;
-                real_1d_array bndl = "[-inf, -10, 0.1]";
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_nan(bndl);
-                if( _spoil_scenario==17 )
-                    spoil_vector_by_deleting_element(bndl);
-                real_1d_array bndu = "[+inf, +10, 2.0]";
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_nan(bndu);
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_deleting_element(bndu);
-                real_1d_array s = "[1.0e+12, 1, 1]";
-                if( _spoil_scenario==20 )
-                    spoil_vector_by_nan(s);
-                if( _spoil_scenario==21 )
-                    spoil_vector_by_posinf(s);
-                if( _spoil_scenario==22 )
-                    spoil_vector_by_neginf(s);
-                if( _spoil_scenario==23 )
-                    spoil_vector_by_deleting_element(s);
-                ae_int_t maxits = 0;
-                ae_int_t info;
-                lsfitstate state;
-                lsfitreport rep;
-                double diffstep = 1.0e-5;
-                if( _spoil_scenario==24 )
-                    diffstep = fp_nan;
-                if( _spoil_scenario==25 )
-                    diffstep = fp_posinf;
-                if( _spoil_scenario==26 )
-                    diffstep = fp_neginf;
-
-                lsfitcreatef(x, y, c, diffstep, state);
-                lsfitsetcond(state, epsx, maxits);
-                lsfitsetbc(state, bndl, bndu);
-                lsfitsetscale(state, s);
-                alglib::lsfitfit(state, function_debt_func);
-                lsfitresults(state, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 2);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[4.142560e+12, 0.434240, 0.565376]", -0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_nlscale");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_lin
-        //      Unconstrained (general) linear least squares fitting with and without weights
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<13; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate linear fitting by f(x|a) = a*exp(0.5*x).
-                //
-                // We have:
-                // * y - vector of experimental data
-                // * fmatrix -  matrix of basis functions calculated at sample points
-                //              Actually, we have only one basis function F0 = exp(0.5*x).
-                //
-                real_2d_array fmatrix = "[[0.606531],[0.670320],[0.740818],[0.818731],[0.904837],[1.000000],[1.105171],[1.221403],[1.349859],[1.491825],[1.648721]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(fmatrix);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(fmatrix);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(fmatrix);
-                real_1d_array y = "[1.133719, 1.306522, 1.504604, 1.554663, 1.884638, 2.072436, 2.257285, 2.534068, 2.622017, 2.897713, 3.219371]";
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                ae_int_t info;
-                real_1d_array c;
-                lsfitreport rep;
-
-                //
-                // Linear fitting without weights
-                //
-                lsfitlinear(y, fmatrix, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.98650]", 0.00005);
-
-                //
-                // Linear fitting with individual weights.
-                // Slightly different result is returned.
-                //
-                real_1d_array w = "[1.414213, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_adding_element(w);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_deleting_element(w);
-                lsfitlinearw(y, w, fmatrix, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[1.983354]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_lin");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_linc
-        //      Constrained (general) linear least squares fitting with and without weights
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<20; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate linear fitting by f(x|a,b) = a*x+b
-                // with simple constraint f(0)=0.
-                //
-                // We have:
-                // * y - vector of experimental data
-                // * fmatrix -  matrix of basis functions sampled at [0,1] with step 0.2:
-                //                  [ 1.0   0.0 ]
-                //                  [ 1.0   0.2 ]
-                //                  [ 1.0   0.4 ]
-                //                  [ 1.0   0.6 ]
-                //                  [ 1.0   0.8 ]
-                //                  [ 1.0   1.0 ]
-                //              first column contains value of first basis function (constant term)
-                //              second column contains second basis function (linear term)
-                // * cmatrix -  matrix of linear constraints:
-                //                  [ 1.0  0.0  0.0 ]
-                //              first two columns contain coefficients before basis functions,
-                //              last column contains desired value of their sum.
-                //              So [1,0,0] means "1*constant_term + 0*linear_term = 0" 
-                //
-                real_1d_array y = "[0.072436,0.246944,0.491263,0.522300,0.714064,0.921929]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(y);
-                real_2d_array fmatrix = "[[1,0.0],[1,0.2],[1,0.4],[1,0.6],[1,0.8],[1,1.0]]";
-                if( _spoil_scenario==5 )
-                    spoil_matrix_by_nan(fmatrix);
-                if( _spoil_scenario==6 )
-                    spoil_matrix_by_posinf(fmatrix);
-                if( _spoil_scenario==7 )
-                    spoil_matrix_by_neginf(fmatrix);
-                if( _spoil_scenario==8 )
-                    spoil_matrix_by_adding_row(fmatrix);
-                if( _spoil_scenario==9 )
-                    spoil_matrix_by_adding_col(fmatrix);
-                if( _spoil_scenario==10 )
-                    spoil_matrix_by_deleting_row(fmatrix);
-                if( _spoil_scenario==11 )
-                    spoil_matrix_by_deleting_col(fmatrix);
-                real_2d_array cmatrix = "[[1,0,0]]";
-                if( _spoil_scenario==12 )
-                    spoil_matrix_by_nan(cmatrix);
-                if( _spoil_scenario==13 )
-                    spoil_matrix_by_posinf(cmatrix);
-                if( _spoil_scenario==14 )
-                    spoil_matrix_by_neginf(cmatrix);
-                ae_int_t info;
-                real_1d_array c;
-                lsfitreport rep;
-
-                //
-                // Constrained fitting without weights
-                //
-                lsfitlinearc(y, fmatrix, cmatrix, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[0,0.932933]", 0.0005);
-
-                //
-                // Constrained fitting with individual weights
-                //
-                real_1d_array w = "[1, 1.414213, 1, 1, 1, 1]";
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==17 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_adding_element(w);
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_deleting_element(w);
-                lsfitlinearwc(y, w, fmatrix, cmatrix, info, c, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                _TestResult = _TestResult && doc_test_real_vector(c, "[0,0.938322]", 0.0005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_linc");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_pol
-        //      Unconstrained polynomial fitting
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<20; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example demonstrates polynomial fitting.
-                //
-                // Fitting is done by two (M=2) functions from polynomial basis:
-                //     f0 = 1
-                //     f1 = x
-                // Basically, it just a linear fit; more complex polynomials may be used
-                // (e.g. parabolas with M=3, cubic with M=4), but even such simple fit allows
-                // us to demonstrate polynomialfit() function in action.
-                //
-                // We have:
-                // * x      set of abscissas
-                // * y      experimental data
-                //
-                // Additionally we demonstrate weighted fitting, where second point has
-                // more weight than other ones.
-                //
-                real_1d_array x = "[0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(x);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.00,0.05,0.26,0.32,0.33,0.43,0.60,0.60,0.77,0.98,1.02]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                ae_int_t m = 2;
-                double t = 2;
-                if( _spoil_scenario==10 )
-                    t = fp_posinf;
-                if( _spoil_scenario==11 )
-                    t = fp_neginf;
-                ae_int_t info;
-                barycentricinterpolant p;
-                polynomialfitreport rep;
-                double v;
-
-                //
-                // Fitting without individual weights
-                //
-                // NOTE: result is returned as barycentricinterpolant structure.
-                //       if you want to get representation in the power basis,
-                //       you can use barycentricbar2pow() function to convert
-                //       from barycentric to power representation (see docs for 
-                //       POLINT subpackage for more info).
-                //
-                polynomialfit(x, y, m, info, p, rep);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.011, 0.002);
-
-                //
-                // Fitting with individual weights
-                //
-                // NOTE: slightly different result is returned
-                //
-                real_1d_array w = "[1,1.414213562,1,1,1,1,1,1,1,1,1]";
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==13 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==14 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_adding_element(w);
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_deleting_element(w);
-                real_1d_array xc = "[]";
-                if( _spoil_scenario==17 )
-                    spoil_vector_by_adding_element(xc);
-                real_1d_array yc = "[]";
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_adding_element(yc);
-                integer_1d_array dc = "[]";
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_adding_element(dc);
-                polynomialfitwc(x, y, w, xc, yc, dc, m, info, p, rep);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.023, 0.002);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_pol");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_polc
-        //      Constrained polynomial fitting
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<29; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example demonstrates polynomial fitting.
-                //
-                // Fitting is done by two (M=2) functions from polynomial basis:
-                //     f0 = 1
-                //     f1 = x
-                // with simple constraint on function value
-                //     f(0) = 0
-                // Basically, it just a linear fit; more complex polynomials may be used
-                // (e.g. parabolas with M=3, cubic with M=4), but even such simple fit allows
-                // us to demonstrate polynomialfit() function in action.
-                //
-                // We have:
-                // * x      set of abscissas
-                // * y      experimental data
-                // * xc     points where constraints are placed
-                // * yc     constraints on derivatives
-                // * dc     derivative indices
-                //          (0 means function itself, 1 means first derivative)
-                //
-                real_1d_array x = "[1.0,1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(x);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.9,1.1]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array w = "[1,1]";
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==13 )
-                    spoil_vector_by_adding_element(w);
-                if( _spoil_scenario==14 )
-                    spoil_vector_by_deleting_element(w);
-                real_1d_array xc = "[0]";
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_nan(xc);
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_posinf(xc);
-                if( _spoil_scenario==17 )
-                    spoil_vector_by_neginf(xc);
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_adding_element(xc);
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_deleting_element(xc);
-                real_1d_array yc = "[0]";
-                if( _spoil_scenario==20 )
-                    spoil_vector_by_nan(yc);
-                if( _spoil_scenario==21 )
-                    spoil_vector_by_posinf(yc);
-                if( _spoil_scenario==22 )
-                    spoil_vector_by_neginf(yc);
-                if( _spoil_scenario==23 )
-                    spoil_vector_by_adding_element(yc);
-                if( _spoil_scenario==24 )
-                    spoil_vector_by_deleting_element(yc);
-                integer_1d_array dc = "[0]";
-                if( _spoil_scenario==25 )
-                    spoil_vector_by_adding_element(dc);
-                if( _spoil_scenario==26 )
-                    spoil_vector_by_deleting_element(dc);
-                double t = 2;
-                if( _spoil_scenario==27 )
-                    t = fp_posinf;
-                if( _spoil_scenario==28 )
-                    t = fp_neginf;
-                ae_int_t m = 2;
-                ae_int_t info;
-                barycentricinterpolant p;
-                polynomialfitreport rep;
-                double v;
-
-                polynomialfitwc(x, y, w, xc, yc, dc, m, info, p, rep);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.000, 0.001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_polc");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_d_spline
-        //      Unconstrained fitting by penalized regression spline
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<19; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // In this example we demonstrate penalized spline fitting of noisy data
-                //
-                // We have:
-                // * x - abscissas
-                // * y - vector of experimental data, straight line with small noise
-                //
-                real_1d_array x = "[0.00,0.10,0.20,0.30,0.40,0.50,0.60,0.70,0.80,0.90]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_adding_element(x);
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.10,0.00,0.30,0.40,0.30,0.40,0.62,0.68,0.75,0.95]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_adding_element(y);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_deleting_element(y);
-                ae_int_t info;
-                double v;
-                spline1dinterpolant s;
-                spline1dfitreport rep;
-                double rho;
-
-                //
-                // Fit with VERY small amount of smoothing (rho = -5.0)
-                // and large number of basis functions (M=50).
-                //
-                // With such small regularization penalized spline almost fully reproduces function values
-                //
-                rho = -5.0;
-                if( _spoil_scenario==10 )
-                    rho = fp_nan;
-                if( _spoil_scenario==11 )
-                    rho = fp_posinf;
-                if( _spoil_scenario==12 )
-                    rho = fp_neginf;
-                spline1dfitpenalized(x, y, 50, rho, info, s, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                v = spline1dcalc(s, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 0.10, 0.01);
-
-                //
-                // Fit with VERY large amount of smoothing (rho = 10.0)
-                // and large number of basis functions (M=50).
-                //
-                // With such regularization our spline should become close to the straight line fit.
-                // We will compare its value in x=1.0 with results obtained from such fit.
-                //
-                rho = +10.0;
-                if( _spoil_scenario==13 )
-                    rho = fp_nan;
-                if( _spoil_scenario==14 )
-                    rho = fp_posinf;
-                if( _spoil_scenario==15 )
-                    rho = fp_neginf;
-                spline1dfitpenalized(x, y, 50, rho, info, s, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                v = spline1dcalc(s, 1.0);
-                _TestResult = _TestResult && doc_test_real(v, 0.969, 0.001);
-
-                //
-                // In real life applications you may need some moderate degree of fitting,
-                // so we try to fit once more with rho=3.0.
-                //
-                rho = +3.0;
-                if( _spoil_scenario==16 )
-                    rho = fp_nan;
-                if( _spoil_scenario==17 )
-                    rho = fp_posinf;
-                if( _spoil_scenario==18 )
-                    rho = fp_neginf;
-                spline1dfitpenalized(x, y, 50, rho, info, s, rep);
-                _TestResult = _TestResult && doc_test_int(info, 1);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_d_spline");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_t_polfit_1
-        //      Polynomial fitting, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<10; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array x = "[0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.00,0.05,0.26,0.32,0.33,0.43,0.60,0.60,0.77,0.98,1.02]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                ae_int_t m = 2;
-                double t = 2;
-                if( _spoil_scenario==8 )
-                    t = fp_posinf;
-                if( _spoil_scenario==9 )
-                    t = fp_neginf;
-                ae_int_t info;
-                barycentricinterpolant p;
-                polynomialfitreport rep;
-                double v;
-                polynomialfit(x, y, 11, m, info, p, rep);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.011, 0.002);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_t_polfit_1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_t_polfit_2
-        //      Polynomial fitting, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<14; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array x = "[0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.00,0.05,0.26,0.32,0.33,0.43,0.60,0.60,0.77,0.98,1.02]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array w = "[1,1.414213562,1,1,1,1,1,1,1,1,1]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(w);
-                real_1d_array xc = "[]";
-                real_1d_array yc = "[]";
-                integer_1d_array dc = "[]";
-                ae_int_t m = 2;
-                double t = 2;
-                if( _spoil_scenario==12 )
-                    t = fp_posinf;
-                if( _spoil_scenario==13 )
-                    t = fp_neginf;
-                ae_int_t info;
-                barycentricinterpolant p;
-                polynomialfitreport rep;
-                double v;
-                polynomialfitwc(x, y, w, 11, xc, yc, dc, 0, m, info, p, rep);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.023, 0.002);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_t_polfit_2");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_t_polfit_3
-        //      Polynomial fitting, full list of parameters.
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<23; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array x = "[1.0,1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.9,1.1]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array w = "[1,1]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(w);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(w);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(w);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(w);
-                real_1d_array xc = "[0]";
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_nan(xc);
-                if( _spoil_scenario==13 )
-                    spoil_vector_by_posinf(xc);
-                if( _spoil_scenario==14 )
-                    spoil_vector_by_neginf(xc);
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_deleting_element(xc);
-                real_1d_array yc = "[0]";
-                if( _spoil_scenario==16 )
-                    spoil_vector_by_nan(yc);
-                if( _spoil_scenario==17 )
-                    spoil_vector_by_posinf(yc);
-                if( _spoil_scenario==18 )
-                    spoil_vector_by_neginf(yc);
-                if( _spoil_scenario==19 )
-                    spoil_vector_by_deleting_element(yc);
-                integer_1d_array dc = "[0]";
-                if( _spoil_scenario==20 )
-                    spoil_vector_by_deleting_element(dc);
-                ae_int_t m = 2;
-                double t = 2;
-                if( _spoil_scenario==21 )
-                    t = fp_posinf;
-                if( _spoil_scenario==22 )
-                    t = fp_neginf;
-                ae_int_t info;
-                barycentricinterpolant p;
-                polynomialfitreport rep;
-                double v;
-                polynomialfitwc(x, y, w, 2, xc, yc, dc, 1, m, info, p, rep);
-                v = barycentriccalc(p, t);
-                _TestResult = _TestResult && doc_test_real(v, 2.000, 0.001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_t_polfit_3");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_t_4pl
-        //      4-parameter logistic fitting
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<8; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array x = "[1,2,3,4,5,6,7,8]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.06313223,0.44552624,0.61838364,0.71385108,0.77345838,0.81383140,0.84280033,0.86449822]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                ae_int_t n = 8;
-                double a;
-                double b;
-                double c;
-                double d;
-                lsfitreport rep;
-
-                //
-                // Test logisticfit4() on carefully designed data with a priori known answer.
-                //
-                logisticfit4(x, y, n, a, b, c, d, rep);
-                _TestResult = _TestResult && doc_test_real(a, -1.000, 0.01);
-                _TestResult = _TestResult && doc_test_real(b, 1.200, 0.01);
-                _TestResult = _TestResult && doc_test_real(c, 0.900, 0.01);
-                _TestResult = _TestResult && doc_test_real(d, 1.000, 0.01);
-
-                //
-                // Evaluate model at point x=0.5
-                //
-                double v;
-                v = logisticcalc4(0.5, a, b, c, d);
-                _TestResult = _TestResult && doc_test_real(v, -0.33874308, 0.001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_t_4pl");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lsfit_t_5pl
-        //      5-parameter logistic fitting
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<8; _spoil_scenario++)
-        {
-            try
-            {
-                real_1d_array x = "[1,2,3,4,5,6,7,8]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.1949776139,0.5710060208,0.726002637,0.8060434158,0.8534547965,0.8842071579,0.9054773317,0.9209088299]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                ae_int_t n = 8;
-                double a;
-                double b;
-                double c;
-                double d;
-                double g;
-                lsfitreport rep;
-
-                //
-                // Test logisticfit5() on carefully designed data with a priori known answer.
-                //
-                logisticfit5(x, y, n, a, b, c, d, g, rep);
-                _TestResult = _TestResult && doc_test_real(a, -1.000, 0.01);
-                _TestResult = _TestResult && doc_test_real(b, 1.200, 0.01);
-                _TestResult = _TestResult && doc_test_real(c, 0.900, 0.01);
-                _TestResult = _TestResult && doc_test_real(d, 1.000, 0.01);
-                _TestResult = _TestResult && doc_test_real(g, 1.200, 0.01);
-
-                //
-                // Evaluate model at point x=0.5
-                //
-                double v;
-                v = logisticcalc5(0.5, a, b, c, d, g);
-                _TestResult = _TestResult && doc_test_real(v, -0.2354656824, 0.001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lsfit_t_5pl");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline2d_bilinear
-        //      Bilinear spline interpolation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<16; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use bilinear spline to interpolate f(x,y)=x^2+2*y^2 sampled 
-                // at (x,y) from [0.0, 0.5, 1.0] X [0.0, 1.0].
-                //
-                real_1d_array x = "[0.0, 0.5, 1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.0, 1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array f = "[0.00,0.25,1.00,2.00,2.25,3.00]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(f);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(f);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(f);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(f);
-                double vx = 0.25;
-                if( _spoil_scenario==12 )
-                    vx = fp_posinf;
-                if( _spoil_scenario==13 )
-                    vx = fp_neginf;
-                double vy = 0.50;
-                if( _spoil_scenario==14 )
-                    vy = fp_posinf;
-                if( _spoil_scenario==15 )
-                    vy = fp_neginf;
-                double v;
-                spline2dinterpolant s;
-
-                // build spline
-                spline2dbuildbilinearv(x, 3, y, 2, f, 1, s);
-
-                // calculate S(0.25,0.50)
-                v = spline2dcalc(s, vx, vy);
-                _TestResult = _TestResult && doc_test_real(v, 1.1250, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline2d_bilinear");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline2d_bicubic
-        //      Bilinear spline interpolation
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<16; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use bilinear spline to interpolate f(x,y)=x^2+2*y^2 sampled 
-                // at (x,y) from [0.0, 0.5, 1.0] X [0.0, 1.0].
-                //
-                real_1d_array x = "[0.0, 0.5, 1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.0, 1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array f = "[0.00,0.25,1.00,2.00,2.25,3.00]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(f);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(f);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(f);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(f);
-                double vx = 0.25;
-                if( _spoil_scenario==12 )
-                    vx = fp_posinf;
-                if( _spoil_scenario==13 )
-                    vx = fp_neginf;
-                double vy = 0.50;
-                if( _spoil_scenario==14 )
-                    vy = fp_posinf;
-                if( _spoil_scenario==15 )
-                    vy = fp_neginf;
-                double v;
-                double dx;
-                double dy;
-                double dxy;
-                spline2dinterpolant s;
-
-                // build spline
-                spline2dbuildbicubicv(x, 3, y, 2, f, 1, s);
-
-                // calculate S(0.25,0.50)
-                v = spline2dcalc(s, vx, vy);
-                _TestResult = _TestResult && doc_test_real(v, 1.0625, 0.00005);
-
-                // calculate derivatives
-                spline2ddiff(s, vx, vy, v, dx, dy, dxy);
-                _TestResult = _TestResult && doc_test_real(v, 1.0625, 0.00005);
-                _TestResult = _TestResult && doc_test_real(dx, 0.5000, 0.00005);
-                _TestResult = _TestResult && doc_test_real(dy, 2.0000, 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline2d_bicubic");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline2d_fit_blocklls
-        //      Fitting bicubic spline to irregular data
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We use bicubic spline to reproduce f(x,y)=1/(1+x^2+2*y^2) sampled
-                // at irregular points (x,y) from [-1,+1]*[-1,+1]
-                //
-                // We have 5 such points, located approximately at corners of the area
-                // and its center -  but not exactly at the grid. Thus, we have to FIT
-                // the spline, i.e. to solve least squares problem
-                //
-                real_2d_array xy = "[[-0.987,-0.902,0.359],[0.948,-0.992,0.347],[-1.000,1.000,0.333],[1.000,0.973,0.339],[0.017,0.180,0.968]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(xy);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(xy);
-
-                //
-                // First step is to create spline2dbuilder object and set its properties:
-                // * d=1 means that we create vector-valued spline with 1 component
-                // * we specify dataset xy
-                // * we rely on automatic selection of interpolation area
-                // * we tell builder that we want to use 5x5 grid for an underlying spline
-                // * we choose least squares solver named BlockLLS and configure it by
-                //   telling that we want to apply zero nonlinearity penalty.
-                //
-                // NOTE: you can specify non-zero lambdav if you want to make your spline
-                //       more "rigid", i.e. to penalize nonlinearity.
-                //
-                // NOTE: ALGLIB has two solvers which fit bicubic splines to irregular data,
-                //       one of them is BlockLLS and another one is FastDDM. Former is
-                //       intended for moderately sized grids (up to 512x512 nodes, although
-                //       it may take up to few minutes); it is the most easy to use and
-                //       control spline fitting function in the library. Latter, FastDDM,
-                //       is intended for efficient solution of large-scale problems
-                //       (up to 100.000.000 nodes). Both solvers can be parallelized, but
-                //       FastDDM is much more efficient. See comments for more information.
-                //
-                spline2dbuilder builder;
-                ae_int_t d = 1;
-                double lambdav = 0.000;
-                spline2dbuildercreate(d, builder);
-                spline2dbuildersetpoints(builder, xy, 5);
-                spline2dbuildersetgrid(builder, 5, 5);
-                spline2dbuildersetalgoblocklls(builder, lambdav);
-
-                //
-                // Now we are ready to fit and evaluate our results
-                //
-                spline2dinterpolant s;
-                spline2dfitreport rep;
-                spline2dfit(builder, s, rep);
-
-                // evaluate results - function value at the grid is reproduced exactly
-                double v;
-                v = spline2dcalc(s, -1, 1);
-                _TestResult = _TestResult && doc_test_real(v, 0.333000, 0.005);
-
-                // check maximum error - it must be nearly zero
-                _TestResult = _TestResult && doc_test_real(rep.maxerror, 0.000, 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline2d_fit_blocklls");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline2d_unpack
-        //      Unpacking bilinear spline
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We build bilinear spline for f(x,y)=x+2*y+3*xy for (x,y) in [0,1].
-                // Then we demonstrate how to unpack it.
-                //
-                real_1d_array x = "[0.0, 1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.0, 1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array f = "[0.00,1.00,2.00,6.00]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(f);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(f);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(f);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(f);
-                real_2d_array c;
-                ae_int_t m;
-                ae_int_t n;
-                ae_int_t d;
-                spline2dinterpolant s;
-
-                // build spline
-                spline2dbuildbilinearv(x, 2, y, 2, f, 1, s);
-
-                // unpack and test
-                spline2dunpackv(s, m, n, d, c);
-                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0, 1, 0, 1, 0,2,0,0, 1,3,0,0, 0,0,0,0, 0,0,0,0 ]]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline2d_unpack");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline2d_copytrans
-        //      Copy and transform
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<16; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We build bilinear spline for f(x,y)=x+2*y for (x,y) in [0,1].
-                // Then we apply several transformations to this spline.
-                //
-                real_1d_array x = "[0.0, 1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.0, 1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array f = "[0.00,1.00,2.00,3.00]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(f);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(f);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(f);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(f);
-                spline2dinterpolant s;
-                spline2dinterpolant snew;
-                double v;
-                spline2dbuildbilinearv(x, 2, y, 2, f, 1, s);
-
-                // copy spline, apply transformation x:=2*xnew, y:=4*ynew
-                // evaluate at (xnew,ynew) = (0.25,0.25) - should be same as (x,y)=(0.5,1.0)
-                spline2dcopy(s, snew);
-                spline2dlintransxy(snew, 2.0, 0.0, 4.0, 0.0);
-                v = spline2dcalc(snew, 0.25, 0.25);
-                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.00005);
-
-                // copy spline, apply transformation SNew:=2*S+3
-                spline2dcopy(s, snew);
-                spline2dlintransf(snew, 2.0, 3.0);
-                v = spline2dcalc(snew, 0.5, 1.0);
-                _TestResult = _TestResult && doc_test_real(v, 8.000, 0.00005);
-
-                //
-                // Same example, but for vector spline (f0,f1) = {x+2*y, 2*x+y}
-                //
-                real_1d_array f2 = "[0.00,0.00, 1.00,2.00, 2.00,1.00, 3.00,3.00]";
-                if( _spoil_scenario==12 )
-                    spoil_vector_by_nan(f2);
-                if( _spoil_scenario==13 )
-                    spoil_vector_by_posinf(f2);
-                if( _spoil_scenario==14 )
-                    spoil_vector_by_neginf(f2);
-                if( _spoil_scenario==15 )
-                    spoil_vector_by_deleting_element(f2);
-                real_1d_array vr;
-                spline2dbuildbilinearv(x, 2, y, 2, f2, 2, s);
-
-                // copy spline, apply transformation x:=2*xnew, y:=4*ynew
-                spline2dcopy(s, snew);
-                spline2dlintransxy(snew, 2.0, 0.0, 4.0, 0.0);
-                spline2dcalcv(snew, 0.25, 0.25, vr);
-                _TestResult = _TestResult && doc_test_real_vector(vr, "[2.500,2.000]", 0.00005);
-
-                // copy spline, apply transformation SNew:=2*S+3
-                spline2dcopy(s, snew);
-                spline2dlintransf(snew, 2.0, 3.0);
-                spline2dcalcv(snew, 0.5, 1.0, vr);
-                _TestResult = _TestResult && doc_test_real_vector(vr, "[8.000,7.000]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline2d_copytrans");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST spline2d_vector
-        //      Copy and transform
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<12; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // We build bilinear vector-valued spline (f0,f1) = {x+2*y, 2*x+y}
-                // Spline is built using function values at 2x2 grid: (x,y)=[0,1]*[0,1]
-                // Then we perform evaluation at (x,y)=(0.1,0.3)
-                //
-                real_1d_array x = "[0.0, 1.0]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(x);
-                real_1d_array y = "[0.0, 1.0]";
-                if( _spoil_scenario==4 )
-                    spoil_vector_by_nan(y);
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_posinf(y);
-                if( _spoil_scenario==6 )
-                    spoil_vector_by_neginf(y);
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_deleting_element(y);
-                real_1d_array f = "[0.00,0.00, 1.00,2.00, 2.00,1.00, 3.00,3.00]";
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_nan(f);
-                if( _spoil_scenario==9 )
-                    spoil_vector_by_posinf(f);
-                if( _spoil_scenario==10 )
-                    spoil_vector_by_neginf(f);
-                if( _spoil_scenario==11 )
-                    spoil_vector_by_deleting_element(f);
-                spline2dinterpolant s;
-                real_1d_array vr;
-                spline2dbuildbilinearv(x, 2, y, 2, f, 2, s);
-                spline2dcalcv(s, 0.1, 0.3, vr);
-                _TestResult = _TestResult && doc_test_real_vector(vr, "[0.700,0.500]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "spline2d_vector");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST rbf_d_hrbf
-        //      Simple model built with HRBF algorithm
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example illustrates basic concepts of the RBF models: creation, modification,
-                // evaluation.
-                // 
-                // Suppose that we have set of 2-dimensional points with associated
-                // scalar function values, and we want to build a RBF model using
-                // our data.
-                // 
-                // NOTE: we can work with 3D models too :)
-                // 
-                // Typical sequence of steps is given below:
-                // 1. we create RBF model object
-                // 2. we attach our dataset to the RBF model and tune algorithm settings
-                // 3. we rebuild RBF model using QNN algorithm on new data
-                // 4. we use RBF model (evaluate, serialize, etc.)
-                //
-                double v;
-
-                //
-                // Step 1: RBF model creation.
-                //
-                // We have to specify dimensionality of the space (2 or 3) and
-                // dimensionality of the function (scalar or vector).
-                //
-                // New model is empty - it can be evaluated,
-                // but we just get zero value at any point.
-                //
-                rbfmodel model;
-                rbfcreate(2, 1, model);
-
-                v = rbfcalc2(model, 0.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
-
-                //
-                // Step 2: we add dataset.
-                //
-                // XY contains two points - x0=(-1,0) and x1=(+1,0) -
-                // and two function values f(x0)=2, f(x1)=3.
-                //
-                // We added points, but model was not rebuild yet.
-                // If we call rbfcalc2(), we still will get 0.0 as result.
-                //
-                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                rbfsetpoints(model, xy);
-
-                v = rbfcalc2(model, 0.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
-
-                //
-                // Step 3: rebuild model
-                //
-                // After we've configured model, we should rebuild it -
-                // it will change coefficients stored internally in the
-                // rbfmodel structure.
-                //
-                // We use hierarchical RBF algorithm with following parameters:
-                // * RBase - set to 1.0
-                // * NLayers - three layers are used (although such simple problem
-                //   does not need more than 1 layer)
-                // * LambdaReg - is set to zero value, no smoothing is required
-                //
-                rbfreport rep;
-                rbfsetalgohierarchical(model, 1.0, 3, 0.0);
-                rbfbuildmodel(model, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-
-                //
-                // Step 4: model was built
-                //
-                // After call of rbfbuildmodel(), rbfcalc2() will return
-                // value of the new model.
-                //
-                v = rbfcalc2(model, 0.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "rbf_d_hrbf");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST rbf_d_vector
-        //      Working with vector functions
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // Suppose that we have set of 2-dimensional points with associated VECTOR
-                // function values, and we want to build a RBF model using our data.
-                // 
-                // Typical sequence of steps is given below:
-                // 1. we create RBF model object
-                // 2. we attach our dataset to the RBF model and tune algorithm settings
-                // 3. we rebuild RBF model using new data
-                // 4. we use RBF model (evaluate, serialize, etc.)
-                //
-                real_1d_array x;
-                real_1d_array y;
-
-                //
-                // Step 1: RBF model creation.
-                //
-                // We have to specify dimensionality of the space (equal to 2) and
-                // dimensionality of the function (2-dimensional vector function).
-                //
-                // New model is empty - it can be evaluated,
-                // but we just get zero value at any point.
-                //
-                rbfmodel model;
-                rbfcreate(2, 2, model);
-
-                x = "[+1,+1]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(x);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(x);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(x);
-                rbfcalc(model, x, y);
-                _TestResult = _TestResult && doc_test_real_vector(y, "[0.000,0.000]", 0.005);
-
-                //
-                // Step 2: we add dataset.
-                //
-                // XY arrays containt four points:
-                // * (x0,y0) = (+1,+1), f(x0,y0)=(0,-1)
-                // * (x1,y1) = (+1,-1), f(x1,y1)=(-1,0)
-                // * (x2,y2) = (-1,-1), f(x2,y2)=(0,+1)
-                // * (x3,y3) = (-1,+1), f(x3,y3)=(+1,0)
-                //
-                real_2d_array xy = "[[+1,+1,0,-1],[+1,-1,-1,0],[-1,-1,0,+1],[-1,+1,+1,0]]";
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==5 )
-                    spoil_matrix_by_neginf(xy);
-                rbfsetpoints(model, xy);
-
-                // We added points, but model was not rebuild yet.
-                // If we call rbfcalc(), we still will get 0.0 as result.
-                rbfcalc(model, x, y);
-                _TestResult = _TestResult && doc_test_real_vector(y, "[0.000,0.000]", 0.005);
-
-                //
-                // Step 3: rebuild model
-                //
-                // We use hierarchical RBF algorithm with following parameters:
-                // * RBase - set to 1.0
-                // * NLayers - three layers are used (although such simple problem
-                //   does not need more than 1 layer)
-                // * LambdaReg - is set to zero value, no smoothing is required
-                //
-                // After we've configured model, we should rebuild it -
-                // it will change coefficients stored internally in the
-                // rbfmodel structure.
-                //
-                rbfreport rep;
-                rbfsetalgohierarchical(model, 1.0, 3, 0.0);
-                rbfbuildmodel(model, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-
-                //
-                // Step 4: model was built
-                //
-                // After call of rbfbuildmodel(), rbfcalc() will return
-                // value of the new model.
-                //
-                rbfcalc(model, x, y);
-                _TestResult = _TestResult && doc_test_real_vector(y, "[0.000,-1.000]", 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "rbf_d_vector");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST rbf_d_polterm
-        //      RBF models - working with polynomial term
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example show how to work with polynomial term
-                // 
-                // Suppose that we have set of 2-dimensional points with associated
-                // scalar function values, and we want to build a RBF model using
-                // our data.
-                //
-                // We use hierarchical RBF algorithm with following parameters:
-                // * RBase - set to 1.0
-                // * NLayers - three layers are used (although such simple problem
-                //   does not need more than 1 layer)
-                // * LambdaReg - is set to zero value, no smoothing is required
-                //
-                double v;
-                rbfmodel model;
-                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                rbfreport rep;
-
-                rbfcreate(2, 1, model);
-                rbfsetpoints(model, xy);
-                rbfsetalgohierarchical(model, 1.0, 3, 0.0);
-
-                //
-                // By default, RBF model uses linear term. It means that model
-                // looks like
-                //     f(x,y) = SUM(RBF[i]) + a*x + b*y + c
-                // where RBF[i] is I-th radial basis function and a*x+by+c is a
-                // linear term. Having linear terms in a model gives us:
-                // (1) improved extrapolation properties
-                // (2) linearity of the model when data can be perfectly fitted
-                //     by the linear function
-                // (3) linear asymptotic behavior
-                //
-                // Our simple dataset can be modelled by the linear function
-                //     f(x,y) = 0.5*x + 2.5
-                // and rbfbuildmodel() with default settings should preserve this
-                // linearity.
-                //
-                ae_int_t nx;
-                ae_int_t ny;
-                ae_int_t nc;
-                ae_int_t modelversion;
-                real_2d_array xwr;
-                real_2d_array c;
-                rbfbuildmodel(model, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-                rbfunpack(model, nx, ny, xwr, nc, c, modelversion);
-                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0.500,0.000,2.500]]", 0.005);
-
-                // asymptotic behavior of our function is linear
-                v = rbfcalc2(model, 1000.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 502.50, 0.05);
-
-                //
-                // Instead of linear term we can use constant term. In this case
-                // we will get model which has form
-                //     f(x,y) = SUM(RBF[i]) + c
-                // where RBF[i] is I-th radial basis function and c is a constant,
-                // which is equal to the average function value on the dataset.
-                //
-                // Because we've already attached dataset to the model the only
-                // thing we have to do is to call rbfsetconstterm() and then
-                // rebuild model with rbfbuildmodel().
-                //
-                rbfsetconstterm(model);
-                rbfbuildmodel(model, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-                rbfunpack(model, nx, ny, xwr, nc, c, modelversion);
-                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0.000,0.000,2.500]]", 0.005);
-
-                // asymptotic behavior of our function is constant
-                v = rbfcalc2(model, 1000.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
-
-                //
-                // Finally, we can use zero term. Just plain RBF without polynomial
-                // part:
-                //     f(x,y) = SUM(RBF[i])
-                // where RBF[i] is I-th radial basis function.
-                //
-                rbfsetzeroterm(model);
-                rbfbuildmodel(model, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-                rbfunpack(model, nx, ny, xwr, nc, c, modelversion);
-                _TestResult = _TestResult && doc_test_real_matrix(c, "[[0.000,0.000,0.000]]", 0.005);
-
-                // asymptotic behavior of our function is just zero constant
-                v = rbfcalc2(model, 1000.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "rbf_d_polterm");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST rbf_d_serialize
-        //      Serialization/unserialization
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<3; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example show how to serialize and unserialize RBF model
-                // 
-                // Suppose that we have set of 2-dimensional points with associated
-                // scalar function values, and we want to build a RBF model using
-                // our data. Then we want to serialize it to string and to unserialize
-                // from string, loading to another instance of RBF model.
-                //
-                // Here we assume that you already know how to create RBF models.
-                //
-                std::string s;
-                double v;
-                rbfmodel model0;
-                rbfmodel model1;
-                real_2d_array xy = "[[-1,0,2],[+1,0,3]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(xy);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(xy);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(xy);
-                rbfreport rep;
-
-                // model initialization
-                rbfcreate(2, 1, model0);
-                rbfsetpoints(model0, xy);
-                rbfsetalgohierarchical(model0, 1.0, 3, 0.0);
-                rbfbuildmodel(model0, rep);
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-
-                //
-                // Serialization - it looks easy,
-                // but you should carefully read next section.
-                //
-                alglib::rbfserialize(model0, s);
-                alglib::rbfunserialize(s, model1);
-
-                // both models return same value
-                v = rbfcalc2(model0, 0.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
-                v = rbfcalc2(model1, 0.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
-
-                //
-                // Previous section shows that model state is saved/restored during
-                // serialization. However, some properties are NOT serialized.
-                //
-                // Serialization saves/restores RBF model, but it does NOT saves/restores
-                // settings which were used to build current model. In particular, dataset
-                // which was used to build model, is not preserved.
-                //
-                // What does it mean in for us?
-                //
-                // Do you remember this sequence: rbfcreate-rbfsetpoints-rbfbuildmodel?
-                // First step creates model, second step adds dataset and tunes model
-                // settings, third step builds model using current dataset and model
-                // construction settings.
-                //
-                // If you call rbfbuildmodel() without calling rbfsetpoints() first, you
-                // will get empty (zero) RBF model. In our example, model0 contains
-                // dataset which was added by rbfsetpoints() call. However, model1 does
-                // NOT contain dataset - because dataset is NOT serialized.
-                //
-                // This, if we call rbfbuildmodel(model0,rep), we will get same model,
-                // which returns 2.5 at (x,y)=(0,0). However, after same call model1 will
-                // return zero - because it contains RBF model (coefficients), but does NOT
-                // contain dataset which was used to build this model.
-                //
-                // Basically, it means that:
-                // * serialization of the RBF model preserves anything related to the model
-                //   EVALUATION
-                // * but it does NOT creates perfect copy of the original object.
-                //
-                rbfbuildmodel(model0, rep);
-                v = rbfcalc2(model0, 0.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 2.500, 0.005);
-
-                rbfbuildmodel(model1, rep);
-                v = rbfcalc2(model1, 0.0, 0.0);
-                _TestResult = _TestResult && doc_test_real(v, 0.000, 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "rbf_d_serialize");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_d_1
-        //      Determinant calculation, real matrix, short form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
-        {
-            try
-            {
-                real_2d_array b = "[[1,2],[2,1]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_adding_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_adding_col(b);
-                if( _spoil_scenario==5 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==6 )
-                    spoil_matrix_by_deleting_col(b);
-                double a;
-                a = rmatrixdet(b);
-                _TestResult = _TestResult && doc_test_real(a, -3, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_d_1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_d_2
-        //      Determinant calculation, real matrix, full form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                real_2d_array b = "[[5,4],[4,5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(b);
-                double a;
-                a = rmatrixdet(b, 2);
-                _TestResult = _TestResult && doc_test_real(a, 9, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_d_2");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_d_3
-        //      Determinant calculation, complex matrix, short form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
-        {
-            try
-            {
-                complex_2d_array b = "[[1+1i,2],[2,1-1i]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_adding_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_adding_col(b);
-                if( _spoil_scenario==5 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==6 )
-                    spoil_matrix_by_deleting_col(b);
-                alglib::complex a;
-                a = cmatrixdet(b);
-                _TestResult = _TestResult && doc_test_complex(a, -2, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_d_3");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_d_4
-        //      Determinant calculation, complex matrix, full form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                alglib::complex a;
-                complex_2d_array b = "[[5i,4],[4i,5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(b);
-                a = cmatrixdet(b, 2);
-                _TestResult = _TestResult && doc_test_complex(a, alglib::complex(0,9), 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_d_4");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_d_5
-        //      Determinant calculation, complex matrix with zero imaginary part, short form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<7; _spoil_scenario++)
-        {
-            try
-            {
-                alglib::complex a;
-                complex_2d_array b = "[[9,1],[2,1]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_adding_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_adding_col(b);
-                if( _spoil_scenario==5 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==6 )
-                    spoil_matrix_by_deleting_col(b);
-                a = cmatrixdet(b);
-                _TestResult = _TestResult && doc_test_complex(a, 7, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_d_5");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_t_0
-        //      Determinant calculation, real matrix, full form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                double a;
-                real_2d_array b = "[[3,4],[-4,3]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(b);
-                a = rmatrixdet(b, 2);
-                _TestResult = _TestResult && doc_test_real(a, 25, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_t_0");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_t_1
-        //      Determinant calculation, real matrix, LU, short form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
-        {
-            try
-            {
-                double a;
-                real_2d_array b = "[[1,2],[2,5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_adding_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_adding_col(b);
-                if( _spoil_scenario==5 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==6 )
-                    spoil_matrix_by_deleting_col(b);
-                integer_1d_array p = "[1,1]";
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_adding_element(p);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_deleting_element(p);
-                a = rmatrixludet(b, p);
-                _TestResult = _TestResult && doc_test_real(a, -5, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_t_1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_t_2
-        //      Determinant calculation, real matrix, LU, full form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
-        {
-            try
-            {
-                double a;
-                real_2d_array b = "[[5,4],[4,5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(b);
-                integer_1d_array p = "[0,1]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_deleting_element(p);
-                a = rmatrixludet(b, p, 2);
-                _TestResult = _TestResult && doc_test_real(a, 25, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_t_2");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_t_3
-        //      Determinant calculation, complex matrix, full form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<5; _spoil_scenario++)
-        {
-            try
-            {
-                alglib::complex a;
-                complex_2d_array b = "[[5i,4],[-4,5i]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(b);
-                a = cmatrixdet(b, 2);
-                _TestResult = _TestResult && doc_test_complex(a, -9, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_t_3");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_t_4
-        //      Determinant calculation, complex matrix, LU, short form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<9; _spoil_scenario++)
-        {
-            try
-            {
-                alglib::complex a;
-                complex_2d_array b = "[[1,2],[2,5i]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_adding_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_adding_col(b);
-                if( _spoil_scenario==5 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==6 )
-                    spoil_matrix_by_deleting_col(b);
-                integer_1d_array p = "[1,1]";
-                if( _spoil_scenario==7 )
-                    spoil_vector_by_adding_element(p);
-                if( _spoil_scenario==8 )
-                    spoil_vector_by_deleting_element(p);
-                a = cmatrixludet(b, p);
-                _TestResult = _TestResult && doc_test_complex(a, alglib::complex(0,-5), 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_t_4");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST matdet_t_5
-        //      Determinant calculation, complex matrix, LU, full form
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<6; _spoil_scenario++)
-        {
-            try
-            {
-                alglib::complex a;
-                complex_2d_array b = "[[5,4i],[4,5]]";
-                if( _spoil_scenario==0 )
-                    spoil_matrix_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_matrix_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_matrix_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_matrix_by_deleting_row(b);
-                if( _spoil_scenario==4 )
-                    spoil_matrix_by_deleting_col(b);
-                integer_1d_array p = "[0,1]";
-                if( _spoil_scenario==5 )
-                    spoil_vector_by_deleting_element(p);
-                a = cmatrixludet(b, p, 2);
-                _TestResult = _TestResult && doc_test_complex(a, 25, 0.0001);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "matdet_t_5");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST solvesks_d_1
-        //      Solving positive definite sparse system using Skyline (SKS) solver
-        //
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example demonstrates creation/initialization of the sparse matrix
-                // in the SKS (Skyline) storage format and solution using SKS-based direct
-                // solver.
-                //
-                // First, we have to create matrix and initialize it. Matrix is created
-                // in the SKS format, using fixed bandwidth initialization function.
-                // Several points should be noted:
-                //
-                // 1. SKS sparse storage format also allows variable bandwidth matrices;
-                //    we just do not want to overcomplicate this example.
-                //
-                // 2. SKS format requires you to specify matrix geometry prior to
-                //    initialization of its elements with sparseset(). If you specified
-                //    bandwidth=1, you can not change your mind afterwards and call
-                //    sparseset() for non-existent elements.
-                // 
-                // 3. Because SKS solver need just one triangle of SPD matrix, we can
-                //    omit initialization of the lower triangle of our matrix.
-                //
-                ae_int_t n = 4;
-                ae_int_t bandwidth = 1;
-                sparsematrix s;
-                sparsecreatesksband(n, n, bandwidth, s);
-                sparseset(s, 0, 0, 2.0);
-                sparseset(s, 0, 1, 1.0);
-                sparseset(s, 1, 1, 3.0);
-                sparseset(s, 1, 2, 1.0);
-                sparseset(s, 2, 2, 3.0);
-                sparseset(s, 2, 3, 1.0);
-                sparseset(s, 3, 3, 2.0);
-
-                //
-                // Now we have symmetric positive definite 4x4 system width bandwidth=1:
-                //
-                //     [ 2 1     ]   [ x0]]   [  4 ]
-                //     [ 1 3 1   ]   [ x1 ]   [ 10 ]
-                //     [   1 3 1 ] * [ x2 ] = [ 15 ]
-                //     [     1 2 ]   [ x3 ]   [ 11 ]
-                //
-                // After successful creation we can call SKS solver.
-                //
-                real_1d_array b = "[4,10,15,11]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(b);
-                sparsesolverreport rep;
-                real_1d_array x;
-                bool isuppertriangle = true;
-                sparsesolvesks(s, n, isuppertriangle, b, rep, x);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[1.0000, 2.0000, 3.0000, 4.0000]", 0.00005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "solvesks_d_1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        //
-        // TEST lincg_d_1
-        //      Solution of sparse linear systems with CG
-        //
-        printf("150/151\n");
-        _TestResult = true;
-        for(_spoil_scenario=-1; _spoil_scenario<4; _spoil_scenario++)
-        {
-            try
-            {
-                //
-                // This example illustrates solution of sparse linear systems with
-                // conjugate gradient method.
-                // 
-                // Suppose that we have linear system A*x=b with sparse symmetric
-                // positive definite A (represented by sparsematrix object)
-                //         [ 5 1       ]
-                //         [ 1 7 2     ]
-                //     A = [   2 8 1   ]
-                //         [     1 4 1 ]
-                //         [       1 4 ]
-                // and right part b
-                //     [  7 ]
-                //     [ 17 ]
-                // b = [ 14 ]
-                //     [ 10 ]
-                //     [  6 ]
-                // and we want to solve this system using sparse linear CG. In order
-                // to do so, we have to create left part (sparsematrix object) and
-                // right part (dense array).
-                //
-                // Initially, sparse matrix is created in the Hash-Table format,
-                // which allows easy initialization, but do not allow matrix to be
-                // used in the linear solvers. So after construction you should convert
-                // sparse matrix to CRS format (one suited for linear operations).
-                //
-                // It is important to note that in our example we initialize full
-                // matrix A, both lower and upper triangles. However, it is symmetric
-                // and sparse solver needs just one half of the matrix. So you may
-                // save about half of the space by filling only one of the triangles.
-                //
-                sparsematrix a;
-                sparsecreate(5, 5, a);
-                sparseset(a, 0, 0, 5.0);
-                sparseset(a, 0, 1, 1.0);
-                sparseset(a, 1, 0, 1.0);
-                sparseset(a, 1, 1, 7.0);
-                sparseset(a, 1, 2, 2.0);
-                sparseset(a, 2, 1, 2.0);
-                sparseset(a, 2, 2, 8.0);
-                sparseset(a, 2, 3, 1.0);
-                sparseset(a, 3, 2, 1.0);
-                sparseset(a, 3, 3, 4.0);
-                sparseset(a, 3, 4, 1.0);
-                sparseset(a, 4, 3, 1.0);
-                sparseset(a, 4, 4, 4.0);
-
-                //
-                // Now our matrix is fully initialized, but we have to do one more
-                // step - convert it from Hash-Table format to CRS format (see
-                // documentation on sparse matrices for more information about these
-                // formats).
-                //
-                // If you omit this call, ALGLIB will generate exception on the first
-                // attempt to use A in linear operations. 
-                //
-                sparseconverttocrs(a);
-
-                //
-                // Initialization of the right part
-                //
-                real_1d_array b = "[7,17,14,10,6]";
-                if( _spoil_scenario==0 )
-                    spoil_vector_by_nan(b);
-                if( _spoil_scenario==1 )
-                    spoil_vector_by_posinf(b);
-                if( _spoil_scenario==2 )
-                    spoil_vector_by_neginf(b);
-                if( _spoil_scenario==3 )
-                    spoil_vector_by_deleting_element(b);
-
-                //
-                // Now we have to create linear solver object and to use it for the
-                // solution of the linear system.
-                //
-                // NOTE: lincgsolvesparse() accepts additional parameter which tells
-                //       what triangle of the symmetric matrix should be used - upper
-                //       or lower. Because we've filled both parts of the matrix, we
-                //       can use any part - upper or lower.
-                //
-                lincgstate s;
-                lincgreport rep;
-                real_1d_array x;
-                lincgcreate(5, s);
-                lincgsolvesparse(s, a, true, b);
-                lincgresults(s, x, rep);
-
-                _TestResult = _TestResult && doc_test_int(rep.terminationtype, 1);
-                _TestResult = _TestResult && doc_test_real_vector(x, "[1.000,2.000,1.000,2.000,1.000]", 0.005);
-                _TestResult = _TestResult && (_spoil_scenario==-1);
-            }
-            catch(ap_error)
-            { _TestResult = _TestResult && (_spoil_scenario!=-1); }
-        }
-        if( !_TestResult)
-        {
-            printf("%-32s FAILED\n", "lincg_d_1");
-            fflush(stdout);
-        }
-        _TotalResult = _TotalResult && _TestResult;
-
-
-        printf("151/151\n");
+        printf("162/162\n");
     }
     catch(...)
     {

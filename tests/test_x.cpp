@@ -15,6 +15,10 @@
 #include "integration.h"
 #include "interpolation.h"
 
+#if (AE_OS!=AE_WINDOWS) && (AE_OS!=AE_POSIX) && (AE_OS!=AE_LINUX) && !defined(AE_DEBUG4WINDOWS) && !defined(AE_DEBUG4POSIX)
+#error X-test requires either AE_OS, AE_DEBUG4WINDOWS or AE_DEBUG4POSIX defined
+#endif
+
 #if AE_OS==AE_WINDOWS
 #include <windows.h>
 #elif AE_OS==AE_POSIX
@@ -66,7 +70,7 @@ void _innerrec_init(void* _p, alglib_impl::ae_state *_state, ae_bool make_automa
 }
 
 
-void _innerrec_init_copy(void* _dst, void* _src, alglib_impl::ae_state *_state, ae_bool make_automatic)
+void _innerrec_init_copy(void* _dst, const void* _src, alglib_impl::ae_state *_state, ae_bool make_automatic)
 {
     innerrec *dst = (innerrec*)_dst;
     innerrec *src = (innerrec*)_src;
@@ -103,7 +107,7 @@ void _seedrec_init(void* _p, alglib_impl::ae_state *_state, ae_bool make_automat
 }
 
 
-void _seedrec_init_copy(void* _dst, void* _src, alglib_impl::ae_state *_state, ae_bool make_automatic)
+void _seedrec_init_copy(void* _dst, const void* _src, alglib_impl::ae_state *_state, ae_bool make_automatic)
 {
     seedrec *dst = (seedrec*)_dst;
     seedrec *src = (seedrec*)_src;
@@ -130,6 +134,11 @@ void _seedrec_destroy(void* _p)
     alglib_impl::ae_shared_pool_destroy(&p->pool);
 }
 
+int imin(int a, int b)
+{
+    return a<b ? a : b;
+}
+
 void func505_grad(const real_1d_array &x, double &func, real_1d_array &grad, void *ptr)
 {
     double x0 = *((double*)ptr);
@@ -140,7 +149,7 @@ void func505_grad(const real_1d_array &x, double &func, real_1d_array &grad, voi
     // assigned must be equal. In this case data are copied in the memory linked with
     // proxy.
     //
-    // Early versions of ALGLIB failed to handle such assignment (it discrupted link
+    // Early versions of ALGLIB failed to handle such assignment (it disrupted link
     // between proxy vector and actual gradient stored in the internals of ALGLIB).
     //
     real_1d_array z = "[0]";
@@ -314,8 +323,437 @@ void* async_build_rbf_model(void *T)
 }
 #endif
 
-int main()
+class paracbck_rosenbrock_problem
 {
+public:
+    int n;
+    double parameter;
+    
+    int countdown;
+    bool raise_aperror;
+    alglib_impl::ae_int_t delay;
+    int callbacks_running;
+    alglib_impl::ae_lock lock;
+    bool parallelism_detected;
+    
+    paracbck_rosenbrock_problem(int _n, double _p):n(_n),parameter(_p),countdown(0),raise_aperror(true),delay(10),callbacks_running(0),parallelism_detected(false)
+    {
+        memset(&lock, 0x0, sizeof(lock));
+        alglib_impl::ae_init_lock(&lock, NULL, ae_false);
+    }
+    
+    ~paracbck_rosenbrock_problem()
+    {
+        ae_free_lock(&lock);
+    }
+};
+
+void paracbck_rosenbrock_func(const alglib::real_1d_array &vars, double &func, void *ptr)
+{
+    paracbck_rosenbrock_problem &problem = *((paracbck_rosenbrock_problem*)ptr);
+    
+    //
+    // Compute target
+    //
+    func = 0;
+    for(int i=0; i<problem.n-1; i++)
+        func += problem.parameter*pow(vars[i+1]-vars[i]*vars[i],2) + pow(1-vars[i],2);
+    
+    //
+    // Decrease countdown counter, raise exception if needed
+    //
+    bool raise_exception = false;
+    ae_acquire_lock(&problem.lock);
+    if( problem.countdown>0 )
+    {
+        problem.countdown--;
+        raise_exception = problem.countdown==0;
+    }
+    ae_release_lock(&problem.lock);
+    if( raise_exception )
+    {
+        if( problem.raise_aperror )
+            throw alglib::ap_error("test ap_error");
+        else
+            throw std::string("test string");
+    }
+    
+    //
+    // Increase number of running callbacks, delay, decrease number of running callbacks.
+    // Check that there are running callbacks while waiting.
+    //
+    alglib_impl::ae_int_t t0 = alglib_impl::ae_tickcount();
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running++;
+    ae_release_lock(&problem.lock);
+    while( alglib_impl::ae_tickcount()-t0<problem.delay )
+    {
+        ae_acquire_lock(&problem.lock);
+        if( problem.callbacks_running>1 )
+            problem.parallelism_detected = true;
+        ae_release_lock(&problem.lock);
+    }
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running--;
+    ae_release_lock(&problem.lock);
+}
+
+class paracbck_lsfit_f0_problem
+{
+public:
+    int nparams, ncoord;
+    alglib::real_2d_array a;
+    alglib::real_1d_array y;
+    
+    int countdown;
+    bool raise_aperror;
+    alglib_impl::ae_int_t delay;
+    int callbacks_running;
+    alglib_impl::ae_lock lock;
+    bool parallelism_detected;
+    
+    paracbck_lsfit_f0_problem(int params, int coord):ncoord(coord),nparams(params),countdown(0),raise_aperror(true),delay(10),callbacks_running(0),parallelism_detected(false)
+    {
+        alglib::hqrndstate rs;
+        alglib::real_1d_array c;
+        //
+        memset(&lock, 0x0, sizeof(lock));
+        alglib_impl::ae_init_lock(&lock, NULL, ae_false);
+        //
+        alglib::hqrndseed(436444, 935774, rs);
+        alglib::hqrndnormalm(rs, nparams, ncoord, a);
+        alglib::hqrndnormalv(rs, nparams, c);
+        y.setlength(nparams);
+        for(int i=0; i<nparams; i++)
+        {
+            y[i] = 0;
+            if( ncoord<=nparams )
+            {
+                for(int j=0; j<ncoord; j++)
+                    y[i] += a[i][j]*c[j];
+                for(int j=ncoord; j<nparams; j++)
+                    y[i] += c[j];
+            }
+            else
+            {
+                for(int j=0; j<nparams-1; j++)
+                    y[i] += a[i][j]*c[j];
+                double v = 0;
+                for(int j=nparams-1; j<ncoord; j++)
+                    v += a[i][j];
+                y[i] += c[nparams-1]*v;
+            }
+        }
+    }
+    
+    ~paracbck_lsfit_f0_problem()
+    {
+        ae_free_lock(&lock);
+    }
+};
+
+void paracbck_lsfitf0_func(const alglib::real_1d_array &vars, const alglib::real_1d_array &coord, double &func, void *ptr)
+{
+    paracbck_lsfit_f0_problem &problem = *((paracbck_lsfit_f0_problem*)ptr);
+    
+    //
+    // Compute target
+    //
+    func = 0;
+    if( problem.ncoord<=problem.nparams )
+    {
+        for(int j=0; j<problem.ncoord; j++)
+            func += coord[j]*vars[j];
+        for(int j=problem.ncoord; j<problem.nparams; j++)
+            func += vars[j];
+    }
+    else
+    {
+        for(int j=0; j<problem.nparams-1; j++)
+            func += coord[j]*vars[j];
+        double v = 0;
+        for(int j=problem.nparams-1; j<problem.ncoord; j++)
+            v += coord[j];
+        func += vars[problem.nparams-1]*v;
+    }
+    
+    //
+    // Decrease countdown counter, raise exception if needed
+    //
+    bool raise_exception = false;
+    ae_acquire_lock(&problem.lock);
+    if( problem.countdown>0 )
+    {
+        problem.countdown--;
+        raise_exception = problem.countdown==0;
+    }
+    ae_release_lock(&problem.lock);
+    if( raise_exception )
+    {
+        if( problem.raise_aperror )
+            throw alglib::ap_error("test ap_error");
+        else
+            throw std::string("test string");
+    }
+    
+    //
+    // Increase number of running callbacks, delay, decrease number of running callbacks.
+    // Check that there are running callbacks while waiting.
+    //
+    alglib_impl::ae_int_t t0 = alglib_impl::ae_tickcount();
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running++;
+    ae_release_lock(&problem.lock);
+    while( alglib_impl::ae_tickcount()-t0<problem.delay )
+    {
+        ae_acquire_lock(&problem.lock);
+        if( problem.callbacks_running>1 )
+            problem.parallelism_detected = true;
+        ae_release_lock(&problem.lock);
+    }
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running--;
+    ae_release_lock(&problem.lock);
+}
+
+
+void paracbck_lsfitf0_grad(const alglib::real_1d_array &vars, const alglib::real_1d_array &coord, double &func, alglib::real_1d_array &grad, void *ptr)
+{
+    paracbck_lsfit_f0_problem &problem = *((paracbck_lsfit_f0_problem*)ptr);
+    
+    //
+    // Compute target
+    //
+    func = 0;
+    if( problem.ncoord<=problem.nparams )
+    {
+        for(int j=0; j<problem.ncoord; j++)
+        {
+            func += coord[j]*vars[j];
+            grad[j] = coord[j];
+        }
+        for(int j=problem.ncoord; j<problem.nparams; j++)
+        {
+            func += vars[j];
+            grad[j] = 1;
+        }
+    }
+    else
+    {
+        for(int j=0; j<problem.nparams-1; j++)
+        {
+            func += coord[j]*vars[j];
+            grad[j] = coord[j];
+        }
+        double v = 0;
+        for(int j=problem.nparams-1; j<problem.ncoord; j++)
+            v += coord[j];
+        func += vars[problem.nparams-1]*v;
+        grad[problem.nparams-1] = v;
+    }
+    
+    //
+    // Decrease countdown counter, raise exception if needed
+    //
+    bool raise_exception = false;
+    ae_acquire_lock(&problem.lock);
+    if( problem.countdown>0 )
+    {
+        problem.countdown--;
+        raise_exception = problem.countdown==0;
+    }
+    ae_release_lock(&problem.lock);
+    if( raise_exception )
+    {
+        if( problem.raise_aperror )
+            throw alglib::ap_error("test ap_error");
+        else
+            throw std::string("test string");
+    }
+    
+    //
+    // Increase number of running callbacks, delay, decrease number of running callbacks.
+    // Check that there are running callbacks while waiting.
+    //
+    alglib_impl::ae_int_t t0 = alglib_impl::ae_tickcount();
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running++;
+    ae_release_lock(&problem.lock);
+    while( alglib_impl::ae_tickcount()-t0<problem.delay )
+    {
+        ae_acquire_lock(&problem.lock);
+        if( problem.callbacks_running>1 )
+            problem.parallelism_detected = true;
+        ae_release_lock(&problem.lock);
+    }
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running--;
+    ae_release_lock(&problem.lock);
+}
+
+
+
+class paracbck_minlm_f0_problem
+{
+public:
+    int nparams, nfunc;
+    alglib::real_2d_array a;
+    alglib::real_1d_array y;
+    
+    int countdown;
+    bool raise_aperror;
+    alglib_impl::ae_int_t delay;
+    int callbacks_running;
+    alglib_impl::ae_lock lock;
+    bool parallelism_detected;
+    
+    paracbck_minlm_f0_problem(int params, int ndup):nparams(params),nfunc(nparams*ndup),countdown(0),raise_aperror(true),delay(10),callbacks_running(0),parallelism_detected(false)
+    {
+        alglib::hqrndstate rs;
+        alglib::real_1d_array c;
+        alglib::real_2d_array a1;
+        //
+        memset(&lock, 0x0, sizeof(lock));
+        alglib_impl::ae_init_lock(&lock, NULL, ae_false);
+        //
+        alglib::hqrndseed(436444, 935774, rs);
+        alglib::hqrndnormalm(rs, nparams, nparams, a1);
+        alglib::hqrndnormalv(rs, nparams, c);
+        a.setlength(nparams*ndup, nparams);
+        y.setlength(nparams*ndup);
+        for(int i=0; i<nparams; i++)
+        {
+            double v = 0;
+            for(int j=0; j<nparams; j++)
+                v += a1[i][j]*c[j];
+            for(int k=0; k<ndup; k++)
+            {
+                for(int j=0; j<nparams; j++)
+                    a[ndup*i+k][j] = a1[i][j];
+                y[ndup*i+k] = v;
+            }
+        }
+    }
+    
+    ~paracbck_minlm_f0_problem()
+    {
+        ae_free_lock(&lock);
+    }
+};
+
+void paracbck_minlmf0_fvec(const alglib::real_1d_array &vars, alglib::real_1d_array &f, void *ptr)
+{
+    paracbck_minlm_f0_problem &problem = *((paracbck_minlm_f0_problem*)ptr);
+    
+    //
+    // Compute targets
+    //
+    for(int i=0; i<problem.nfunc; i++)
+    {
+        f[i] = 0;
+        for(int j=0; j<problem.nparams; j++)
+            f[i] += problem.a[i][j]*vars[j];
+        f[i] -= problem.y[i];
+    }
+    
+    //
+    // Decrease countdown counter, raise exception if needed
+    //
+    bool raise_exception = false;
+    ae_acquire_lock(&problem.lock);
+    if( problem.countdown>0 )
+    {
+        problem.countdown--;
+        raise_exception = problem.countdown==0;
+    }
+    ae_release_lock(&problem.lock);
+    if( raise_exception )
+    {
+        if( problem.raise_aperror )
+            throw alglib::ap_error("test ap_error");
+        else
+            throw std::string("test string");
+    }
+    
+    //
+    // Increase number of running callbacks, delay, decrease number of running callbacks.
+    // Check that there are running callbacks while waiting.
+    //
+    alglib_impl::ae_int_t t0 = alglib_impl::ae_tickcount();
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running++;
+    ae_release_lock(&problem.lock);
+    while( alglib_impl::ae_tickcount()-t0<problem.delay )
+    {
+        ae_acquire_lock(&problem.lock);
+        if( problem.callbacks_running>1 )
+            problem.parallelism_detected = true;
+        ae_release_lock(&problem.lock);
+    }
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running--;
+    ae_release_lock(&problem.lock);
+}
+
+void paracbck_minlmf0_jac(const alglib::real_1d_array &vars, alglib::real_1d_array &f, alglib::real_2d_array &jac, void *ptr)
+{
+    paracbck_minlm_f0_problem &problem = *((paracbck_minlm_f0_problem*)ptr);
+    
+    //
+    // Compute targets
+    //
+    for(int i=0; i<problem.nfunc; i++)
+    {
+        f[i] = 0;
+        for(int j=0; j<problem.nparams; j++)
+        {
+            f[i] += problem.a[i][j]*vars[j];
+            jac[i][j] = problem.a[i][j];
+        }
+        f[i] -= problem.y[i];
+    }
+    
+    //
+    // Decrease countdown counter, raise exception if needed
+    //
+    bool raise_exception = false;
+    ae_acquire_lock(&problem.lock);
+    if( problem.countdown>0 )
+    {
+        problem.countdown--;
+        raise_exception = problem.countdown==0;
+    }
+    ae_release_lock(&problem.lock);
+    if( raise_exception )
+    {
+        if( problem.raise_aperror )
+            throw alglib::ap_error("test ap_error");
+        else
+            throw std::string("test string");
+    }
+    
+    //
+    // Increase number of running callbacks, delay, decrease number of running callbacks.
+    // Check that there are running callbacks while waiting.
+    //
+    alglib_impl::ae_int_t t0 = alglib_impl::ae_tickcount();
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running++;
+    ae_release_lock(&problem.lock);
+    while( alglib_impl::ae_tickcount()-t0<problem.delay )
+    {
+        ae_acquire_lock(&problem.lock);
+        if( problem.callbacks_running>1 )
+            problem.parallelism_detected = true;
+        ae_release_lock(&problem.lock);
+    }
+    ae_acquire_lock(&problem.lock);
+    problem.callbacks_running--;
+    ae_release_lock(&problem.lock);
+}
+
+int main()
+{   
     //
     // Report system properties
     //
@@ -1492,7 +1930,6 @@ int main()
             return 1;
     }
         
-    
     //
     // Serialization properties
     //
@@ -1827,7 +2264,8 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
         async_rec.p_report= &rep;
         async_rec.thread_finished = false;
 #if AE_OS==AE_WINDOWS
-        if( CreateThread(NULL, 0, async_build_rbf_model, &async_rec, 0, NULL)==NULL )
+        HANDLE thread = CreateThread(NULL, 0, async_build_rbf_model, &async_rec, 0, NULL);
+        if( thread==NULL )
         {
             printf(fmt_str, "* Progress/termination (RBF)", "FAILED");
             printf(">>> unable to create background thread\n");
@@ -1866,6 +2304,13 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
             if( async_rec.thread_finished )
                 break;
         }
+#if AE_OS==AE_WINDOWS
+        WaitForMultipleObjects(1, &thread, TRUE, INFINITE);
+#elif AE_OS==AE_POSIX
+        pthread_join(thread, NULL);
+#else
+#error Unable to determine OS, unexpected here
+#endif
         passed = passed && (alglib::rbfpeekprogress(rbf)==1);
         passed = passed && (rep.terminationtype==8);
         passed = passed && (alglib::rbfcalc2(rbf,alglib::hqrndnormal(rs),alglib::hqrndnormal(rs))==0.0);
@@ -2013,6 +2458,7 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
         // with different threading settings.
         //
         printf("SMP settings vs GEMM speedup:\n");
+#if !defined(ALGLIB_NO_EXPENSIVE_XTESTS)
         if( alglib::_ae_cores_count()>1 )
         {
             bool passed = true;
@@ -2048,7 +2494,7 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                 while(time_default<mintime)
                 {
                     // default threading
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::rmatrixgemm(
                         n, n, n,
                         1.0,
@@ -2056,11 +2502,11 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         b, 0, 0, 0,
                         0.0,
                         c, 0, 0);
-                    time_default += alglib_impl::_tickcount()-t0;
+                    time_default += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     
                     // global serial
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::setglobalthreading(alglib::serial);
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2069,11 +2515,11 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         b, 0, 0, 0,
                         0.0,
                         c, 0, 0);
-                    time_glob_ser += alglib_impl::_tickcount()-t0;
+                    time_glob_ser += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     
                     // global parallel
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::setglobalthreading(alglib::parallel);
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2082,11 +2528,11 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         b, 0, 0, 0,
                         0.0,
                         c, 0, 0);
-                    time_glob_smp += alglib_impl::_tickcount()-t0;
+                    time_glob_smp += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     
                     // global serial, local serial
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::setglobalthreading(alglib::serial);
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2096,11 +2542,11 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         0.0,
                         c, 0, 0,
                         alglib::serial);
-                    time_glob_ser_loc_ser += alglib_impl::_tickcount()-t0;
+                    time_glob_ser_loc_ser += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     
                     // global serial, local parallel
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::setglobalthreading(alglib::serial);
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2110,11 +2556,11 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         0.0,
                         c, 0, 0,
                         alglib::parallel);
-                    time_glob_ser_loc_smp += alglib_impl::_tickcount()-t0;
+                    time_glob_ser_loc_smp += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     
                     // global parallel, local serial
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::setglobalthreading(alglib::parallel);
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2124,11 +2570,11 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         0.0,
                         c, 0, 0,
                         alglib::serial);
-                    time_glob_smp_loc_ser += alglib_impl::_tickcount()-t0;
+                    time_glob_smp_loc_ser += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     
                     // global parallel, local parallel
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::setglobalthreading(alglib::parallel);
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2138,11 +2584,11 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         0.0,
                         c, 0, 0,
                         alglib::parallel);
-                    time_glob_smp_loc_smp += alglib_impl::_tickcount()-t0;
+                    time_glob_smp_loc_smp += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     
                     // global parallel, nworkers=1
-                    t0 = alglib_impl::_tickcount();
+                    t0 = alglib_impl::ae_tickcount();
                     alglib::setglobalthreading(alglib::parallel);
                     alglib::setnworkers(1);
                     alglib::rmatrixgemm(
@@ -2152,7 +2598,7 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         b, 0, 0, 0,
                         0.0,
                         c, 0, 0);
-                    time_glob_smp_nw1 += alglib_impl::_tickcount()-t0;
+                    time_glob_smp_nw1 += alglib_impl::ae_tickcount()-t0;
                     alglib::_ae_set_global_threading(default_global_threading); // restore
                     alglib::setnworkers(default_nworkers);
                 }
@@ -2186,6 +2632,10 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
             printf(fmt_str, "* test skipped (no SMP)", "??");
             fflush(stdout);
         }
+#else
+    printf(fmt_str, "* test skipped (too slow for Valgrind)", "??");
+    fflush(stdout);
+#endif
     }
 
     //
@@ -2583,9 +3033,270 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
     }
     
     //
+    // Parallel optimizers
+    //
+    printf("Parallel optimizers:\n");
+    fflush(stdout);
+    {
+#if (AE_OS==AE_UNKNOWN) || defined(ALGLIB_DO_NOT_TEST_ACTUAL_PARALLELISM)
+        bool test_parallel_speedup = false;
+#else
+        bool test_parallel_speedup = alglib_impl::ae_cores_count()>1;
+#endif
+        const double diff_step = 0.0001;
+        const double rosenbrock_parameter = 2.0;
+        const double ftol_lbfgs = 1.0e-10;
+        int i, n, npoints, nparams, ncoord;
+        double f;
+        alglib::real_1d_array x0, xf;
+        bool test_failed;
+        
+        //
+        // Test LBFGS serial and parallel numerical differentiation
+        //
+        int local_counter;
+        test_failed = false;
+        n = 2;
+        local_counter = 0;
+        for(int global_cb_parallelism=0; global_cb_parallelism<=2; global_cb_parallelism++)
+            for(int local_cb_parallelism=0; local_cb_parallelism<=2; local_cb_parallelism++)
+            {
+                //
+                // determine parallelism parameters
+                //
+                alglib::xparams _cbk_map[]  = { alglib::xdefault, alglib::serial_callbacks, alglib::parallel_callbacks };
+                alglib::xparams _add1_map[] = { alglib::xdefault, alglib::serial, alglib::parallel, alglib::xdefault };
+                alglib::xparams _add2_map[] = { alglib::serial, alglib::parallel, alglib::xdefault, alglib::parallel, alglib::serial };
+                //
+                alglib::xparams xglb = _cbk_map[global_cb_parallelism] | _add1_map[local_counter%4];
+                alglib::xparams xloc = _cbk_map[ local_cb_parallelism] | _add2_map[local_counter%5];
+                bool are_callbacks_parallel = local_cb_parallelism==2 || (local_cb_parallelism==0 && global_cb_parallelism==2);
+                local_counter++;
+                
+                //
+                // Solve with current parallelism settings
+                //
+                alglib::minlbfgsstate state0;
+                alglib::minlbfgsreport rep0;
+                paracbck_rosenbrock_problem problem0(n,rosenbrock_parameter);
+                x0.setlength(n);
+                for(i=0; i<n; i++)
+                    x0[i] = 0;
+                alglib_impl::ae_int_t t0 = alglib_impl::ae_tickcount();
+                alglib::minlbfgscreatef(n, imin(n,2), x0, diff_step, state0);
+                alglib::setglobalthreading(xglb);
+                alglib::minlbfgsoptimize(state0, paracbck_rosenbrock_func, NULL, &problem0, xloc);
+                alglib::minlbfgsresults(state0, xf, rep0);
+                paracbck_rosenbrock_func(xf, f, &problem0);
+                if( test_parallel_speedup && are_callbacks_parallel && !problem0.parallelism_detected )
+                {
+                    printf(">>> MINLBFGS: alglib::parallel_callbacks are processed sequentially\n");
+                    test_failed =  true;
+                }
+                if( problem0.parallelism_detected && !are_callbacks_parallel )
+                {
+                    printf(">>> MINLBFGS: alglib::serial_callbacks are parallelized\n");
+                    test_failed =  true;
+                }
+                if( f>ftol_lbfgs )
+                {
+                    printf(">>> MINLBFGS: optimizer failed\n");
+                    test_failed =  true;
+                }
+            }
+        alglib::setglobalthreading(alglib::xdefault); // restore defaults
+        {
+            //
+            // Test various crash scenarios
+            //
+            for(int cc=1; cc<=3; cc++)
+                for(int cbtype=0; cbtype<2; cbtype++)
+                {
+                    alglib::minlbfgsstate state0;
+                    alglib::minlbfgsreport rep0;
+                    paracbck_rosenbrock_problem problem0(n,rosenbrock_parameter);
+                    problem0.countdown = cc;
+                    x0.setlength(n);
+                    for(i=0; i<n; i++)
+                        x0[i] = 0;
+                    alglib::minlbfgscreatef(n, imin(n,2), x0, diff_step, state0);
+                    try
+                    {
+                        alglib::minlbfgsoptimize(state0, paracbck_rosenbrock_func, NULL, &problem0, cbtype==0 ? alglib::serial_callbacks : alglib::parallel_callbacks);
+                        test_failed =  true;
+                        printf(">>> MINLBFGS: incorrect exception handling in callbacks\n");
+                    }
+                    catch(alglib::ap_error e)
+                    {
+                    }
+                }
+        }
+        printf(fmt_str, "* minlbfgs (D-protocol)", test_failed ? "FAILED" : (test_parallel_speedup?"OK":"WEAK OK"));
+        fflush(stdout);
+        if( test_failed )
+            return 1;
+        
+        
+        //
+        // Test MINLM
+        //
+        test_failed = false;
+        for(int ptype=0; ptype<=1; ptype++)
+            for(int cbtype=0; cbtype<=1; cbtype++)
+                for(int ndup=1; ndup<=2; ndup++)
+                    {   
+                        //
+                        // Test serial and parallel numerical differentiation, serial and parallel Jacobians.
+                        //
+                        nparams = 3;
+                        const double ftol = 0.02;
+                        const int    maxits = 2; // just two iterations in order to be able to catch convergence problems due to errors in gradients
+                        //
+                        alglib::minlmstate state0;
+                        alglib::minlmreport rep0;
+                        alglib::real_1d_array cv;
+                        paracbck_minlm_f0_problem problem0(nparams, ndup);
+                        x0.setlength(nparams);
+                        for(i=0; i<nparams; i++)
+                            x0[i] = 0;
+                        
+                        // modify problem statement according to the duplication factor: either use raw matrix
+                        // produced by the generator, or replace each point f(x)=y with a pair f(x)=y-EPS / f(x)=y+EPS
+                        if( cbtype==0 )
+                        {
+                            problem0.delay = 10;
+                            alglib::minlmcreatev(nparams, problem0.a.rows(), x0, diff_step, state0);
+                            alglib::minlmsetcond(state0, 0.0, maxits);
+                            alglib::minlmoptimize(state0, paracbck_minlmf0_fvec, NULL, &problem0, ptype==0 ? alglib::serial_callbacks : alglib::parallel_callbacks);
+                        }
+                        else
+                        {
+                            problem0.delay = 10;
+                            alglib::minlmcreatevj(nparams, problem0.a.rows(), x0, state0);
+                            alglib::minlmsetcond(state0, 0.0, maxits);
+                            alglib::minlmoptimize(state0, paracbck_minlmf0_fvec, paracbck_minlmf0_jac, NULL, &problem0, ptype==0 ? alglib::serial_callbacks : alglib::parallel_callbacks);
+                        }
+                        alglib::minlmresults(state0, xf, rep0);
+                        cv.setlength(problem0.a.rows());
+                        paracbck_minlmf0_fvec(xf, cv, &problem0);
+                        for(int i=0; i<problem0.a.rows(); i++)
+                            if( fabs(cv[i])>ftol )
+                            {
+                                printf(">>> MINLM: optimizer failed\n");
+                                printf("%.3e\n", fabs(cv[i]));
+                                test_failed = true;
+                            }
+                        if( ptype==0 && problem0.parallelism_detected )
+                        {
+                            printf(">>> MINLM: alglib::serial_callbacks are processed in parallel\n");
+                            test_failed =  true;
+                        }
+                        if( test_parallel_speedup && cbtype==0 && ptype!=0 && !problem0.parallelism_detected )
+                        {
+                            printf(">>> MINLM: alglib::parallel_callbacks are processed serially\n");
+                            test_failed =  true;
+                        }
+                    }
+        printf(fmt_str, "* minlm (B-, D- protocols)", test_failed ? "FAILED" : (test_parallel_speedup?"OK":"WEAK OK"));
+        fflush(stdout);
+        if( test_failed )
+            return 1;
+        
+        //
+        // Test LSFIT
+        //
+        test_failed = false;
+        for(int ptype=0; ptype<=1; ptype++)
+            for(int cbtype=0; cbtype<=1; cbtype++)
+                for(int ndup=1; ndup<=2; ndup++)
+                    for(int stype=-1; stype<=+1; stype++)
+                    {
+                        //
+                        // Test serial and parallel numerical differentiation, serial and parallel gradients.
+                        //
+                        nparams = 3;
+                        ncoord  = nparams+stype;
+                        const double ftol = 0.02;
+                        const int    maxits = 2; // just two iterations in order to be able to catch convergence problems due to errors in gradients
+                        //
+                        alglib::lsfitstate state0;
+                        alglib::lsfitreport rep0;
+                        alglib::real_1d_array cv;
+                        paracbck_lsfit_f0_problem problem0(nparams, ncoord);
+                        x0.setlength(nparams);
+                        for(i=0; i<nparams; i++)
+                            x0[i] = 0;
+                        
+                        // modify problem statement according to the duplication factor: either use raw matrix
+                        // produced by the generator, or replace each point f(x)=y with a pair f(x)=y-EPS / f(x)=y+EPS
+                        alglib::real_2d_array moda = problem0.a;
+                        alglib::real_1d_array mody = problem0.y;
+                        if( ndup==2 )
+                        {
+                            moda.setlength(2*problem0.a.rows(), problem0.a.cols());
+                            mody.setlength(2*problem0.a.rows());
+                            for(int i=0; i<problem0.a.rows(); i++)
+                            {
+                                for(int j=0; j<problem0.a.cols(); j++)
+                                {
+                                    moda[2*i+0][j] = problem0.a[i][j];
+                                    moda[2*i+1][j] = problem0.a[i][j];
+                                }
+                                double eps = sin(117*i+0.65);
+                                mody[2*i+0] = problem0.y[i]+eps;
+                                mody[2*i+1] = problem0.y[i]-eps;
+                            }
+                        }
+                        if( cbtype==0 )
+                        {
+                            problem0.delay = 10;
+                            alglib::lsfitcreatef(moda, mody, x0, moda.rows(), moda.cols(), nparams, diff_step, state0);
+                            alglib::lsfitsetcond(state0, 0.0, maxits);
+                            alglib::lsfitfit(state0, paracbck_lsfitf0_func, NULL, &problem0, ptype==0 ? alglib::serial_callbacks : alglib::parallel_callbacks);
+                        }
+                        else
+                        {
+                            problem0.delay = 10;
+                            alglib::lsfitcreatefg(moda, mody, x0, moda.rows(), moda.cols(), nparams, state0);
+                            alglib::lsfitsetcond(state0, 0.0, maxits);
+                            alglib::lsfitfit(state0, paracbck_lsfitf0_func, paracbck_lsfitf0_grad, NULL, &problem0, ptype==0 ? alglib::serial_callbacks : alglib::parallel_callbacks);
+                        }
+                        alglib::lsfitresults(state0, xf, rep0);
+                        cv.setlength(problem0.a.cols());
+                        for(int i=0; i<problem0.a.rows(); i++)
+                        {
+                            for(int j=0; j<problem0.a.cols(); j++)
+                                cv[j] = problem0.a[i][j];
+                            paracbck_lsfitf0_func(xf, cv, f, &problem0);
+                            if( fabs(f-problem0.y[i])>ftol )
+                            {
+                                printf(">>> LSFIT: optimizer failed\n");
+                                printf("%.3e\n", fabs(f-problem0.y[i]));
+                                test_failed = true;
+                            }
+                        }
+                        if( ptype==0 && problem0.parallelism_detected )
+                        {
+                            printf(">>> LSFIT: alglib::serial_callbacks are processed in parallel\n");
+                            test_failed =  true;
+                        }
+                        if( test_parallel_speedup && ptype!=0 && !problem0.parallelism_detected )
+                        {
+                            printf(">>> LSFIT: alglib::parallel_callbacks are processed serially\n");
+                            test_failed =  true;
+                        }
+                    }
+        printf(fmt_str, "* lsfit (B-, D- protocols)", test_failed ? "FAILED" : (test_parallel_speedup?"OK":"WEAK OK"));
+        fflush(stdout);
+        if( test_failed )
+            return 1;
+    }
+
+    //
     // Performance testing
     //
     printf("Performance:\n");
+#if !defined(ALGLIB_NO_EXPENSIVE_XTESTS)
     {
         {
             int _n[]       = { 16, 32, 64, 1024, 0};
@@ -2618,7 +3329,7 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         c[i][j] = 0.0;
                     }
                 
-                t = alglib_impl::_tickcount();
+                t = alglib_impl::ae_tickcount();
                 for(k=0; k<nrepeat; k++)
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2627,12 +3338,12 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         b, 0, 0, (k/2)%2,
                         0.0,
                         c, 0, 0);
-                t = alglib_impl::_tickcount()-t;
+                t = alglib_impl::ae_tickcount()-t;
                 perf0 = 1.0E-6*pow((double)n,3)*2.0*nrepeat/(0.001*t);
                 printf("* RGEMM-SEQ-%-4ld (MFLOPS)  %5.0lf\n", (long)n, (double)perf0);
                 
                 alglib::setnworkers(0);
-                t = alglib_impl::_tickcount();
+                t = alglib_impl::ae_tickcount();
                 for(k=0; k<nrepeat; k++)
                     alglib::rmatrixgemm(
                         n, n, n,
@@ -2641,7 +3352,7 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
                         b, 0, 0, (k/2)%2,
                         0.0,
                         c, 0, 0, alglib::parallel);
-                t = alglib_impl::_tickcount()-t;
+                t = alglib_impl::ae_tickcount()-t;
                 perf2 = 1.0E-6*pow((double)n,3)*2.0*nrepeat/(0.001*t);
                 printf("* RGEMM-MTN-%-4ld           %4.1lfx\n", (long)n, (double)(perf2/perf0));
                 alglib::setnworkers(1);
@@ -2649,6 +3360,10 @@ AECfwTIX814 00000000q04 Big__6hwt04 nSPzmAQrh_B 2H3o-KftH14 \
             }
         }
     }
+#else
+    printf(fmt_str, "* test skipped (too slow for Valgrind)", "??");
+    fflush(stdout);
+#endif
     
     //
     // Check allocation counter on exit
